@@ -1,1 +1,2 @@
+export NODE_OPTIONS="--import ./scripts/eslint-ts6-loader.mjs"
 pnpm exec lint-staged

@@ -93,7 +93,7 @@
   },
   "lint-staged": {
     "*.{ts,tsx,mjs}": [
-      "eslint --fix",
+      "node --import ./scripts/eslint-ts6-loader.mjs ./node_modules/eslint/bin/eslint.js --fix",
       "prettier --write"
     ],
     "*.{json,md,css}": [
