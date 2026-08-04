@@ -1,0 +1,444 @@
+// =============================================================================
+// GSTTool Schema — Simplified Marketplace to GSTR-1 Converter
+// =============================================================================
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// -----------------------------------------------------------------------------
+// Authentication Models (Better Auth compatible)
+// -----------------------------------------------------------------------------
+
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  role          String    @default("USER") // "USER", "ADMIN"
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  sessions    Session[]
+  accounts    Account[]
+  profiles        GstinProfile[]
+  ecoOperators    EcoOperatorGstin[]
+  conversions     ConversionHistory[]
+  mappingProfiles MappingProfile[]
+  settings        UserSettings?
+
+  wallet             Wallet?
+  rechargeOrders     RechargeOrder[]
+  referralCode       ReferralCode?
+  referralTokens     ReferralToken[]
+  referralsMade      Referral[]             @relation("Referrer")
+  referralReceived   Referral?              @relation("Referee")
+  subscription       Subscription?
+  auditLogs          AuditLog[]
+  creditCodesCreated CreditCode[]
+  codeRedemptions    CreditCodeRedemption[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime @map("expires_at") @db.Timestamptz
+  token     String   @unique
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  userId    String   @map("user_id")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  userId                String    @map("user_id")
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at") @db.Timestamptz
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at") @db.Timestamptz
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("account")
+}
+
+model Verification {
+  id         String    @id
+  identifier String
+  value      String
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz
+  createdAt  DateTime? @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime? @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("verification")
+}
+
+// -----------------------------------------------------------------------------
+// GST Profiles & Company Details
+// -----------------------------------------------------------------------------
+
+model GstinProfile {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id")
+  gstinNumber String   @map("gstin_number")
+  legalName   String   @map("legal_name")
+  tradeName   String?  @map("trade_name")
+  stateCode   String   @map("state_code")
+  stateName   String   @map("state_name")
+  isDefault   Boolean  @default(false) @map("is_default")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([gstinNumber])
+  @@map("gstin_profile")
+}
+
+/// The GSTIN of a marketplace operator, as it applies to one of the seller's own GSTINs.
+///
+/// Most marketplace exports omit the operator's GSTIN entirely (Amazon's MTR has no such
+/// column), which leaves GSTR-1 Table 14 unfillable from the file alone. Operators register
+/// separately in each state, so the value depends on which of the seller's GSTINs is filing —
+/// hence the composite key rather than a column on the platform.
+model EcoOperatorGstin {
+  id String @id @default(uuid()) @db.Uuid
+
+  userId String @map("user_id")
+  /// The seller's own GSTIN this mapping applies to.
+  gstinNumber String @map("gstin_number")
+  platformId  String @map("platform_id")
+  ecoGstin    String @map("eco_gstin")
+  ecoName     String @map("eco_name")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, gstinNumber, platformId])
+  @@index([userId])
+  @@map("eco_operator_gstin")
+}
+
+// -----------------------------------------------------------------------------
+// Conversion History Log
+// -----------------------------------------------------------------------------
+
+model ConversionHistory {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @map("user_id")
+  gstinNumber    String   @map("gstin_number")
+  returnPeriod   String   @map("return_period") // Format: MMYYYY e.g., "072025"
+  platformId     String   @map("platform_id") // e.g., "amazon", "flipkart", "meesho"
+  fileName       String   @map("file_name")
+  totalInvoices  Int      @default(0) @map("total_invoices")
+  totalTaxable   Decimal  @default(0) @map("total_taxable") @db.Decimal(18, 2)
+  totalTax       Decimal  @default(0) @map("total_tax") @db.Decimal(18, 2)
+  status           String   @default("COMPLETED") // "COMPLETED", "FAILED"
+  tcsStatus        String   @default("NOT_RECONCILED") @map("tcs_status")
+  processingTimeMs Int      @default(0) @map("processing_time_ms")
+  jsonPayload      Json?    @map("json_payload")
+  normalizedData   Json?    @map("normalized_data")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([gstinNumber])
+  @@index([createdAt])
+  @@map("conversion_history")
+}
+
+// -----------------------------------------------------------------------------
+// Saved Custom Column Mapping Profiles
+// -----------------------------------------------------------------------------
+
+model MappingProfile {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id")
+  name        String
+  platformId  String   @map("platform_id")
+  mappings    Json     @map("mappings") // Record<string, string>
+  isDefault   Boolean  @default(false) @map("is_default")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([platformId])
+  @@map("mapping_profile")
+}
+
+// -----------------------------------------------------------------------------
+// User System Preferences
+// -----------------------------------------------------------------------------
+
+model UserSettings {
+  id                 String   @id @default(uuid()) @db.Uuid
+  userId             String   @unique @map("user_id")
+  defaultGstin       String?  @map("default_gstin")
+  defaultPeriod      String?  @map("default_period")
+  autoDetectPlatform Boolean  @default(true) @map("auto_detect_platform")
+  autoSaveMapping    Boolean  @default(true) @map("auto_save_mapping")
+  theme              String   @default("system")
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+}
+
+// -----------------------------------------------------------------------------
+// Billing — Wallet & Credit Ledger
+//
+// 1 Credit = ₹1. Credits are Int: exact arithmetic, and they serialize cleanly
+// across the Server → Client Component boundary (unlike Decimal).
+//
+// INVARIANT: `Wallet.balance` is never written outside `wallet.service.ts`.
+// Every change goes through creditWallet/debitWallet, which write a
+// WalletTransaction row in the same $transaction. The ledger is the source of
+// truth; the balance is a materialised running total.
+// -----------------------------------------------------------------------------
+
+model Wallet {
+  id                  String   @id @default(uuid()) @db.Uuid
+  userId              String   @unique @map("user_id")
+  balance             Int      @default(0)
+  lifetimeRecharged   Int      @default(0) @map("lifetime_recharged")
+  lifetimeUsed        Int      @default(0) @map("lifetime_used")
+  bonusEarned         Int      @default(0) @map("bonus_earned")
+  referralEarned      Int      @default(0) @map("referral_earned")
+  adminCredited       Int      @default(0) @map("admin_credited")
+  freeGenerationsUsed Int      @default(0) @map("free_generations_used")
+  isFrozen            Boolean  @default(false) @map("is_frozen")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions WalletTransaction[]
+
+  @@map("wallet")
+}
+
+model WalletTransaction {
+  id            String   @id @default(uuid()) @db.Uuid
+  walletId      String   @map("wallet_id") @db.Uuid
+  // "RECHARGE" | "BONUS" | "GENERATION" | "REFERRAL_REWARD" | "ADMIN_CREDIT"
+  // | "REFUND" | "ADJUSTMENT" | "PROMO_CODE" | "CAMPAIGN" | "FREE_TRIAL"
+  type          String
+  creditAmount  Int      @map("credit_amount") // signed: negative for debits
+  balanceBefore Int      @map("balance_before")
+  balanceAfter  Int      @map("balance_after")
+  description   String
+  referenceId   String?  @map("reference_id") // order id / conversion id / referral id
+  metadata      Json?
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([walletId])
+  @@index([createdAt])
+  @@index([type])
+  @@map("wallet_transaction")
+}
+
+// -----------------------------------------------------------------------------
+// Billing — Razorpay Recharge Orders
+// -----------------------------------------------------------------------------
+
+model RechargeOrder {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @map("user_id")
+  razorpayOrderId   String   @unique @map("razorpay_order_id")
+  razorpayPaymentId String?  @map("razorpay_payment_id")
+  amount            Int // rupees, equals base credits
+  bonusCredits      Int      @default(0) @map("bonus_credits")
+  totalCredits      Int      @map("total_credits")
+  status            String   @default("CREATED") // "CREATED", "PAID", "FAILED"
+  // Written inside the same $transaction that credits the wallet. The unique
+  // constraint is what makes webhook settlement idempotent against replays.
+  webhookEventId    String?  @unique @map("webhook_event_id")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@map("recharge_order")
+}
+
+// -----------------------------------------------------------------------------
+// Billing — Referrals
+// -----------------------------------------------------------------------------
+
+model ReferralCode {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @unique @map("user_id")
+  code      String   @unique // e.g. "GSTP-4D82FK"
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("referral_code")
+}
+
+model ReferralToken {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @map("user_id")
+  token        String    @unique
+  expiresAt    DateTime  @map("expires_at") @db.Timestamptz
+  usedByUserId String?   @map("used_by_user_id")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("referral_token")
+}
+
+model Referral {
+  id            String    @id @default(uuid()) @db.Uuid
+  referrerId    String    @map("referrer_id")
+  // Unique: one account can only ever be referred once.
+  refereeId     String    @unique @map("referee_id")
+  codeUsed      String    @map("code_used")
+  status        String    @default("PENDING") // "PENDING", "REWARDED", "BLOCKED"
+  rewardedAt    DateTime? @map("rewarded_at") @db.Timestamptz
+  refereeGstin  String?   @map("referee_gstin")
+  refereeMobile String?   @map("referee_mobile")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  referrer User @relation("Referrer", fields: [referrerId], references: [id], onDelete: Cascade)
+  referee  User @relation("Referee", fields: [refereeId], references: [id], onDelete: Cascade)
+
+  @@index([referrerId])
+  @@index([status])
+  @@map("referral")
+}
+
+// -----------------------------------------------------------------------------
+// Billing — Admin-issued Credit Codes
+//
+// Hand-issued gifts (developers, testers, campaigns). No bonus slab applies:
+// a 500-credit code grants exactly 500 credits. Redeeming one does NOT settle
+// a pending referral — only a real Razorpay payment does.
+// -----------------------------------------------------------------------------
+
+model CreditCode {
+  id              String    @id @default(uuid()) @db.Uuid
+  code            String    @unique
+  credits         Int
+  maxRedemptions  Int       @default(1) @map("max_redemptions")
+  redemptionCount Int       @default(0) @map("redemption_count")
+  expiresAt       DateTime? @map("expires_at") @db.Timestamptz
+  isActive        Boolean   @default(true) @map("is_active")
+  note            String?
+  createdById     String    @map("created_by_id")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  createdBy   User                   @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  redemptions CreditCodeRedemption[]
+
+  @@index([isActive])
+  @@map("credit_code")
+}
+
+model CreditCodeRedemption {
+  id           String   @id @default(uuid()) @db.Uuid
+  creditCodeId String   @map("credit_code_id") @db.Uuid
+  userId       String   @map("user_id")
+  credits      Int
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  creditCode CreditCode @relation(fields: [creditCodeId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Race guard: an account cannot redeem the same code twice, even concurrently.
+  @@unique([creditCodeId, userId])
+  @@index([userId])
+  @@map("credit_code_redemption")
+}
+
+// -----------------------------------------------------------------------------
+// Billing — Admin-editable Configuration
+//
+// Bonus slabs, recharge packs, generation cost, referral rewards, free-trial
+// limits and seasonal campaigns all live here so admin can change pricing with
+// no code change and no deploy. Constants in features/billing/constants are
+// only the seeded defaults / fallback.
+// -----------------------------------------------------------------------------
+
+model BillingConfig {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @unique
+  value     Json
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("billing_config")
+}
+
+// -----------------------------------------------------------------------------
+// Billing — CA Subscription Plans
+// -----------------------------------------------------------------------------
+
+model Subscription {
+  id                     String    @id @default(uuid()) @db.Uuid
+  userId                 String    @unique @map("user_id")
+  plan                   String    @default("FREE") // "FREE", "CA_PRO", "CA_ELITE"
+  status                 String    @default("ACTIVE") // "ACTIVE", "CANCELLED", "EXPIRED"
+  currentPeriodEnd       DateTime? @map("current_period_end") @db.Timestamptz
+  razorpaySubscriptionId String?   @map("razorpay_subscription_id")
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt              DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("subscription")
+}
+
+// -----------------------------------------------------------------------------
+// Billing — Audit Trail
+// -----------------------------------------------------------------------------
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String   @map("actor_id")
+  action     String
+  targetType String   @map("target_type")
+  targetId   String?  @map("target_id")
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  actor User @relation(fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([actorId])
+  @@index([createdAt])
+  @@index([action])
+  @@map("audit_log")
+}
