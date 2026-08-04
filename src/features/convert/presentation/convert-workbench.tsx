@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import type { GstinProfile } from "@/generated/prisma";
+import type { GstinProfile } from "@/generated/prisma/client";
 import type {
   PlatformInfo,
   NormalizedInvoiceRow,

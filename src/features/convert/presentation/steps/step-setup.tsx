@@ -1,6 +1,6 @@
 "use client";
 
-import type { GstinProfile } from "@/generated/prisma";
+import type { GstinProfile } from "@/generated/prisma/client";
 import type { PlatformInfo } from "@/features/convert/types/convert.types";
 import type { MultiConvertState } from "@/features/convert/presentation/convert-workbench";
 import { PLATFORMS_CONFIG } from "@/features/convert/config/platform.config";

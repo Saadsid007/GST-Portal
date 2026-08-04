@@ -1,6 +1,6 @@
 "use client";
 
-import type { GstinProfile } from "@/generated/prisma";
+import type { GstinProfile } from "@/generated/prisma/client";
 import type { MultiConvertState } from "@/features/convert/presentation/convert-workbench";
 import { Building2, ArrowRight, CheckCircle, Plus } from "lucide-react";
 import Link from "next/link";

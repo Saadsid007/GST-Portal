@@ -1,5 +1,9 @@
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@/generated/prisma";
+// The explicit /client entrypoint, not the directory: the generated folder carries no
+// package.json, so a bare directory import relies on index-file resolution that Turbopack's
+// production build does not perform through a tsconfig alias — it builds on Windows and fails
+// on Vercel with "Can't resolve '@/generated/prisma'".
+import { PrismaClient } from "@/generated/prisma/client";
 import { Pool } from "pg";
 import { env } from "@/lib/env";
 

@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import type { Prisma } from "@/generated/prisma";
+import type { Prisma } from "@/generated/prisma/client";
 import { CREDIT_TRANSACTION_TYPES } from "@/features/billing/constants/billing.constants";
 import type { TransactionType } from "@/features/billing/types/billing.types";
 

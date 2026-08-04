@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { Plus, Trash2, Star, Building2, MapPin, Loader2, CheckCircle } from "lucide-react";
-import type { GstinProfile } from "@/generated/prisma";
+import type { GstinProfile } from "@/generated/prisma/client";
 import {
   addGstinProfileAction,
   deleteGstinProfileAction,

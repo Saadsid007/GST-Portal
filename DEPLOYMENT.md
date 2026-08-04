@@ -279,15 +279,16 @@ Iske liye `step-upload.tsx` aur `convert.actions.ts` dono badalne padenge.
 
 ## 7. Troubleshooting
 
-| Error                                     | Wajah                             | Fix                                                               |
-| ----------------------------------------- | --------------------------------- | ----------------------------------------------------------------- |
-| `Cannot find module '@/generated/prisma'` | `postinstall` nahi chala          | `package.json` mein `"postinstall": "prisma generate"` check karo |
-| `DATABASE_URL is not set`                 | Vercel mein variable nahi hai     | Settings → Env Vars → add → redeploy                              |
-| `no pg_hba.conf entry`                    | SSL missing                       | Connection string ke end mein `?sslmode=require` lagao            |
-| Login hota hai par turant logout          | `BETTER_AUTH_URL` galat           | Real Vercel URL daalo, `https://` ke saath, end mein `/` nahi     |
-| `Too many connections`                    | Direct connection use ho raha hai | Pooled URL use karo (`-pooler` wala)                              |
-| `FUNCTION_INVOCATION_TIMEOUT`             | 10s limit                         | Chhote batches, ya Pro plan                                       |
-| `Request Entity Too Large`                | File > 4.5 MB                     | Vercel platform limit — R2 presigned flow chahiye                 |
+| Error                                                         | Wajah                                                              | Fix                                                                |
+| ------------------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| `Cannot find module '@/generated/prisma/client'`              | `postinstall` nahi chala                                           | `package.json` mein `"postinstall": "prisma generate"` check karo  |
+| `Can't resolve '@/generated/prisma'` (Turbopack, Vercel only) | Directory import — generated folder ka koi `package.json` nahi hai | `@/generated/prisma/client` se import karo, bare directory se nahi |
+| `DATABASE_URL is not set`                                     | Vercel mein variable nahi hai                                      | Settings → Env Vars → add → redeploy                               |
+| `no pg_hba.conf entry`                                        | SSL missing                                                        | Connection string ke end mein `?sslmode=require` lagao             |
+| Login hota hai par turant logout                              | `BETTER_AUTH_URL` galat                                            | Real Vercel URL daalo, `https://` ke saath, end mein `/` nahi      |
+| `Too many connections`                                        | Direct connection use ho raha hai                                  | Pooled URL use karo (`-pooler` wala)                               |
+| `FUNCTION_INVOCATION_TIMEOUT`                                 | 10s limit                                                          | Chhote batches, ya Pro plan                                        |
+| `Request Entity Too Large`                                    | File > 4.5 MB                                                      | Vercel platform limit — R2 presigned flow chahiye                  |
 
 ---
 
