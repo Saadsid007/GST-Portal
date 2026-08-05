@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Loader2, Percent, Plus, Save, Sparkles, Ticket, Trash2, Zap } from "lucide-react";
 import {
@@ -29,38 +29,60 @@ const INPUT =
 const BTN =
   "inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 disabled:opacity-50 transition";
 
-export function AdminBillingPanel() {
-  const [config, setConfig] = useState<AdminBillingConfig | null>(null);
+/**
+ * Every billing config section lives behind one server read, so admin screens
+ * declare which slices they want rather than each fetching separately.
+ */
+export type AdminBillingSectionKey =
+  | "generationCost"
+  | "bonusSlabs"
+  | "rechargePacks"
+  | "rewards"
+  | "trial"
+  | "campaign"
+  | "creditCodes"
+  | "walletTools";
 
-  useEffect(() => {
-    void getAdminBillingConfigAction().then((result) => {
-      if (result.success) setConfig(result.data);
-    });
-  }, []);
+/**
+ * `initialConfig` is fetched by the server component that renders this, so the
+ * screen paints with real values instead of flashing a skeleton while a client
+ * effect fetches. Saves re-read from the server and swap in through state.
+ */
+export function AdminBillingSections({
+  sections,
+  initialConfig,
+}: {
+  sections: readonly AdminBillingSectionKey[];
+  initialConfig: AdminBillingConfig;
+}) {
+  const [config, setConfig] = useState<AdminBillingConfig>(initialConfig);
 
-  async function reload() {
+  const reload = useCallback(async () => {
     const result = await getAdminBillingConfigAction();
     if (result.success) setConfig(result.data);
-  }
+    else toast.error("Could not refresh the billing configuration");
+  }, []);
 
-  if (!config) {
-    return <p className="text-xs text-muted-foreground">Loading billing configuration…</p>;
-  }
+  const has = (key: AdminBillingSectionKey) => sections.includes(key);
 
   return (
     <div className="space-y-6">
-      <GenerationCostSection cost={config.generationCost} onSaved={reload} />
-      <BonusSlabsSection slabs={config.slabs} onSaved={reload} />
-      <RechargePacksSection packs={config.packs} onSaved={reload} />
-      <RewardsSection rewards={config.rewards} onSaved={reload} />
-      <TrialSection trial={config.trial} onSaved={reload} />
-      <CampaignSection campaign={config.campaign} onSaved={reload} />
-      <CreditCodesSection
-        codes={config.creditCodes}
-        suggested={config.suggestedCode}
-        onSaved={reload}
-      />
-      <AdminWalletTools />
+      {has("generationCost") && (
+        <GenerationCostSection cost={config.generationCost} onSaved={reload} />
+      )}
+      {has("bonusSlabs") && <BonusSlabsSection slabs={config.slabs} onSaved={reload} />}
+      {has("rechargePacks") && <RechargePacksSection packs={config.packs} onSaved={reload} />}
+      {has("rewards") && <RewardsSection rewards={config.rewards} onSaved={reload} />}
+      {has("trial") && <TrialSection trial={config.trial} onSaved={reload} />}
+      {has("campaign") && <CampaignSection campaign={config.campaign} onSaved={reload} />}
+      {has("creditCodes") && (
+        <CreditCodesSection
+          codes={config.creditCodes}
+          suggested={config.suggestedCode}
+          onSaved={reload}
+        />
+      )}
+      {has("walletTools") && <AdminWalletTools />}
     </div>
   );
 }

@@ -1,194 +1,204 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
+import { FileSpreadsheet, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  LayoutDashboard,
-  Building2,
-  History,
-  Settings,
-  FileSpreadsheet,
-  LogOut,
-  Menu,
-  Moon,
-  Sun,
-  ChevronRight,
-  X,
-  Zap,
-  Wallet,
-  ShieldCheck,
-} from "lucide-react";
-import { useTheme } from "next-themes";
-import { authClient } from "@/lib/auth-client";
-import { toast } from "sonner";
+import { NAV_GROUPS, isItemActive, type NavGroup } from "@/config/navigation";
+import { AppHeader } from "@/components/app-header";
+import { SITE } from "@/config/site";
+import { createPersistedToggle } from "@/lib/persisted-toggle";
+
+const sidebarCollapsed = createPersistedToggle("gstpilot.sidebar.collapsed");
 
 interface AppShellProps {
   children: React.ReactNode;
   user: { name: string; email: string };
-  showAdmin?: boolean;
+  isAdmin?: boolean;
+  credits?: number | null;
 }
 
-const NAV = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "GST Profile", href: "/profile", icon: Building2 },
-  { label: "Convert", href: "/convert", icon: Zap, accent: true },
-  { label: "History", href: "/history", icon: History },
-  { label: "Wallet", href: "/billing", icon: Wallet },
-  { label: "Settings", href: "/settings", icon: Settings },
-];
-
-const ADMIN_NAV = { label: "Admin", href: "/admin", icon: ShieldCheck };
-
-export function AppShell({ children, user, showAdmin = false }: AppShellProps) {
+export function AppShell({ children, user, isAdmin = false, credits }: AppShellProps) {
   const pathname = usePathname();
-  const router = useRouter();
-  const { theme, setTheme } = useTheme();
   const [drawerOpen, setDrawerOpen] = useState(false);
-  // The theme is only known on the client, so the first paint must match the server HTML.
-  const mounted = useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false
+
+  const collapsed = useSyncExternalStore(
+    sidebarCollapsed.subscribe,
+    sidebarCollapsed.getSnapshot,
+    sidebarCollapsed.getServerSnapshot
   );
 
-  async function handleSignOut() {
-    await authClient.signOut();
-    toast.success("Signed out");
-    router.push("/login");
-    router.refresh();
-  }
+  const toggleCollapse = useCallback(() => sidebarCollapsed.toggle(), []);
+  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
 
-  const sidebar = (
-    <>
-      {/* Logo */}
-      <div className="flex items-center gap-2 border-b border-border px-4 py-5">
-        <div className="flex size-8 flex-shrink-0 items-center justify-center rounded-lg brand-gradient shadow-accent">
-          <FileSpreadsheet className="size-4 text-primary-foreground" />
-        </div>
-        <div className="min-w-0">
-          <p className="truncate text-sm leading-none font-bold">GSTTool</p>
-          <p className="mt-0.5 truncate text-[10px] leading-none text-muted-foreground">
-            Marketplace → GSTR-1
-          </p>
-        </div>
-      </div>
+  // Escape closes the drawer, and body scroll is locked while it is open.
+  useEffect(() => {
+    if (!drawerOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setDrawerOpen(false);
+    }
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [drawerOpen]);
 
-      {/* Navigation */}
-      <nav className="flex-1 space-y-1 px-3 py-4">
-        {[...NAV, ...(showAdmin ? [ADMIN_NAV] : [])].map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => setDrawerOpen(false)}
-              className={cn(
-                // The left rail marks the active route even when the row is scrolled
-                // past the icon on a narrow drawer.
-                "group relative flex items-center gap-2.5 overflow-hidden rounded-lg px-3 py-2 text-sm font-medium transition-all",
-                "before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-full before:bg-primary-foreground/70 before:transition-opacity",
-                isActive
-                  ? "brand-gradient text-primary-foreground shadow-sm before:opacity-100"
-                  : "accent" in item && item.accent
-                    ? "border border-dashed border-primary/40 text-primary-ink before:opacity-0 hover:border-primary/70 hover:bg-primary/10"
-                    : "text-muted-foreground before:opacity-0 hover:translate-x-0.5 hover:bg-accent hover:text-foreground"
-              )}
-            >
-              <item.icon
-                className={cn(
-                  "size-4 flex-shrink-0 transition-transform",
-                  !isActive && "group-hover:scale-110"
-                )}
-              />
-              <span className="flex-1 truncate">{item.label}</span>
-              {isActive && <ChevronRight className="size-3 flex-shrink-0" />}
-            </Link>
-          );
-        })}
-      </nav>
-
-      {/* Bottom */}
-      <div className="space-y-1 border-t border-border px-3 pt-4 pb-4">
-        <button
-          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground transition hover:bg-accent hover:text-foreground"
-        >
-          {mounted && theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
-          <span>{mounted && theme === "dark" ? "Light Mode" : "Dark Mode"}</span>
-        </button>
-
-        <button
-          onClick={handleSignOut}
-          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
-        >
-          <LogOut className="size-4" />
-          <span>Sign Out</span>
-        </button>
-
-        {/* User info */}
-        <div className="mt-2 flex items-center gap-2 px-3 py-2">
-          <div className="flex size-7 flex-shrink-0 items-center justify-center rounded-full bg-primary/20">
-            <span className="text-xs font-bold text-primary-ink">
-              {user.name?.[0]?.toUpperCase() ?? "U"}
-            </span>
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-xs font-semibold">{user.name}</p>
-            <p className="truncate text-[10px] text-muted-foreground">{user.email}</p>
-          </div>
-        </div>
-      </div>
-    </>
-  );
+  const groups = NAV_GROUPS.filter((g) => !g.adminOnly || isAdmin);
 
   return (
     <div className="flex min-h-screen bg-background">
-      {/* Desktop rail. Below md the same markup is rendered in the drawer instead — a permanently
-          visible 224px rail leaves 151px of content on a 375px phone. */}
-      <aside className="hidden w-56 flex-shrink-0 flex-col border-r border-border bg-sidebar-background md:flex">
-        {sidebar}
+      {/* Desktop sidebar */}
+      <aside
+        className={cn(
+          "hidden flex-shrink-0 flex-col border-r border-sidebar-border bg-sidebar-background transition-[width] duration-300 ease-[var(--ease-standard)] lg:flex",
+          collapsed ? "w-[68px]" : "w-64"
+        )}
+      >
+        <SidebarContent groups={groups} pathname={pathname} collapsed={collapsed} />
       </aside>
 
+      {/* Mobile drawer */}
       {drawerOpen && (
-        <div className="fixed inset-0 z-50 md:hidden">
+        <div className="fixed inset-0 z-50 lg:hidden">
           <button
             type="button"
             aria-label="Close navigation"
             onClick={() => setDrawerOpen(false)}
-            className="absolute inset-0 bg-black/50"
+            className="absolute inset-0 bg-foreground/40 backdrop-blur-sm"
           />
-          <aside className="absolute inset-y-0 left-0 flex w-64 max-w-[85vw] animate-slide-in flex-col border-r border-border bg-sidebar-background shadow-xl">
-            {sidebar}
+          <aside className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] animate-slide-in flex-col border-r border-sidebar-border bg-sidebar-background shadow-xl">
+            <button
+              type="button"
+              onClick={closeDrawer}
+              aria-label="Close navigation"
+              className="absolute top-4 right-3 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <X className="size-4" />
+            </button>
+            {/* Closing on link click rather than on a pathname effect: tapping a
+                link must not leave the overlay covering the page beneath it. */}
+            <SidebarContent
+              groups={groups}
+              pathname={pathname}
+              collapsed={false}
+              onNavigate={closeDrawer}
+            />
           </aside>
         </div>
       )}
 
-      {/* min-w-0 is load-bearing: without it a wide table makes this flex item grow past the
-          viewport and scroll the whole document sideways instead of scrolling inside itself. */}
+      {/* min-w-0 is load-bearing: without it a wide table grows this flex item
+          past the viewport and scrolls the whole document sideways. */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-40 flex items-center gap-2 border-b border-border bg-card/95 px-4 py-3 backdrop-blur md:hidden">
-          <button
-            type="button"
-            onClick={() => setDrawerOpen(true)}
-            aria-label="Open navigation"
-            className="flex size-9 items-center justify-center rounded-lg border border-border transition hover:bg-accent"
-          >
-            {drawerOpen ? <X className="size-4" /> : <Menu className="size-4" />}
-          </button>
-          <div className="flex min-w-0 items-center gap-2">
-            <div className="flex size-7 flex-shrink-0 items-center justify-center rounded-lg brand-gradient">
-              <FileSpreadsheet className="size-3.5 text-primary-foreground" />
-            </div>
-            <p className="truncate text-sm font-bold">GSTTool</p>
-          </div>
-        </header>
-
-        <main className="flex-1 overflow-auto">
-          <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">{children}</div>
+        <AppHeader
+          user={user}
+          isAdmin={isAdmin}
+          credits={credits}
+          collapsed={collapsed}
+          onOpenMobileNav={() => setDrawerOpen(true)}
+          onToggleCollapse={toggleCollapse}
+        />
+        <main className="flex-1">
+          <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">{children}</div>
         </main>
       </div>
     </div>
+  );
+}
+
+function SidebarContent({
+  groups,
+  pathname,
+  collapsed,
+  onNavigate,
+}: {
+  groups: NavGroup[];
+  pathname: string;
+  collapsed: boolean;
+  onNavigate?: () => void;
+}) {
+  return (
+    <>
+      <div
+        className={cn(
+          "flex h-16 flex-shrink-0 items-center gap-2.5 border-b border-sidebar-border",
+          collapsed ? "justify-center px-2" : "px-4"
+        )}
+      >
+        <Link href="/dashboard" className="flex min-w-0 items-center gap-2.5" title={SITE.name}>
+          <span className="flex size-8 flex-shrink-0 items-center justify-center rounded-lg brand-gradient text-primary-foreground shadow-accent">
+            <FileSpreadsheet className="size-4" aria-hidden />
+          </span>
+          {!collapsed && (
+            <span className="min-w-0">
+              <span className="block truncate text-sm leading-none font-bold">{SITE.name}</span>
+              <span className="mt-1 block truncate font-mono text-[10px] leading-none text-muted-foreground">
+                {SITE.tagline}
+              </span>
+            </span>
+          )}
+        </Link>
+      </div>
+
+      <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4">
+        {groups.map((group) => (
+          <div key={group.id}>
+            {!collapsed && (
+              <p className="px-2 pb-1.5 text-[10px] font-semibold tracking-wider text-muted-foreground/80 uppercase">
+                {group.label}
+              </p>
+            )}
+            {/* A hairline stands in for the group label when collapsed, so the
+                rail keeps its grouping instead of becoming one long list. */}
+            {collapsed && <div className="mx-2 mb-2 h-px bg-sidebar-border" aria-hidden />}
+
+            <ul className="space-y-0.5">
+              {group.items.map((item) => {
+                const active = isItemActive(pathname, item.href);
+                return (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      onClick={onNavigate}
+                      aria-current={active ? "page" : undefined}
+                      title={collapsed ? item.label : undefined}
+                      className={cn(
+                        "group relative flex items-center gap-2.5 rounded-lg text-sm font-medium transition-colors duration-200",
+                        collapsed ? "justify-center px-2 py-2.5" : "px-2.5 py-2",
+                        active
+                          ? "bg-primary/12 text-primary-ink"
+                          : item.accent
+                            ? "text-primary-ink hover:bg-primary/10"
+                            : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                      )}
+                    >
+                      {/* Active rail — the marker that survives a squint test. */}
+                      <span
+                        aria-hidden
+                        className={cn(
+                          "absolute left-0 h-5 w-0.5 rounded-r-full bg-primary transition-opacity duration-200",
+                          active ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      <item.icon
+                        className={cn(
+                          "size-4 flex-shrink-0 transition-transform",
+                          !active && "group-hover:scale-110"
+                        )}
+                        aria-hidden
+                      />
+                      {!collapsed && <span className="truncate">{item.label}</span>}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+      </nav>
+    </>
   );
 }
