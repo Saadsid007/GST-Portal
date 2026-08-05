@@ -1,51 +1,19 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
-import Script from "next/script";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import { Check, Loader2, Sparkles, Wallet } from "lucide-react";
+import { Check, QrCode, Sparkles } from "lucide-react";
 import {
-  createRechargeOrderAction,
   getRechargeOptionsAction,
   previewRechargeAction,
-  verifyPaymentAction,
 } from "@/features/billing/actions/recharge.actions";
+import { Button } from "@/components/ui";
+import { UpiQrDialog } from "@/features/billing/presentation/upi-qr-dialog";
 import {
   MAX_RECHARGE_AMOUNT,
   MIN_RECHARGE_AMOUNT,
 } from "@/features/billing/constants/billing.constants";
 import type { BonusBreakdown, RechargePack } from "@/features/billing/types/billing.types";
-
-/**
- * Razorpay Checkout is injected by their own script tag, so the handle it hangs on
- * `window` has no bundled types. This is the narrowest shape we actually call.
- */
-interface RazorpayOptions {
-  key: string;
-  amount: number;
-  currency: string;
-  name: string;
-  description: string;
-  order_id: string;
-  handler: (response: {
-    razorpay_order_id: string;
-    razorpay_payment_id: string;
-    razorpay_signature: string;
-  }) => void;
-  modal: { ondismiss: () => void };
-  theme: { color: string };
-}
-
-interface RazorpayInstance {
-  open: () => void;
-}
-
-declare global {
-  interface Window {
-    Razorpay?: new (options: RazorpayOptions) => RazorpayInstance;
-  }
-}
 
 type Pack = RechargePack & { breakdown: BonusBreakdown };
 
@@ -56,7 +24,8 @@ export function RechargePanel() {
   const [custom, setCustom] = useState("");
   const [preview, setPreview] = useState<BonusBreakdown | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
-  const [pending, startTransition] = useTransition();
+  /** Non-null while the UPI QR dialog is open. */
+  const [qrAmount, setQrAmount] = useState<number | null>(null);
 
   useEffect(() => {
     void getRechargeOptionsAction().then((result) => {
@@ -94,53 +63,23 @@ export function RechargePanel() {
 
   function handleRecharge() {
     if (!activeAmount || !activeBreakdown) return;
-
-    startTransition(async () => {
-      const order = await createRechargeOrderAction(activeAmount);
-      if (!order.success) {
-        toast.error(order.error);
-        return;
-      }
-      if (!window.Razorpay) {
-        toast.error("Payment window could not load. Please refresh and try again.");
-        return;
-      }
-
-      const checkout = new window.Razorpay({
-        key: order.data.keyId,
-        amount: order.data.amountPaise,
-        currency: "INR",
-        name: "GSTPilot",
-        description: `${order.data.breakdown.totalCredits} wallet credits`,
-        order_id: order.data.orderId,
-        handler: (response) => {
-          void verifyPaymentAction({
-            razorpayOrderId: response.razorpay_order_id,
-            razorpayPaymentId: response.razorpay_payment_id,
-            razorpaySignature: response.razorpay_signature,
-          }).then((result) => {
-            if (result.success) {
-              toast.success(`${order.data.breakdown.totalCredits} credits added to your wallet.`);
-              setCustom("");
-              router.refresh();
-            } else {
-              // The webhook is authoritative, so a failed fast path is not fatal.
-              toast.warning(
-                `${result.error} If you were charged, your credits will arrive shortly.`
-              );
-            }
-          });
-        },
-        modal: { ondismiss: () => toast.info("Payment cancelled") },
-        theme: { color: "#0f172a" },
-      });
-      checkout.open();
-    });
+    // The QR itself is created inside the dialog, so the button stays instant
+    // and any Razorpay latency is shown against a real surface.
+    setQrAmount(activeAmount);
   }
 
   return (
     <div className="space-y-5">
-      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
+      {qrAmount !== null && (
+        <UpiQrDialog
+          amount={qrAmount}
+          onClose={() => {
+            setQrAmount(null);
+            setCustom("");
+            router.refresh();
+          }}
+        />
+      )}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {packs.map((pack) => {
@@ -243,25 +182,22 @@ export function RechargePanel() {
         )}
       </div>
 
-      <button
-        type="button"
+      <Button
+        variant="brand"
+        size="xl"
+        block
         onClick={handleRecharge}
-        disabled={pending || !activeAmount || !activeBreakdown}
-        className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground shadow-md shadow-primary/20 transition hover:bg-primary/90 disabled:opacity-50"
+        disabled={!activeAmount || !activeBreakdown}
       >
-        {pending ? (
-          <>
-            <Loader2 className="size-4 animate-spin" /> Opening payment…
-          </>
-        ) : (
-          <>
-            <Wallet className="size-4" />
-            {activeBreakdown
-              ? `Pay ₹${activeBreakdown.amount.toLocaleString("en-IN")} · get ${activeBreakdown.totalCredits.toLocaleString("en-IN")} credits`
-              : "Select an amount"}
-          </>
-        )}
-      </button>
+        <QrCode />
+        {activeBreakdown
+          ? `Pay ₹${activeBreakdown.amount.toLocaleString("en-IN")} by UPI · get ${activeBreakdown.totalCredits.toLocaleString("en-IN")} credits`
+          : "Select an amount"}
+      </Button>
+
+      <p className="text-center text-2xs text-muted-foreground">
+        Scan the QR with any UPI app. No card details, no redirect.
+      </p>
     </div>
   );
 }

@@ -2,7 +2,11 @@ import prisma from "@/lib/prisma";
 import { calculateBonus } from "@/features/billing/domain/bonus-calculator";
 import { billingLogger } from "@/features/billing/services/billing.logger";
 import { getPricingConfig } from "@/features/billing/services/config.service";
-import { createRazorpayOrder } from "@/features/billing/services/razorpay.service";
+import {
+  createRazorpayOrder,
+  createUpiQrCode,
+  type CreatedQrCode,
+} from "@/features/billing/services/razorpay.service";
 import { settleReferralOnFirstRecharge } from "@/features/billing/services/referral.service";
 import { creditWallet, getOrCreateWallet } from "@/features/billing/services/wallet.service";
 import type { BonusBreakdown } from "@/features/billing/types/billing.types";
@@ -34,6 +38,7 @@ export async function createRecharge(userId: string, amount: number) {
   await prisma.rechargeOrder.create({
     data: {
       userId,
+      method: "CHECKOUT",
       razorpayOrderId: order.orderId,
       amount,
       bonusCredits: breakdown.bonusCredits,
@@ -62,16 +67,25 @@ export interface SettlementResult {
  * bonus rolls into `bonusEarned`. One combined row would conflate them.
  */
 export async function settleRecharge(input: {
-  razorpayOrderId: string;
+  /** Set for checkout payments. Exactly one locator must be provided. */
+  razorpayOrderId?: string;
+  /** Set for UPI QR payments — a QR code is not an order. */
+  razorpayQrCodeId?: string;
   razorpayPaymentId: string;
   eventId: string;
 }): Promise<SettlementResult> {
+  if (!input.razorpayOrderId && !input.razorpayQrCodeId) {
+    throw new Error("settleRecharge needs either a Razorpay order id or a QR code id");
+  }
+
   return prisma.$transaction(async (tx) => {
-    const order = await tx.rechargeOrder.findUnique({
-      where: { razorpayOrderId: input.razorpayOrderId },
-    });
+    const order = input.razorpayOrderId
+      ? await tx.rechargeOrder.findUnique({ where: { razorpayOrderId: input.razorpayOrderId } })
+      : await tx.rechargeOrder.findUnique({
+          where: { razorpayQrCodeId: input.razorpayQrCodeId! },
+        });
     if (!order) {
-      throw new Error(`Unknown Razorpay order ${input.razorpayOrderId}`);
+      throw new Error(`Unknown recharge for ${input.razorpayOrderId ?? input.razorpayQrCodeId}`);
     }
     if (order.status === "PAID") {
       const wallet = await tx.wallet.findUnique({ where: { userId: order.userId } });
@@ -132,9 +146,59 @@ export async function settleRecharge(input: {
   });
 }
 
-export async function markRechargeFailed(razorpayOrderId: string): Promise<void> {
-  await prisma.rechargeOrder.updateMany({
-    where: { razorpayOrderId, status: "CREATED" },
-    data: { status: "FAILED" },
+export async function markRechargeFailed(locator: {
+  razorpayOrderId?: string;
+  razorpayQrCodeId?: string;
+}): Promise<void> {
+  const where = locator.razorpayOrderId
+    ? { razorpayOrderId: locator.razorpayOrderId, status: "CREATED" }
+    : { razorpayQrCodeId: locator.razorpayQrCodeId, status: "CREATED" };
+  await prisma.rechargeOrder.updateMany({ where, data: { status: "FAILED" } });
+}
+
+export interface QrRecharge {
+  qrCodeId: string;
+  imageUrl: string;
+  amount: number;
+  closeBy: number;
+  breakdown: BonusBreakdown;
+}
+
+/**
+ * Creates a fixed-amount UPI QR and the matching CREATED recharge row.
+ *
+ * Pricing is resolved server-side exactly as the checkout flow does, so the
+ * credits a QR grants can never be influenced by what the browser displayed.
+ */
+export async function createQrRecharge(userId: string, amount: number): Promise<QrRecharge> {
+  const breakdown = await priceRecharge(amount);
+  await getOrCreateWallet(userId);
+
+  const qr: CreatedQrCode = await createUpiQrCode({
+    amountRupees: amount,
+    description: `GSTPilot wallet recharge — ${breakdown.totalCredits} credits`,
+    notes: { userId, credits: String(breakdown.totalCredits) },
   });
+
+  await prisma.rechargeOrder.create({
+    data: {
+      userId,
+      method: "UPI_QR",
+      razorpayQrCodeId: qr.qrCodeId,
+      amount,
+      bonusCredits: breakdown.bonusCredits,
+      totalCredits: breakdown.totalCredits,
+      status: "CREATED",
+    },
+  });
+
+  billingLogger.info({ userId, amount, qrCodeId: qr.qrCodeId }, "UPI QR recharge created");
+
+  return {
+    qrCodeId: qr.qrCodeId,
+    imageUrl: qr.imageUrl,
+    amount,
+    closeBy: qr.closeBy,
+    breakdown,
+  };
 }

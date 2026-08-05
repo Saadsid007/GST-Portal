@@ -270,10 +270,15 @@ model WalletTransaction {
 // -----------------------------------------------------------------------------
 
 model RechargeOrder {
-  id                String   @id @default(uuid()) @db.Uuid
-  userId            String   @map("user_id")
-  razorpayOrderId   String   @unique @map("razorpay_order_id")
-  razorpayPaymentId String?  @map("razorpay_payment_id")
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @map("user_id")
+  /// How the user paid. UPI_QR rows have no Razorpay order — a QR code is a
+  /// standalone entity — so exactly one of the two locators below is set.
+  method String @default("CHECKOUT") @map("method") // "CHECKOUT" | "UPI_QR"
+
+  razorpayOrderId   String? @unique @map("razorpay_order_id")
+  razorpayQrCodeId  String? @unique @map("razorpay_qr_code_id")
+  razorpayPaymentId String? @map("razorpay_payment_id")
   amount            Int // rupees, equals base credits
   bonusCredits      Int      @default(0) @map("bonus_credits")
   totalCredits      Int      @map("total_credits")

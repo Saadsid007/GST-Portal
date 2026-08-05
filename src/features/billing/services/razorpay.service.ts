@@ -80,3 +80,65 @@ export function verifyWebhookSignature(rawBody: string, signature: string): bool
 export async function fetchPayment(paymentId: string) {
   return client().payments.fetch(paymentId);
 }
+
+/* ── UPI QR ─────────────────────────────────────────────────────────────── */
+
+export interface CreatedQrCode {
+  qrCodeId: string;
+  /** Razorpay-hosted PNG of the QR. Rendered directly; never proxied. */
+  imageUrl: string;
+  amountPaise: number;
+  /** Unix seconds. The QR stops accepting payment after this. */
+  closeBy: number;
+}
+
+/** How long a generated QR stays payable. Razorpay requires >= 15 minutes. */
+export const QR_TTL_SECONDS = 20 * 60;
+
+/**
+ * Creates a fixed-amount, single-use UPI QR.
+ *
+ * `fixed_amount` + `single_use` together are what make settlement safe: the
+ * payer cannot alter the amount, and the QR cannot be paid twice. Without them
+ * a shared screenshot could be paid repeatedly against one recharge row.
+ */
+export async function createUpiQrCode(input: {
+  amountRupees: number;
+  description: string;
+  notes: Record<string, string>;
+}): Promise<CreatedQrCode> {
+  const amountPaise = Math.round(input.amountRupees * 100);
+  const closeBy = Math.floor(Date.now() / 1000) + QR_TTL_SECONDS;
+
+  const qr = await client().qrCode.create({
+    type: "upi_qr",
+    name: "GSTPilot wallet recharge",
+    usage: "single_use",
+    fixed_amount: true,
+    payment_amount: amountPaise,
+    description: input.description,
+    close_by: closeBy,
+    notes: input.notes,
+  });
+
+  return {
+    qrCodeId: qr.id,
+    imageUrl: qr.image_url,
+    amountPaise,
+    closeBy: qr.close_by ?? closeBy,
+  };
+}
+
+export async function closeQrCode(qrCodeId: string): Promise<void> {
+  await client().qrCode.close(qrCodeId);
+}
+
+/**
+ * Payments received against a QR. Backs the polling fallback — the webhook is
+ * authoritative, but someone watching the screen should not have to wait on
+ * webhook delivery to see their recharge land.
+ */
+export async function fetchQrPayments(qrCodeId: string) {
+  const result = await client().qrCode.fetchAllPayments(qrCodeId);
+  return result.items ?? [];
+}

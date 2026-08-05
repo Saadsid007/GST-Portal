@@ -15,6 +15,9 @@ interface RazorpayWebhookPayload {
     payment?: {
       entity?: { id?: string; order_id?: string };
     };
+    qr_code?: {
+      entity?: { id?: string };
+    };
   };
 }
 
@@ -39,6 +42,28 @@ export async function POST(request: Request): Promise<NextResponse> {
   const entity = payload.payload?.payment?.entity;
   const orderId = entity?.order_id;
   const paymentId = entity?.id;
+  const qrCodeId = payload.payload?.qr_code?.entity?.id;
+
+  // A QR payment carries no order_id — the QR code entity is the locator.
+  if (payload.event === "qr_code.credited" && qrCodeId && paymentId) {
+    try {
+      const eventId = request.headers.get("x-razorpay-event-id") ?? `qr:${paymentId}`;
+      const result = await settleRecharge({
+        razorpayQrCodeId: qrCodeId,
+        razorpayPaymentId: paymentId,
+        eventId,
+      });
+      billingLogger.info(
+        { qrCodeId, credited: result.credited },
+        "Webhook settled UPI QR recharge"
+      );
+    } catch (error) {
+      billingLogger.error({ qrCodeId, err: error }, "Failed to settle UPI QR recharge");
+      // 500 makes Razorpay retry, which is what we want for a transient failure.
+      return NextResponse.json({ error: "Settlement failed" }, { status: 500 });
+    }
+    return NextResponse.json({ received: true });
+  }
 
   if (!orderId || !paymentId) {
     // Events we don't handle (subscriptions, refunds, settlements) are acknowledged
@@ -58,7 +83,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       });
       billingLogger.info({ orderId, credited: result.credited }, "Webhook settled recharge");
     } else if (payload.event === "payment.failed") {
-      await markRechargeFailed(orderId);
+      await markRechargeFailed({ razorpayOrderId: orderId });
     }
   } catch (error) {
     billingLogger.error({ orderId, err: error }, "Webhook settlement failed");

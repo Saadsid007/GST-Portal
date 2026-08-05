@@ -19,7 +19,8 @@ interface FakeWallet {
 interface FakeOrder {
   id: string;
   userId: string;
-  razorpayOrderId: string;
+  razorpayOrderId: string | null;
+  razorpayQrCodeId: string | null;
   razorpayPaymentId: string | null;
   amount: number;
   bonusCredits: number;
@@ -106,8 +107,14 @@ const client: Record<string, never> & {
   },
 
   rechargeOrder: {
-    findUnique: ({ where }: { where: { razorpayOrderId: string } }) =>
-      Promise.resolve(orders.get(where.razorpayOrderId) ?? null),
+    findUnique: ({ where }: { where: { razorpayOrderId?: string; razorpayQrCodeId?: string } }) => {
+      const found = [...orders.values()].find((o) =>
+        where.razorpayOrderId
+          ? o.razorpayOrderId === where.razorpayOrderId
+          : o.razorpayQrCodeId === where.razorpayQrCodeId
+      );
+      return Promise.resolve(found ?? null);
+    },
     update: ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
       const order = [...orders.values()].find((o) => o.id === where.id);
       if (!order) throw new Error("order missing");
@@ -150,6 +157,7 @@ function seedOrder(overrides: Partial<FakeOrder> = {}): FakeOrder {
     id: `o${(ids += 1)}`,
     userId: PAYER,
     razorpayOrderId: "order_ABC",
+    razorpayQrCodeId: null,
     razorpayPaymentId: null,
     amount: 199,
     bonusCredits: 19,
@@ -158,7 +166,7 @@ function seedOrder(overrides: Partial<FakeOrder> = {}): FakeOrder {
     webhookEventId: null,
     ...overrides,
   };
-  orders.set(order.razorpayOrderId, order);
+  orders.set(order.id, order);
   return order;
 }
 
@@ -243,7 +251,49 @@ describe("settleRecharge", () => {
         razorpayPaymentId: "pay_1",
         eventId: "evt_1",
       })
-    ).rejects.toThrow(/Unknown Razorpay order/);
+    ).rejects.toThrow(/Unknown recharge/);
+  });
+
+  // UPI QR payments arrive with no order_id — the QR code entity is the only
+  // locator Razorpay gives us, so settlement must resolve on it alone.
+  it("settles a UPI QR recharge located by its QR code id", async () => {
+    seedOrder({ razorpayOrderId: null, razorpayQrCodeId: "qr_XYZ" });
+
+    const result = await settleRecharge({
+      razorpayQrCodeId: "qr_XYZ",
+      razorpayPaymentId: "pay_qr_1",
+      eventId: "qr:pay_qr_1",
+    });
+
+    expect(result.credited).toBe(true);
+    expect(result.totalCredits).toBe(218);
+    expect(wallets.get(PAYER)?.balance).toBe(218);
+    expect(ledger.map((row) => row.type)).toEqual(["RECHARGE", "BONUS"]);
+  });
+
+  it("credits a QR recharge exactly once when the webhook and the poll race", async () => {
+    seedOrder({ razorpayOrderId: null, razorpayQrCodeId: "qr_RACE" });
+
+    const first = await settleRecharge({
+      razorpayQrCodeId: "qr_RACE",
+      razorpayPaymentId: "pay_qr_2",
+      eventId: "qr:pay_qr_2",
+    });
+    const second = await settleRecharge({
+      razorpayQrCodeId: "qr_RACE",
+      razorpayPaymentId: "pay_qr_2",
+      eventId: "qr:pay_qr_2",
+    });
+
+    expect(first.credited).toBe(true);
+    expect(second.credited).toBe(false);
+    expect(wallets.get(PAYER)?.balance).toBe(218);
+  });
+
+  it("refuses to settle when neither locator is supplied", async () => {
+    await expect(settleRecharge({ razorpayPaymentId: "pay_1", eventId: "evt_1" })).rejects.toThrow(
+      /either a Razorpay order id or a QR code id/
+    );
   });
 });
 
