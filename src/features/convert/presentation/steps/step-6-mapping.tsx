@@ -129,7 +129,7 @@ export function Step6Mapping({ state, onNext, onBack }: Props) {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold transition hover:bg-accent">
             <Upload className="size-3.5" />
             <span>Import JSON</span>
@@ -202,8 +202,8 @@ export function Step6Mapping({ state, onNext, onBack }: Props) {
       </div>
 
       {/* Column Mapping Table */}
-      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-        <table className="w-full text-xs">
+      <div className="overflow-x-auto rounded-2xl border border-border bg-card shadow-sm">
+        <table className="w-full min-w-[720px] text-xs">
           <thead>
             <tr className="border-b border-border bg-muted/40 text-left font-bold text-muted-foreground">
               <th className="px-4 py-3">Canonical GSTR-1 Field</th>
@@ -276,11 +276,11 @@ export function Step6Mapping({ state, onNext, onBack }: Props) {
         </table>
       </div>
 
-      <div className="flex items-center justify-between border-t border-border pt-4">
+      <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
         <button
           type="button"
           onClick={onBack}
-          className="flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold transition hover:bg-accent"
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold transition hover:bg-accent sm:w-auto"
         >
           <ArrowLeft className="size-4" /> Back to Upload
         </button>
@@ -288,7 +288,7 @@ export function Step6Mapping({ state, onNext, onBack }: Props) {
         <button
           type="button"
           onClick={onNext}
-          className="flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-2.5 font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 sm:w-auto"
         >
           <span>Next: Run Pipeline Processing</span>
           <ArrowRight className="size-4" />

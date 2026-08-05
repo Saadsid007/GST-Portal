@@ -15,7 +15,7 @@ interface Props {
 export function Step1Gstin({ state, profiles, onChange, onNext }: Props) {
   return (
     <div className="space-y-6 p-6 md:p-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold tracking-wider text-primary uppercase">
             Step 1 of 10
@@ -27,7 +27,7 @@ export function Step1Gstin({ state, profiles, onChange, onNext }: Props) {
         </div>
         <Link
           href="/profile"
-          className="flex items-center gap-1.5 rounded-lg border border-dashed border-primary/40 px-3 py-1.5 text-xs font-semibold text-primary hover:underline"
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-primary/40 px-3 py-1.5 text-xs font-semibold text-primary hover:underline sm:w-auto"
         >
           <Plus className="size-3.5" /> Add New GSTIN
         </Link>

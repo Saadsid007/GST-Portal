@@ -110,7 +110,7 @@ export function TransactionTable() {
         </p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-xs">
+          <table className="w-full min-w-[680px] text-xs">
             <thead className="bg-muted/50 text-muted-foreground uppercase">
               <tr>
                 <th className="px-5 py-2.5 text-left font-bold">Date</th>

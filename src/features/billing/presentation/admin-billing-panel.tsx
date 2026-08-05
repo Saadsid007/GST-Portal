@@ -682,7 +682,7 @@ function CreditCodesSection({
 
       {codes.length > 0 && (
         <div className="overflow-x-auto rounded-xl border border-border">
-          <table className="w-full text-xs">
+          <table className="w-full min-w-[680px] text-xs">
             <thead className="bg-muted/50 text-muted-foreground uppercase">
               <tr>
                 <th className="px-4 py-2.5 text-left font-bold">Code</th>

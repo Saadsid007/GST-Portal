@@ -238,7 +238,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
   }
 
   return (
-    <div className="space-y-6 p-6 md:p-8">
+    <div className="space-y-6 p-4 sm:p-6 md:p-8">
       <div className="flex flex-col justify-between gap-4 border-b border-border pb-6 sm:flex-row sm:items-center">
         <div>
           <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold tracking-wider text-primary uppercase">
@@ -253,7 +253,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={handleRevalidateAll}
@@ -348,12 +348,13 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-border pb-3">
+      {/* Tabs. The middle label alone exceeds a phone's width, so these scroll rather than
+          pushing the third tab off-screen where the container would clip it. */}
+      <div className="flex items-center gap-2 overflow-x-auto border-b border-border pb-3">
         <button
           onClick={() => setActiveTab("summary")}
           className={cn(
-            "rounded-xl px-4 py-2 text-xs font-bold transition",
+            "flex-shrink-0 rounded-xl px-4 py-2 text-xs font-bold whitespace-nowrap transition",
             activeTab === "summary"
               ? "bg-primary text-primary-foreground shadow-sm"
               : "bg-muted text-muted-foreground hover:bg-accent"
@@ -364,26 +365,26 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
         <button
           onClick={() => setActiveTab("invoices")}
           className={cn(
-            "flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition",
+            "flex flex-shrink-0 items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold whitespace-nowrap transition",
             activeTab === "invoices"
               ? "bg-primary text-primary-foreground shadow-sm"
               : "bg-muted text-muted-foreground hover:bg-accent"
           )}
         >
-          <Layers className="size-3.5" />
+          <Layers className="size-3.5 flex-shrink-0" />
           Interactive Error Editor ({statement.errorInvoices} Error
           {reviewCount > 0 ? ` / ${reviewCount} Review` : ""} / {statement.totalInvoices} Total)
         </button>
         <button
           onClick={() => setActiveTab("tcs")}
           className={cn(
-            "flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold transition",
+            "flex flex-shrink-0 items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold whitespace-nowrap transition",
             activeTab === "tcs"
               ? "bg-primary text-primary-foreground shadow-sm"
               : "bg-muted text-muted-foreground hover:bg-accent"
           )}
         >
-          <Scale className="size-3.5" />
+          <Scale className="size-3.5 flex-shrink-0" />
           TCS Reconciliation {tcsResult ? "✓" : ""}
         </button>
       </div>
@@ -450,8 +451,8 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-xl border border-border bg-card">
-            <table className="w-full text-xs">
+          <div className="overflow-x-auto rounded-xl border border-border bg-card">
+            <table className="w-full min-w-[680px] text-xs">
               <thead>
                 <tr className="border-b border-border bg-muted/40 text-left font-bold text-muted-foreground">
                   <th className="px-4 py-3">Marketplace</th>
@@ -550,8 +551,8 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
                   </div>
                 </div>
 
-                <div className="overflow-hidden rounded-xl border border-border">
-                  <table className="w-full text-xs">
+                <div className="overflow-x-auto rounded-xl border border-border">
+                  <table className="w-full min-w-[560px] text-xs">
                     <thead>
                       <tr className="border-b border-border bg-muted/40 text-left font-bold text-muted-foreground">
                         <th className="px-4 py-2.5">State Code</th>
@@ -609,7 +610,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
               />
             </div>
 
-            <div className="flex items-center gap-1.5 self-end sm:self-auto">
+            <div className="flex flex-wrap items-center gap-1.5 self-end sm:self-auto">
               <button
                 onClick={() => setFilter("all")}
                 className={cn(
@@ -657,8 +658,10 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
             </div>
           </div>
 
-          <div className="max-h-[500px] overflow-hidden overflow-y-auto rounded-xl border border-border bg-card">
-            <table className="w-full text-xs">
+          {/* Scrolls in both axes: overflow-hidden used to clip the last five columns, including
+              the Action button that is the only way to repair a row. */}
+          <div className="max-h-[500px] overflow-auto rounded-xl border border-border bg-card">
+            <table className="w-full min-w-[1000px] text-xs">
               <thead className="sticky top-0 z-10 border-b border-border bg-muted/90 backdrop-blur">
                 <tr className="text-left font-semibold text-muted-foreground">
                   <th className="px-3 py-2.5">Source</th>
@@ -798,11 +801,11 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
         </div>
       )}
 
-      <div className="flex items-center justify-between border-t border-border pt-4">
+      <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
         <button
           type="button"
           onClick={onBack}
-          className="flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold transition hover:bg-accent"
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold transition hover:bg-accent sm:w-auto"
         >
           <ArrowLeft className="size-4" /> Back to Mapping
         </button>
@@ -810,7 +813,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
         <button
           type="button"
           onClick={onNext}
-          className="flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-2.5 font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 sm:w-auto"
         >
           <span>Next: Confirm & Generate Return</span>
           <ArrowRight className="size-4" />

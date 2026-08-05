@@ -123,8 +123,8 @@ export default async function DashboardPage() {
             </Link>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-border">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto rounded-xl border border-border">
+            <table className="w-full min-w-[680px] text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/40 text-xs font-semibold text-muted-foreground">
                   <th className="px-4 py-3 text-left">Platforms</th>

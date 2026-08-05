@@ -20,14 +20,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-50 border-b border-border bg-card/90 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-6">
+        <div className="mx-auto flex min-h-16 max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-2">
           <div className="flex items-center gap-2.5">
             <div className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
               <ShieldCheck className="size-5" />
             </div>
             <div>
               <p className="text-sm leading-none font-bold">GSTPilot Admin</p>
-              <p className="mt-0.5 font-mono text-[10px] leading-none text-muted-foreground">
+              <p className="mt-0.5 hidden font-mono text-[10px] leading-none text-muted-foreground sm:block">
                 {session.user.email}
               </p>
             </div>

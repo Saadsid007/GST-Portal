@@ -97,11 +97,11 @@ export function Step2Period({ state, onChange, onNext, onBack }: Props) {
         </div>
       </div>
 
-      <div className="flex items-center justify-between border-t border-border pt-4">
+      <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
         <button
           type="button"
           onClick={onBack}
-          className="flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold transition hover:bg-accent"
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold transition hover:bg-accent sm:w-auto"
         >
           <ArrowLeft className="size-4" /> Back to GST Profile
         </button>
@@ -110,7 +110,7 @@ export function Step2Period({ state, onChange, onNext, onBack }: Props) {
           type="button"
           onClick={onNext}
           disabled={!state.returnPeriod}
-          className="flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-2.5 font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:opacity-50 sm:w-auto"
         >
           <span>Next: Select Marketplaces</span>
           <ArrowRight className="size-4" />

@@ -19,9 +19,9 @@ export default async function HistoryPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Filing History & Audit Log</h1>
+          <h1 className="text-xl font-bold sm:text-2xl">Filing History & Audit Log</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {records.length} past multi-marketplace return{records.length !== 1 ? "s" : ""}{" "}
             generated
@@ -29,14 +29,14 @@ export default async function HistoryPage() {
         </div>
         <Link
           href="/convert"
-          className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90"
+          className="flex flex-shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90"
         >
           <Zap className="size-4" /> New Conversion
         </Link>
       </div>
 
       {records.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border p-12 text-center">
+        <div className="rounded-2xl border border-dashed border-border p-6 text-center sm:p-12">
           <History className="mx-auto mb-3 size-10 text-muted-foreground" />
           <p className="text-sm font-bold">No saved returns yet</p>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -45,8 +45,10 @@ export default async function HistoryPage() {
           </p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto rounded-2xl border border-border bg-card shadow-sm">
+          {/* min-w keeps the 9 columns legible and scrolling rather than crushed; the wrapper
+              scrolls instead of clipping, which used to hide the Downloads column entirely. */}
+          <table className="w-full min-w-[820px] text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40 text-xs font-semibold text-muted-foreground">
                 <th className="px-4 py-3 text-left">Date</th>

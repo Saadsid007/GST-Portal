@@ -51,7 +51,7 @@ export function AdminWalletTools() {
         </p>
       </div>
 
-      <div className="flex max-w-md items-center gap-2">
+      <div className="flex max-w-md flex-wrap items-center gap-2">
         <input
           type="text"
           value={query}
@@ -79,7 +79,7 @@ export function AdminWalletTools() {
 
       {rows.length > 0 && (
         <div className="overflow-x-auto rounded-xl border border-border">
-          <table className="w-full text-xs">
+          <table className="w-full min-w-[760px] text-xs">
             <thead className="bg-muted/50 text-muted-foreground uppercase">
               <tr>
                 <th className="px-4 py-2.5 text-left font-bold">User</th>

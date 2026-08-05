@@ -167,7 +167,7 @@ export function GstinProfileManager({ initialProfiles }: Props) {
           {profiles.map((profile) => (
             <div
               key={profile.id}
-              className={`flex items-start justify-between gap-4 rounded-xl border p-5 transition ${profile.isDefault ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}
+              className={`flex flex-col gap-3 rounded-xl border p-5 transition sm:flex-row sm:items-start sm:justify-between ${profile.isDefault ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}
             >
               <div className="flex min-w-0 items-start gap-3">
                 <div

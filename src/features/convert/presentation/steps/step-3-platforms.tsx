@@ -51,7 +51,7 @@ export function Step3Platforms({ state, onChange, onNext, onBack }: Props) {
 
   return (
     <div className="space-y-6 p-6 md:p-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold tracking-wider text-primary uppercase">
             Step 3 of 10
@@ -67,7 +67,7 @@ export function Step3Platforms({ state, onChange, onNext, onBack }: Props) {
         <button
           type="button"
           onClick={selectAll}
-          className="rounded-lg border border-dashed border-primary/40 px-3 py-1.5 text-xs font-bold text-primary hover:underline"
+          className="w-full rounded-lg border border-dashed border-primary/40 px-3 py-1.5 text-xs font-bold text-primary hover:underline sm:w-auto"
         >
           Select All Platforms
         </button>
@@ -126,11 +126,11 @@ export function Step3Platforms({ state, onChange, onNext, onBack }: Props) {
         selectedPlatformIds={state.selectedPlatformIds}
       />
 
-      <div className="flex items-center justify-between border-t border-border pt-4">
+      <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
         <button
           type="button"
           onClick={onBack}
-          className="flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold transition hover:bg-accent"
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold transition hover:bg-accent sm:w-auto"
         >
           <ArrowLeft className="size-4" /> Back to Period
         </button>
@@ -139,7 +139,7 @@ export function Step3Platforms({ state, onChange, onNext, onBack }: Props) {
           type="button"
           onClick={onNext}
           disabled={state.selectedPlatformIds.length === 0}
-          className="flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-2.5 font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:opacity-50 sm:w-auto"
         >
           <span>Next: Required Files Detection</span>
           <ArrowRight className="size-4" />
