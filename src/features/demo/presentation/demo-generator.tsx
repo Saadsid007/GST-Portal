@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRight,
   Check,
@@ -95,16 +94,15 @@ export function DemoGenerator() {
         </Badge>
       </div>
 
+      {/* Phase panels are keyed plain elements with a CSS entrance, not an
+          AnimatePresence. `mode="wait"` gates mounting the next panel on the
+          previous one's exit animation completing — and animation frames stop
+          in a background tab, which left the demo stuck mid-transition. CSS
+          keyframes keep running, and the content is never opacity-gated. */}
       <div className="p-5 sm:p-7">
-        <AnimatePresence mode="wait">
+        <div key={phase} className="animate-fade-in">
           {phase === "idle" && (
-            <motion.div
-              key="idle"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.25 }}
-            >
+            <div>
               <button
                 type="button"
                 onClick={() => setPhase("loaded")}
@@ -123,18 +121,11 @@ export function DemoGenerator() {
                   Use sample file
                 </span>
               </button>
-            </motion.div>
+            </div>
           )}
 
           {phase === "loaded" && (
-            <motion.div
-              key="loaded"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.25 }}
-              className="space-y-5"
-            >
+            <div className="space-y-5">
               <Header
                 eyebrow="Step 1 — your raw file"
                 title="This is what the marketplace gives you"
@@ -152,29 +143,17 @@ export function DemoGenerator() {
                   <ArrowRight />
                 </Button>
               </div>
-            </motion.div>
+            </div>
           )}
 
           {phase === "processing" && (
-            <motion.div
-              key="processing"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="py-10"
-            >
+            <div className="py-10">
               <Pipeline stage={stage} />
-            </motion.div>
+            </div>
           )}
 
           {phase === "done" && (
-            <motion.div
-              key="done"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-              className="space-y-6"
-            >
+            <div className="space-y-6">
               <Header
                 eyebrow="Step 2 — filing-ready output"
                 title="Before and after, side by side"
@@ -212,9 +191,9 @@ export function DemoGenerator() {
                   </Link>
                 </Button>
               </div>
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
+        </div>
       </div>
     </div>
   );
@@ -277,12 +256,15 @@ function RawTable({ compact = false }: { compact?: boolean }) {
         </thead>
         <tbody className="divide-y divide-border">
           {RAW_ROWS.map((row, i) => (
-            <motion.tr
+            // CSS-driven stagger, not framer-motion: these rows must be readable
+            // even when no animation frame ever runs.
+            <tr
               key={row.orderId + row.invoiceDate}
-              initial={compact ? false : { opacity: 0, x: -8 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.05, duration: 0.25 }}
-              className={row.transactionType === "Refund" ? "bg-destructive/[0.05]" : undefined}
+              style={compact ? undefined : { animationDelay: `${i * 50}ms` }}
+              className={cn(
+                !compact && "animate-rise",
+                row.transactionType === "Refund" && "bg-destructive/[0.05]"
+              )}
             >
               <td className="px-3 py-2 font-mono text-2xs text-muted-foreground">{row.orderId}</td>
               <td className="px-3 py-2 whitespace-nowrap">{row.invoiceDate}</td>
@@ -303,7 +285,7 @@ function RawTable({ compact = false }: { compact?: boolean }) {
               <td className="px-3 py-2 text-right font-mono text-muted-foreground">
                 {row.taxRate}
               </td>
-            </motion.tr>
+            </tr>
           ))}
         </tbody>
       </table>
@@ -327,11 +309,10 @@ function OutputTable() {
         </thead>
         <tbody className="divide-y divide-success/15">
           {GSTR1_ROWS.map((row, i) => (
-            <motion.tr
+            <tr
               key={row.placeOfSupply + row.rate}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 + i * 0.08, duration: 0.3 }}
+              className="animate-rise"
+              style={{ animationDelay: `${150 + i * 80}ms` }}
             >
               <td className="px-3 py-2 font-medium">
                 <span className="rounded bg-success/15 px-1.5 py-0.5 font-mono text-2xs text-success-ink">
@@ -354,7 +335,7 @@ function OutputTable() {
               <td className="px-3 py-2 text-right text-muted-foreground tabular-nums">
                 {row.sgst || "—"}
               </td>
-            </motion.tr>
+            </tr>
           ))}
         </tbody>
       </table>
@@ -431,19 +412,17 @@ function TransformationList() {
       </p>
       <ul className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
         {TRANSFORMATIONS.map((t, i) => (
-          <motion.li
+          <li
             key={t.id}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 + i * 0.06, duration: 0.3 }}
-            className="flex gap-2"
+            className="flex animate-rise gap-2"
+            style={{ animationDelay: `${300 + i * 60}ms` }}
           >
             <Check className="mt-0.5 size-3.5 shrink-0 text-success" />
             <div>
               <p className="text-xs font-semibold">{t.label}</p>
               <p className="text-2xs text-muted-foreground">{t.detail}</p>
             </div>
-          </motion.li>
+          </li>
         ))}
       </ul>
     </div>
