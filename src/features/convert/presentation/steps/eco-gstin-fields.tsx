@@ -110,13 +110,13 @@ export function EcoGstinFields({ gstinNumber, selectedPlatformIds }: Props) {
                   onBlur={() => persist(plat.id)}
                   className={cn(
                     "w-full rounded-xl border border-border bg-background px-3 py-2 pr-8 font-mono text-xs uppercase focus:ring-2 focus:ring-primary/50 focus:outline-none disabled:opacity-50",
-                    isSaved && "border-emerald-500/50"
+                    isSaved && "border-success/50"
                   )}
                 />
                 {savingId === plat.id ? (
                   <Loader2 className="absolute top-1/2 right-2.5 size-3.5 -translate-y-1/2 animate-spin text-muted-foreground" />
                 ) : isSaved ? (
-                  <Check className="absolute top-1/2 right-2.5 size-3.5 -translate-y-1/2 text-emerald-500" />
+                  <Check className="absolute top-1/2 right-2.5 size-3.5 -translate-y-1/2 text-success" />
                 ) : null}
               </div>
             </label>

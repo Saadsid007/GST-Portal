@@ -133,7 +133,7 @@ export default function AdminLoginPage() {
 
           <div className="border-t border-border pt-2 text-center text-xs text-muted-foreground">
             Not an admin?{" "}
-            <Link href="/login" className="font-bold text-primary hover:underline">
+            <Link href="/login" className="font-bold text-primary-ink hover:underline">
               Sign in to the app
             </Link>
           </div>

@@ -115,10 +115,10 @@ export function Step6Mapping({ state, onNext, onBack }: Props) {
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <div className="flex items-center gap-2">
-            <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold tracking-wider text-primary uppercase">
+            <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold tracking-wider text-primary-ink uppercase">
               Step 6 of 10
             </span>
-            <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-bold text-emerald-600">
+            <span className="flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-1 text-xs font-bold text-success">
               <Cpu className="size-3" /> Hybrid Intelligent Import Engine
             </span>
           </div>
@@ -170,8 +170,8 @@ export function Step6Mapping({ state, onNext, onBack }: Props) {
         <div
           className={`flex items-center justify-between rounded-xl border p-4 text-xs ${
             validation.isValid
-              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-              : "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+              ? "border-success/30 bg-success/10 text-success"
+              : "border-warning/30 bg-warning/10 text-warning"
           }`}
         >
           <div className="flex items-center gap-2">
@@ -189,7 +189,7 @@ export function Step6Mapping({ state, onNext, onBack }: Props) {
         </div>
 
         <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/5 p-4 text-xs">
-          <div className="flex items-center gap-2 font-bold text-primary">
+          <div className="flex items-center gap-2 font-bold text-primary-ink">
             <Sparkles className="size-4" />
             <span>Overall Engine Confidence: {hybridResult.overallConfidence}%</span>
           </div>
@@ -229,7 +229,7 @@ export function Step6Mapping({ state, onNext, onBack }: Props) {
                   <td className="px-4 py-3 font-bold">
                     <div className="flex items-center gap-2">
                       <span>{field.label}</span>
-                      {field.required && <span className="font-bold text-red-500">*</span>}
+                      {field.required && <span className="font-bold text-destructive">*</span>}
                     </div>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{field.description}</td>
@@ -245,7 +245,7 @@ export function Step6Mapping({ state, onNext, onBack }: Props) {
                   <td className="px-4 py-3 text-center font-mono">
                     {confInfo && isMapped ? (
                       <span
-                        className="inline-flex items-center gap-1 rounded bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary"
+                        className="inline-flex items-center gap-1 rounded bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary-ink"
                         title={confInfo.reason}
                       >
                         {confInfo.confidence}% ({confInfo.detectionMethod.replace("_MATCH", "")})
@@ -256,11 +256,11 @@ export function Step6Mapping({ state, onNext, onBack }: Props) {
                   </td>
                   <td className="px-4 py-3 text-center">
                     {isMapped ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-600">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-bold text-success">
                         <CheckCircle2 className="size-3" /> Mapped
                       </span>
                     ) : field.required ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] font-bold text-red-600">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-bold text-destructive">
                         Missing
                       </span>
                     ) : (
@@ -288,7 +288,7 @@ export function Step6Mapping({ state, onNext, onBack }: Props) {
         <button
           type="button"
           onClick={onNext}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-2.5 font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 sm:w-auto"
+          className="flex w-full items-center justify-center gap-2 rounded-xl brand-gradient px-6 py-2.5 font-bold text-primary-foreground shadow-accent transition hover:brightness-110 active:scale-[0.98] sm:w-auto"
         >
           <span>Next: Run Pipeline Processing</span>
           <ArrowRight className="size-4" />

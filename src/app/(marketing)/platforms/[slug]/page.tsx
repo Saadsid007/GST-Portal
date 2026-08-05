@@ -66,7 +66,7 @@ export default async function PlatformDetailPage({ params }: Props) {
 
       {/* Hero Header */}
       <div className="mx-auto max-w-3xl space-y-4 text-center">
-        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold tracking-wider text-primary uppercase">
+        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold tracking-wider text-primary-ink uppercase">
           {plat.badge}
         </span>
         <h1 className="text-3xl font-extrabold tracking-tight sm:text-5xl">{plat.name}</h1>
@@ -85,7 +85,7 @@ export default async function PlatformDetailPage({ params }: Props) {
       <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
         <div className="space-y-4 rounded-3xl border border-border bg-card p-6 shadow-sm">
           <h2 className="flex items-center gap-2 text-base font-bold">
-            <FileCheck className="size-5 text-emerald-500" /> Supported & Required Reports
+            <FileCheck className="size-5 text-success" /> Supported & Required Reports
           </h2>
           <div className="space-y-3">
             {plat.requiredFiles.map((f) => (
@@ -95,7 +95,7 @@ export default async function PlatformDetailPage({ params }: Props) {
                   <span
                     className={
                       f.required
-                        ? "font-bold text-red-500 uppercase"
+                        ? "font-bold text-destructive uppercase"
                         : "text-muted-foreground uppercase"
                     }
                   >
@@ -110,12 +110,12 @@ export default async function PlatformDetailPage({ params }: Props) {
 
         <div className="space-y-4 rounded-3xl border border-border bg-card p-6 shadow-sm">
           <h2 className="flex items-center gap-2 text-base font-bold">
-            <ShieldCheck className="size-5 text-primary" /> Key Automation Features
+            <ShieldCheck className="size-5 text-primary-ink" /> Key Automation Features
           </h2>
           <ul className="space-y-2 text-xs text-muted-foreground">
             {plat.keyFeatures.map((feat) => (
               <li key={feat} className="flex items-start gap-2">
-                <CheckCircle className="size-4 flex-shrink-0 text-emerald-500" />
+                <CheckCircle className="size-4 flex-shrink-0 text-success" />
                 <span>{feat}</span>
               </li>
             ))}

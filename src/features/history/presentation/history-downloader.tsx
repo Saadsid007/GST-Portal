@@ -67,7 +67,7 @@ export function HistoryDownloader({ record }: Props) {
       <button
         onClick={downloadJson}
         title="Download JSON"
-        className="rounded-md p-1.5 text-muted-foreground transition hover:bg-blue-500/10 hover:text-blue-500"
+        className="rounded-md p-1.5 text-muted-foreground transition hover:bg-primary/10 hover:text-primary-ink"
       >
         <FileJson className="size-4" />
       </button>
@@ -75,7 +75,7 @@ export function HistoryDownloader({ record }: Props) {
         onClick={downloadExcel}
         disabled={loadingExcel}
         title="Download Excel"
-        className="rounded-md p-1.5 text-muted-foreground transition hover:bg-emerald-500/10 hover:text-emerald-500 disabled:opacity-50"
+        className="rounded-md p-1.5 text-muted-foreground transition hover:bg-success/10 hover:text-success disabled:opacity-50"
       >
         {loadingExcel ? (
           <Loader2 className="size-4 animate-spin" />

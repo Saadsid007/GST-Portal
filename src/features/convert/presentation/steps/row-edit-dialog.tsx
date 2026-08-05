@@ -221,7 +221,7 @@ export function RowEditDialog({ row, allRows, saving, onSave, onClose }: Props) 
               <button
                 type="button"
                 onClick={() => set("gstRate", suggestion.rate)}
-                className="mt-1 inline-flex items-center gap-1.5 rounded-md border border-violet-500/50 px-2 py-1 text-[11px] font-bold text-violet-600 transition hover:bg-violet-500/10"
+                className="mt-1 inline-flex items-center gap-1.5 rounded-md border border-primary/50 px-2 py-1 text-[11px] font-bold text-primary-ink transition hover:bg-primary/10"
               >
                 <Sparkles className="size-3" />
                 Use suggested {suggestion.rate}% ({suggestion.confidence}% confidence,{" "}

@@ -120,10 +120,10 @@ export function Step10Download({ state, onReset }: Props) {
   return (
     <div className="space-y-8 p-6 md:p-8">
       <div className="mx-auto max-w-lg space-y-2 text-center">
-        <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-bold tracking-wider text-emerald-600 uppercase dark:text-emerald-400">
+        <span className="rounded-full bg-success/10 px-3 py-1 text-xs font-bold tracking-wider text-success uppercase">
           Step 10 of 10 — Complete
         </span>
-        <div className="mx-auto mt-2 flex size-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600">
+        <div className="mx-auto mt-2 flex size-12 items-center justify-center rounded-full bg-success/10 text-success">
           <CheckCircle2 className="size-6" />
         </div>
         <h2 className="text-2xl font-bold">Download GSTR-1 Return Files</h2>
@@ -145,7 +145,7 @@ export function Step10Download({ state, onReset }: Props) {
         </div>
         <div>
           <p className="text-xs text-muted-foreground">Net Taxable</p>
-          <p className="mt-1 text-sm font-bold text-primary">
+          <p className="mt-1 text-sm font-bold text-primary-ink">
             {formatCurrency(statement.netTaxable)}
           </p>
         </div>
@@ -157,7 +157,7 @@ export function Step10Download({ state, onReset }: Props) {
 
       <div className="mx-auto grid max-w-4xl grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="space-y-4 rounded-2xl border border-border bg-card p-6 text-center shadow-sm transition hover:border-primary/50">
-          <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-blue-500/10 text-blue-500">
+          <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary-ink">
             <FileJson className="size-6" />
           </div>
           <div>
@@ -169,14 +169,14 @@ export function Step10Download({ state, onReset }: Props) {
           <button
             type="button"
             onClick={downloadJson}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 font-bold text-white shadow-sm transition hover:bg-blue-700"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90"
           >
             <Download className="size-4" /> Download JSON
           </button>
         </div>
 
         <div className="space-y-4 rounded-2xl border border-border bg-card p-6 text-center shadow-sm transition hover:border-primary/50">
-          <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500">
+          <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-success/10 text-success">
             <FileSpreadsheet className="size-6" />
           </div>
           <div>
@@ -190,7 +190,7 @@ export function Step10Download({ state, onReset }: Props) {
             type="button"
             onClick={() => downloadWorkbook("gstn")}
             disabled={downloading !== null}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-success px-4 py-2.5 font-bold text-success-foreground shadow-sm transition hover:bg-success/90 disabled:opacity-50"
           >
             {downloading === "gstn" ? (
               <Loader2 className="size-4 animate-spin" />
@@ -202,7 +202,7 @@ export function Step10Download({ state, onReset }: Props) {
         </div>
 
         <div className="space-y-4 rounded-2xl border border-border bg-card p-6 text-center shadow-sm transition hover:border-primary/50">
-          <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-violet-500/10 text-violet-500">
+          <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary-ink">
             <Sparkles className="size-6" />
           </div>
           <div>
@@ -216,7 +216,7 @@ export function Step10Download({ state, onReset }: Props) {
             type="button"
             onClick={() => downloadWorkbook("review")}
             disabled={downloading !== null}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 font-bold text-white shadow-sm transition hover:bg-violet-700 disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:opacity-50"
           >
             {downloading === "review" ? (
               <Loader2 className="size-4 animate-spin" />

@@ -15,7 +15,7 @@ export default function BlogPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-12 px-6 py-16">
       <div className="mx-auto max-w-2xl space-y-3 text-center">
-        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold tracking-wider text-primary uppercase">
+        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold tracking-wider text-primary-ink uppercase">
           Compliance Blog
         </span>
         <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
@@ -35,12 +35,12 @@ export default function BlogPage() {
           >
             <div className="space-y-3">
               <div className="flex items-center justify-between text-xs">
-                <span className="rounded-full bg-primary/10 px-2.5 py-0.5 font-bold text-primary">
+                <span className="rounded-full bg-primary/10 px-2.5 py-0.5 font-bold text-primary-ink">
                   {post.category}
                 </span>
                 <span className="font-mono text-muted-foreground">{post.readTime}</span>
               </div>
-              <h2 className="text-base leading-snug font-bold text-foreground transition-colors group-hover:text-primary">
+              <h2 className="text-base leading-snug font-bold text-foreground transition-colors group-hover:text-primary-ink">
                 {post.title}
               </h2>
               <p className="line-clamp-3 text-xs leading-relaxed text-muted-foreground">
@@ -48,7 +48,7 @@ export default function BlogPage() {
               </p>
             </div>
 
-            <div className="flex items-center justify-between border-t border-border/60 pt-4 text-xs font-bold text-primary">
+            <div className="flex items-center justify-between border-t border-border/60 pt-4 text-xs font-bold text-primary-ink">
               <span>Read Article</span>
               <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-1" />
             </div>

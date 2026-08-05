@@ -83,7 +83,7 @@ export default async function HistoryPage() {
                     {formatPeriod(record.returnPeriod)}
                   </td>
                   <td className="px-4 py-3 text-right font-mono">{record.totalInvoices}</td>
-                  <td className="px-4 py-3 text-right font-bold text-primary">
+                  <td className="px-4 py-3 text-right font-bold text-primary-ink">
                     {formatCurrency(Number(record.totalTaxable))}
                   </td>
                   <td className="px-4 py-3 text-center">
@@ -96,7 +96,7 @@ export default async function HistoryPage() {
                     <span
                       className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${
                         record.tcsStatus === "RECONCILED"
-                          ? "bg-emerald-500/10 text-emerald-600"
+                          ? "bg-success/10 text-success"
                           : "bg-muted text-muted-foreground"
                       }`}
                     >

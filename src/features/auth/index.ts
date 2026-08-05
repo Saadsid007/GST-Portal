@@ -1,5 +1,6 @@
 export {
   getServerSession,
+  getUserRole,
   isAdmin,
   requireAdmin,
   requireSession,

@@ -71,7 +71,7 @@ export function TransactionTable() {
     <div className="overflow-hidden rounded-2xl border border-border bg-card">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
         <h2 className="flex items-center gap-2 text-sm font-bold">
-          <Receipt className="size-4 text-primary" /> Transaction History
+          <Receipt className="size-4 text-primary-ink" /> Transaction History
         </h2>
         <div className="flex items-center gap-2">
           <select
@@ -132,7 +132,7 @@ export function TransactionTable() {
                   <td
                     className={`px-5 py-2.5 text-right font-bold tabular-nums ${
                       row.creditAmount > 0
-                        ? "text-emerald-600"
+                        ? "text-success"
                         : row.creditAmount < 0
                           ? "text-destructive"
                           : "text-muted-foreground"

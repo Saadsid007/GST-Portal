@@ -47,7 +47,7 @@ export default async function PricingPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-16 px-6 py-16">
       <div className="mx-auto max-w-2xl space-y-3 text-center">
-        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold tracking-wider text-primary uppercase">
+        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold tracking-wider text-primary-ink uppercase">
           Pay per return
         </span>
         <h1 className="text-3xl font-extrabold tracking-tight sm:text-5xl">
@@ -59,7 +59,7 @@ export default async function PricingPage() {
           first.
         </p>
         {campaign?.isActive && (
-          <p className="flex items-center justify-center gap-1.5 text-xs font-bold text-amber-600">
+          <p className="flex items-center justify-center gap-1.5 text-xs font-bold text-warning">
             <Sparkles className="size-3.5" /> {campaign.name} — extra bonus credits on every
             recharge
           </p>
@@ -79,7 +79,7 @@ export default async function PricingPage() {
               }`}
             >
               {pack.popular && (
-                <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full bg-amber-500 px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-white uppercase">
+                <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full bg-warning px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-warning-foreground uppercase">
                   Most Popular
                 </span>
               )}
@@ -94,7 +94,7 @@ export default async function PricingPage() {
                 </p>
                 <p className="flex items-center justify-between">
                   <span className="text-muted-foreground">Bonus</span>
-                  <span className="font-semibold text-emerald-600 tabular-nums">
+                  <span className="font-semibold text-success tabular-nums">
                     +{pack.breakdown.bonusCredits} ({pack.breakdown.bonusPercent}%)
                   </span>
                 </p>
@@ -150,7 +150,7 @@ export default async function PricingPage() {
                 <ul className="space-y-2.5 border-t border-border pt-4 text-xs text-muted-foreground">
                   {CA_FEATURES[plan.id]?.map((feature) => (
                     <li key={feature} className="flex items-center gap-2">
-                      <Check className="size-4 flex-shrink-0 text-emerald-500" />
+                      <Check className="size-4 flex-shrink-0 text-success" />
                       <span>{feature}</span>
                     </li>
                   ))}

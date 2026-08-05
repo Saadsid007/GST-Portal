@@ -37,7 +37,7 @@ export function Step2Period({ state, onChange, onNext, onBack }: Props) {
   return (
     <div className="space-y-6 p-6 md:p-8">
       <div>
-        <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold tracking-wider text-primary uppercase">
+        <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold tracking-wider text-primary-ink uppercase">
           Step 2 of 10
         </span>
         <h2 className="mt-2 text-xl font-bold">Select Return Filing Period</h2>
@@ -49,7 +49,7 @@ export function Step2Period({ state, onChange, onNext, onBack }: Props) {
       <div className="max-w-md space-y-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
         <div className="space-y-2">
           <label className="flex items-center gap-1.5 text-xs font-bold tracking-wide text-muted-foreground uppercase">
-            <Calendar className="size-4 text-primary" /> Return Month & Year
+            <Calendar className="size-4 text-primary-ink" /> Return Month & Year
           </label>
           <input
             type="month"
@@ -110,7 +110,7 @@ export function Step2Period({ state, onChange, onNext, onBack }: Props) {
           type="button"
           onClick={onNext}
           disabled={!state.returnPeriod}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-2.5 font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:opacity-50 sm:w-auto"
+          className="flex w-full items-center justify-center gap-2 rounded-xl brand-gradient px-6 py-2.5 font-bold text-primary-foreground shadow-accent transition hover:brightness-110 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 sm:w-auto"
         >
           <span>Next: Select Marketplaces</span>
           <ArrowRight className="size-4" />

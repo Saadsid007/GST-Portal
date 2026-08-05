@@ -43,7 +43,7 @@ export function AdminWalletTools() {
     <section className="space-y-4 rounded-2xl border border-border bg-card p-5">
       <div>
         <h2 className="flex items-center gap-2 text-sm font-bold">
-          <Users className="size-4 text-blue-500" /> Wallets
+          <Users className="size-4 text-primary-ink" /> Wallets
         </h2>
         <p className="pt-0.5 text-[11px] text-muted-foreground">
           Manual credits land in the ledger like any other movement, so the balance stays
@@ -115,7 +115,7 @@ export function AdminWalletTools() {
                   <td className="px-4 py-2.5 text-right">
                     <div className="flex items-center justify-end gap-1.5">
                       {row.isFrozen && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-bold text-blue-600 uppercase">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary-ink uppercase">
                           <Snowflake className="size-3" /> Frozen
                         </span>
                       )}

@@ -174,14 +174,14 @@ export function GstinProfileManager({ initialProfiles }: Props) {
                   className={`flex size-9 flex-shrink-0 items-center justify-center rounded-lg ${profile.isDefault ? "bg-primary/20" : "bg-muted"}`}
                 >
                   <Building2
-                    className={`size-4 ${profile.isDefault ? "text-primary" : "text-muted-foreground"}`}
+                    className={`size-4 ${profile.isDefault ? "text-primary-ink" : "text-muted-foreground"}`}
                   />
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="truncate text-sm font-semibold">{profile.legalName}</p>
                     {profile.isDefault && (
-                      <span className="flex flex-shrink-0 items-center gap-1 rounded-full bg-primary/20 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                      <span className="flex flex-shrink-0 items-center gap-1 rounded-full bg-primary/20 px-1.5 py-0.5 text-[10px] font-medium text-primary-ink">
                         <CheckCircle className="size-2.5" /> Default
                       </span>
                     )}
@@ -205,7 +205,7 @@ export function GstinProfileManager({ initialProfiles }: Props) {
                   <button
                     onClick={() => handleSetDefault(profile.id)}
                     title="Set as default"
-                    className="rounded-lg p-2 text-muted-foreground transition hover:bg-amber-500/10 hover:text-amber-500"
+                    className="rounded-lg p-2 text-muted-foreground transition hover:bg-warning/10 hover:text-warning"
                   >
                     <Star className="size-4" />
                   </button>

@@ -11,7 +11,7 @@ export default function ContactPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-12 px-6 py-16">
       <div className="space-y-4 text-center">
-        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold tracking-wider text-primary uppercase">
+        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold tracking-wider text-primary-ink uppercase">
           Contact Us
         </span>
         <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">We're Here to Help</h1>
@@ -62,11 +62,11 @@ export default function ContactPage() {
             <h2 className="mb-4 text-base font-bold">Contact Information</h2>
             <div className="space-y-4 text-xs">
               <div className="flex items-center gap-3">
-                <Mail className="size-4 text-primary" />
+                <Mail className="size-4 text-primary-ink" />
                 <span>support@gstpilot.in</span>
               </div>
               <div className="flex items-center gap-3">
-                <MapPin className="size-4 text-primary" />
+                <MapPin className="size-4 text-primary-ink" />
                 <span>GSTPilot HQ, Tech Hub, Mumbai, Maharashtra 400001</span>
               </div>
             </div>

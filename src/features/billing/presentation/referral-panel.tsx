@@ -52,7 +52,7 @@ export function ReferralPanel({ summary }: { summary: ReferralSummary }) {
     <div className="space-y-5 rounded-2xl border border-border bg-card p-5">
       <div className="flex items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-sm font-bold">
-          <Users className="size-4 text-primary" /> Refer & Earn
+          <Users className="size-4 text-primary-ink" /> Refer & Earn
         </h2>
         <span className="text-xs text-muted-foreground">
           {summary.totalRewarded}/{summary.totalReferred} rewarded · {summary.creditsEarned} credits
@@ -75,7 +75,7 @@ export function ReferralPanel({ summary }: { summary: ReferralSummary }) {
             aria-label="Copy referral code"
           >
             {copied === summary.code ? (
-              <Check className="size-4 text-emerald-600" />
+              <Check className="size-4 text-success" />
             ) : (
               <Copy className="size-4" />
             )}
@@ -102,7 +102,7 @@ export function ReferralPanel({ summary }: { summary: ReferralSummary }) {
               aria-label="Copy share token"
             >
               {copied === summary.shareToken ? (
-                <Check className="size-4 text-emerald-600" />
+                <Check className="size-4 text-success" />
               ) : (
                 <Copy className="size-4" />
               )}
@@ -137,7 +137,7 @@ export function ReferralPanel({ summary }: { summary: ReferralSummary }) {
             {summary.appliedCode}{" "}
             <span
               className={`text-xs font-bold ${
-                summary.appliedStatus === "REWARDED" ? "text-emerald-600" : "text-amber-600"
+                summary.appliedStatus === "REWARDED" ? "text-success" : "text-warning"
               }`}
             >
               · {summary.appliedStatus}

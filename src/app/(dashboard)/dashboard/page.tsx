@@ -13,22 +13,29 @@ export default async function DashboardPage() {
   const session = await requireSession();
   const userId = session.user.id;
 
-  const recent = await prisma.conversionHistory.findMany({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-    take: 5,
-  });
-
-  const total = await prisma.conversionHistory.count({ where: { userId } });
-  const profiles = await prisma.gstinProfile.findMany({ where: { userId } });
-  const wallet = await getWalletSummary(userId);
+  // These four reads are independent; awaiting them in sequence cost four
+  // round-trips on every dashboard load.
+  const [recent, total, profiles, wallet] = await Promise.all([
+    prisma.conversionHistory.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
+    prisma.conversionHistory.count({ where: { userId } }),
+    prisma.gstinProfile.findMany({ where: { userId } }),
+    getWalletSummary(userId),
+  ]);
 
   return (
     <div className="space-y-8">
       {/* Header Banner */}
-      <div className="flex flex-col justify-between gap-6 rounded-2xl border border-border bg-gradient-to-br from-card via-card to-primary/5 p-6 shadow-sm md:flex-row md:items-center md:p-8">
-        <div className="max-w-xl space-y-1">
-          <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold tracking-wider text-primary uppercase">
+      <div className="relative flex flex-col justify-between gap-6 overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-card via-card to-primary/10 p-6 shadow-sm md:flex-row md:items-center md:p-8">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 grid-lines [mask-image:linear-gradient(to_bottom_right,transparent_40%,black)] opacity-50"
+        />
+        <div className="relative max-w-xl space-y-1">
+          <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold tracking-wider text-primary-ink uppercase">
             Marketplace → GSTR-1 Engine
           </span>
           <h1 className="pt-1 text-2xl font-bold">Multi-Marketplace GSTR-1 Generator</h1>
@@ -40,9 +47,9 @@ export default async function DashboardPage() {
 
         <Link
           href="/convert"
-          className="flex flex-shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 font-bold text-primary-foreground shadow-md transition hover:bg-primary/90"
+          className="group relative flex flex-shrink-0 items-center justify-center gap-2 rounded-xl brand-gradient px-6 py-3 font-bold text-primary-foreground shadow-accent transition hover:brightness-110 active:scale-[0.98]"
         >
-          <Zap className="size-5" />
+          <Zap className="size-5 transition-transform group-hover:scale-110" />
           <span>Generate Combined Return</span>
         </Link>
       </div>
@@ -51,9 +58,9 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <WalletCard summary={wallet} />
 
-        <div className="space-y-2 rounded-xl border border-border bg-card p-5">
+        <div className="card-lift space-y-2 rounded-xl border border-border bg-card p-5 hover:border-primary/40">
           <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase">
-            <Building2 className="size-4 text-primary" /> Active GST Profiles
+            <Building2 className="size-4 text-primary-ink" /> Active GST Profiles
           </div>
           <p className="text-2xl font-bold">{profiles.length}</p>
           <p className="text-xs text-muted-foreground">
@@ -61,29 +68,29 @@ export default async function DashboardPage() {
           </p>
           <Link
             href="/profile"
-            className="inline-flex items-center gap-1 pt-2 text-xs font-semibold text-primary hover:underline"
+            className="inline-flex items-center gap-1 pt-2 text-xs font-semibold text-primary-ink hover:underline"
           >
             Manage profiles <ArrowRight className="size-3" />
           </Link>
         </div>
 
-        <div className="space-y-2 rounded-xl border border-border bg-card p-5">
+        <div className="card-lift space-y-2 rounded-xl border border-border bg-card p-5 hover:border-primary/40">
           <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase">
-            <History className="size-4 text-emerald-500" /> Past Filings
+            <History className="size-4 text-success" /> Past Filings
           </div>
           <p className="text-2xl font-bold">{total}</p>
           <p className="text-xs text-muted-foreground">Processed returns & GSTR-1 history</p>
           <Link
             href="/history"
-            className="inline-flex items-center gap-1 pt-2 text-xs font-semibold text-emerald-600 hover:underline"
+            className="inline-flex items-center gap-1 pt-2 text-xs font-semibold text-success hover:underline"
           >
             View filing history <ArrowRight className="size-3" />
           </Link>
         </div>
 
-        <div className="space-y-2 rounded-xl border border-border bg-card p-5">
+        <div className="card-lift space-y-2 rounded-xl border border-border bg-card p-5 hover:border-primary/40">
           <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase">
-            <FileSpreadsheet className="size-4 text-blue-500" /> Supported Marketplaces
+            <FileSpreadsheet className="size-4 text-primary-ink" /> Supported Marketplaces
           </div>
           <p className="text-2xl font-bold">10 Marketplaces</p>
           <p className="text-xs text-muted-foreground">
@@ -91,7 +98,7 @@ export default async function DashboardPage() {
           </p>
           <Link
             href="/convert"
-            className="inline-flex items-center gap-1 pt-2 text-xs font-semibold text-blue-600 hover:underline"
+            className="inline-flex items-center gap-1 pt-2 text-xs font-semibold text-primary-ink hover:underline"
           >
             Start new return <ArrowRight className="size-3" />
           </Link>
@@ -102,7 +109,7 @@ export default async function DashboardPage() {
       <div>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-base font-bold">Recent Multi-Marketplace Returns</h2>
-          <Link href="/history" className="text-xs font-semibold text-primary hover:underline">
+          <Link href="/history" className="text-xs font-semibold text-primary-ink hover:underline">
             View all
           </Link>
         </div>
@@ -149,11 +156,11 @@ export default async function DashboardPage() {
                       {formatPeriod(item.returnPeriod)}
                     </td>
                     <td className="px-4 py-3 text-right font-mono">{item.totalInvoices}</td>
-                    <td className="px-4 py-3 text-right font-bold text-primary">
+                    <td className="px-4 py-3 text-right font-bold text-primary-ink">
                       {formatCurrency(Number(item.totalTaxable))}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-semibold text-success">
                         {item.status}
                       </span>
                     </td>

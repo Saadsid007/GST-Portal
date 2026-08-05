@@ -53,7 +53,7 @@ export function Step3Platforms({ state, onChange, onNext, onBack }: Props) {
     <div className="space-y-6 p-6 md:p-8">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold tracking-wider text-primary uppercase">
+          <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold tracking-wider text-primary-ink uppercase">
             Step 3 of 10
           </span>
           <h2 className="mt-2 text-xl font-bold">
@@ -67,7 +67,7 @@ export function Step3Platforms({ state, onChange, onNext, onBack }: Props) {
         <button
           type="button"
           onClick={selectAll}
-          className="w-full rounded-lg border border-dashed border-primary/40 px-3 py-1.5 text-xs font-bold text-primary hover:underline sm:w-auto"
+          className="w-full rounded-lg border border-dashed border-primary/40 px-3 py-1.5 text-xs font-bold text-primary-ink hover:underline sm:w-auto"
         >
           Select All Platforms
         </button>
@@ -83,19 +83,28 @@ export function Step3Platforms({ state, onChange, onNext, onBack }: Props) {
               type="button"
               key={plat.id}
               onClick={() => togglePlatform(plat.id)}
+              aria-pressed={isSelected}
               className={cn(
-                "group relative flex items-start gap-3 overflow-hidden rounded-2xl border p-4 text-left transition-all",
+                "group relative flex items-start gap-3 overflow-hidden rounded-2xl border p-4 text-left transition-all duration-200",
                 isSelected
-                  ? "border-primary bg-primary/5 shadow-sm ring-2 ring-primary/20"
-                  : "border-border bg-card hover:border-primary/40 hover:bg-accent/40"
+                  ? "-translate-y-0.5 border-primary bg-primary/5 shadow-md ring-2 ring-primary/20"
+                  : "border-border bg-card hover:-translate-y-0.5 hover:border-primary/40 hover:bg-accent/40 hover:shadow-sm"
               )}
             >
+              {/* Selected cards carry a brand stripe so the state survives a squint test. */}
+              <span
+                aria-hidden
+                className={cn(
+                  "absolute inset-y-0 left-0 w-1 brand-gradient transition-opacity duration-200",
+                  isSelected ? "opacity-100" : "opacity-0"
+                )}
+              />
               <div
                 className={cn(
-                  "flex size-10 flex-shrink-0 items-center justify-center rounded-xl transition-all",
+                  "flex size-10 flex-shrink-0 items-center justify-center rounded-xl transition-all duration-200",
                   isSelected
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary"
+                    ? "brand-gradient text-primary-foreground shadow-sm"
+                    : "bg-muted text-muted-foreground group-hover:scale-110 group-hover:bg-primary/10 group-hover:text-primary-ink"
                 )}
               >
                 <IconComponent className="size-5" />
@@ -139,7 +148,7 @@ export function Step3Platforms({ state, onChange, onNext, onBack }: Props) {
           type="button"
           onClick={onNext}
           disabled={state.selectedPlatformIds.length === 0}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-2.5 font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:opacity-50 sm:w-auto"
+          className="flex w-full items-center justify-center gap-2 rounded-xl brand-gradient px-6 py-2.5 font-bold text-primary-foreground shadow-accent transition hover:brightness-110 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 sm:w-auto"
         >
           <span>Next: Required Files Detection</span>
           <ArrowRight className="size-4" />

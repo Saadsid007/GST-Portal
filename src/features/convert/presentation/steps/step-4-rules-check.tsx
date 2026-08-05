@@ -16,7 +16,7 @@ export function Step4RulesCheck({ state, onNext, onBack }: Props) {
   return (
     <div className="space-y-6 p-6 md:p-8">
       <div>
-        <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold tracking-wider text-primary uppercase">
+        <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold tracking-wider text-primary-ink uppercase">
           Step 4 of 10
         </span>
         <h2 className="mt-2 text-xl font-bold">Required Files Detection (Rule Engine)</h2>
@@ -30,7 +30,7 @@ export function Step4RulesCheck({ state, onNext, onBack }: Props) {
         {selectedConfigs.map((plat) => (
           <div key={plat.id} className="space-y-3 rounded-2xl border border-border bg-card p-5">
             <div className="flex items-center gap-2">
-              <ShieldCheck className="size-5 text-primary" />
+              <ShieldCheck className="size-5 text-primary-ink" />
               <h3 className="text-base font-bold">{plat.name}</h3>
             </div>
 
@@ -40,12 +40,12 @@ export function Step4RulesCheck({ state, onNext, onBack }: Props) {
                   key={f.id}
                   className="flex items-start gap-3 rounded-xl border border-border bg-background p-3.5"
                 >
-                  <FileCheck className="mt-0.5 size-4 flex-shrink-0 text-emerald-500" />
+                  <FileCheck className="mt-0.5 size-4 flex-shrink-0 text-success" />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between">
                       <p className="truncate text-xs font-bold">{f.name}</p>
                       {f.required ? (
-                        <span className="rounded bg-red-500/10 px-2 py-0.5 text-[10px] font-bold text-red-600 uppercase">
+                        <span className="rounded bg-destructive/10 px-2 py-0.5 text-[10px] font-bold text-destructive uppercase">
                           Required
                         </span>
                       ) : (
@@ -64,7 +64,7 @@ export function Step4RulesCheck({ state, onNext, onBack }: Props) {
       </div>
 
       <div className="flex items-center gap-2.5 rounded-xl border border-border bg-muted/40 p-4 text-xs text-muted-foreground">
-        <Info className="size-4 flex-shrink-0 text-primary" />
+        <Info className="size-4 flex-shrink-0 text-primary-ink" />
         <span>
           You will upload these files in the next step. Optional files can be skipped if not
           available.
@@ -83,7 +83,7 @@ export function Step4RulesCheck({ state, onNext, onBack }: Props) {
         <button
           type="button"
           onClick={onNext}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-2.5 font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 sm:w-auto"
+          className="flex w-full items-center justify-center gap-2 rounded-xl brand-gradient px-6 py-2.5 font-bold text-primary-foreground shadow-accent transition hover:brightness-110 active:scale-[0.98] sm:w-auto"
         >
           <span>Next: Upload Files</span>
           <ArrowRight className="size-4" />

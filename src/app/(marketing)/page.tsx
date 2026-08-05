@@ -1,324 +1,245 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Zap, CheckCircle, FileSpreadsheet, ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Check, Play, ShieldCheck, Sparkles, Zap } from "lucide-react";
+import { Badge, Button } from "@/components/ui";
+import { SITE } from "@/config/site";
+import { DemoGenerator } from "@/features/demo/presentation/demo-generator";
+import {
+  ClosingCta,
+  ComparisonSection,
+  FAQS,
+  FaqSection,
+  FeaturesSection,
+  Section,
+  TestimonialsSection,
+  WorkflowSection,
+} from "./_components/home-sections";
+import { PricingPreview } from "./_components/pricing-preview";
+
+// Pricing comes from the admin-editable billing_config table, so the prerender
+// has to refresh — otherwise a slab edit never reaches the homepage.
+export const revalidate = 300;
 
 export const metadata: Metadata = {
-  title: "GSTPilot — Convert Amazon, Meesho & Flipkart Reports to GSTR-1 Excel & JSON",
+  title: "GSTPilot — Convert Amazon, Meesho & Flipkart reports to GSTR-1",
   description:
-    "Convert marketplace Excel reports to government-compatible GSTR-1 JSON & Excel files in seconds. Net sales calculation, auto column mapping & TCS reconciliation.",
+    "Turn marketplace seller reports into government-ready GSTR-1 JSON and Excel in seconds. Automatic net sales after returns, multi-marketplace merge, TCS reconciliation and one-click auto-fixers.",
+  alternates: { canonical: "/" },
   openGraph: {
-    title: "GSTPilot — Marketplace to GSTR-1 Excel & JSON Converter",
+    title: "GSTPilot — Marketplace reports to GSTR-1 in seconds",
     description:
-      "Convert Amazon, Meesho & Flipkart Excel reports to official GSTR-1 JSON & Excel files.",
+      "Automatic net sales, multi-marketplace merge and GSTN v3.0 JSON. Try the interactive demo — no signup.",
+    url: SITE.url,
+    type: "website",
   },
 };
+
+const MARKETPLACES = [
+  { name: "Amazon MTR", slug: "amazon-gst-report-generator", note: "v3 supported" },
+  { name: "Meesho", slug: "meesho-gst-report-generator", note: "Sales + returns" },
+  { name: "Flipkart", slug: "flipkart-gst-report-generator", note: "Seller export" },
+  { name: "Myntra", slug: "myntra-gst-report-generator", note: "Tax invoices" },
+  { name: "JioMart", slug: "jiomart-gst-report-generator", note: "Orders export" },
+  { name: "Shopdeck", slug: "shopdeck-gst-report-generator", note: "D2C stores" },
+  { name: "GlowRoad", slug: "glowroad-gst-report-generator", note: "Reseller sales" },
+  { name: "Snapdeal", slug: "snapdeal-gst-report-generator", note: "Seller orders" },
+  { name: "Roposo Clout", slug: "custom-excel-gst-generator", note: "Clout reports" },
+  { name: "Custom Excel", slug: "custom-excel-gst-generator", note: "Universal mapper" },
+];
+
+const HERO_PROOF = [
+  "GSTN v3.0 compliant output",
+  "Net sales after returns",
+  "TCS section 52 reconciliation",
+];
 
 export default function LandingPage() {
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "SoftwareApplication",
-    name: "GSTPilot",
-    applicationCategory: "BusinessApplication",
-    operatingSystem: "Web",
-    offers: {
-      "@type": "Offer",
-      price: "0",
-      priceCurrency: "INR",
-    },
-    description:
-      "Marketplace Excel to GSTR-1 JSON & Multi-Sheet Excel Converter for Amazon, Meesho, Flipkart, and D2C brands.",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": `${SITE.url}/#organization`,
+        name: SITE.name,
+        url: SITE.url,
+        description: SITE.description,
+      },
+      {
+        "@type": "WebSite",
+        "@id": `${SITE.url}/#website`,
+        url: SITE.url,
+        name: SITE.name,
+        publisher: { "@id": `${SITE.url}/#organization` },
+        inLanguage: "en-IN",
+      },
+      {
+        "@type": "SoftwareApplication",
+        name: SITE.name,
+        applicationCategory: "BusinessApplication",
+        operatingSystem: "Web",
+        description: SITE.description,
+        offers: {
+          "@type": "Offer",
+          price: "0",
+          priceCurrency: "INR",
+          description: "Two free GSTR-1 returns, then pay per return from wallet credits.",
+        },
+      },
+      {
+        "@type": "FAQPage",
+        mainEntity: FAQS.map((faq) => ({
+          "@type": "Question",
+          name: faq.q,
+          acceptedAnswer: { "@type": "Answer", text: faq.a },
+        })),
+      },
+    ],
   };
 
   return (
-    <div className="space-y-24 pb-20">
+    <div className="space-y-24 pb-24">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      {/* Hero Section */}
-      <section className="relative mx-auto max-w-7xl space-y-8 overflow-hidden px-6 pt-16 text-center md:pt-24">
-        <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-4 py-1.5 text-xs font-bold text-primary shadow-sm">
-          <Sparkles className="size-3.5" />
-          <span>The #1 GSTTool.in Alternative for Modern E-Commerce Sellers</span>
-        </div>
+      {/* ── Hero ─────────────────────────────────────────────────────────── */}
+      <section className="relative px-6 pt-16 md:pt-24">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[600px] brand-glow"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[600px] grid-lines [mask-image:radial-gradient(70%_55%_at_50%_0%,black,transparent)] opacity-50"
+        />
 
-        <h1 className="mx-auto max-w-4xl text-4xl leading-[1.1] font-extrabold tracking-tight sm:text-6xl">
-          Convert Marketplace Reports to{" "}
-          <span className="bg-gradient-to-r from-primary via-violet-600 to-indigo-600 bg-clip-text text-transparent">
-            GSTR-1 Excel & JSON
-          </span>{" "}
-          in Seconds
-        </h1>
-
-        <p className="mx-auto max-w-2xl text-base leading-relaxed font-normal text-muted-foreground sm:text-lg">
-          Stop struggling with complex ERPs and manual Excel formatting. Combine reports from{" "}
-          <strong className="font-semibold text-foreground">
-            Amazon, Meesho, Flipkart, Myntra & Custom files
-          </strong>{" "}
-          into 1 government-compatible filing.
-        </p>
-
-        <div className="flex flex-col items-center justify-center gap-4 pt-2 sm:flex-row">
+        <div className="mx-auto max-w-4xl space-y-7 text-center">
           <Link
-            href="/convert"
-            className="group flex w-full items-center justify-center gap-2.5 rounded-2xl bg-primary px-8 py-3.5 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/25 transition hover:bg-primary/90 sm:w-auto"
+            href="/changelog"
+            className="inline-flex animate-rise items-center gap-2 rounded-full border border-border bg-card/80 py-1.5 pr-4 pl-1.5 text-xs font-medium shadow-sm backdrop-blur transition-colors hover:border-primary/40"
           >
-            <Zap className="size-4" />
-            <span>Start Free Conversion</span>
-            <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
+            <Badge variant="solid" size="sm">
+              New
+            </Badge>
+            <span className="text-muted-foreground">
+              Amazon MTR v3 &amp; TCS reconciliation are live
+            </span>
+            <ArrowRight className="size-3 text-muted-foreground" aria-hidden />
           </Link>
 
-          <Link
-            href="/docs/getting-started"
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-card px-6 py-3.5 text-sm font-bold transition hover:bg-accent sm:w-auto"
-          >
-            <span>View Documentation</span>
-          </Link>
-        </div>
+          <h1 className="text-4xl leading-[1.05] font-bold tracking-tight text-balance sm:text-6xl">
+            Marketplace reports to <span className="brand-text">GSTR-1</span>, in seconds
+          </h1>
 
-        <div className="flex flex-wrap items-center justify-center gap-6 pt-6 text-xs font-medium text-muted-foreground">
-          <span className="flex items-center gap-1.5">
-            <CheckCircle className="size-4 text-emerald-500" /> GSTN v3.0+ Compliant
-          </span>
-          <span className="flex items-center gap-1.5">
-            <CheckCircle className="size-4 text-emerald-500" /> Net Sales Calculation (Sales -
-            Returns)
-          </span>
-          <span className="flex items-center gap-1.5">
-            <CheckCircle className="size-4 text-emerald-500" /> 1-Click Auto-Fixers
-          </span>
-        </div>
+          <p className="mx-auto max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+            Amazon, Flipkart, Meesho and Myntra exports go in. One government-ready GSTR-1 JSON and
+            Excel comes out — with returns netted off, states coded and tax split correctly.
+          </p>
 
-        {/* App Preview Card */}
-        <div className="mx-auto max-w-5xl pt-10">
-          <div className="rounded-3xl border border-border/80 bg-card p-4 shadow-2xl ring-1 shadow-primary/10 ring-border sm:p-6">
-            <div className="space-y-6 rounded-2xl border border-border/60 bg-muted/40 p-6 text-left sm:p-8">
-              <div className="flex items-center justify-between border-b border-border pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex size-10 items-center justify-center rounded-xl bg-primary font-bold text-primary-foreground">
-                    <FileSpreadsheet className="size-5" />
-                  </div>
-                  <div>
-                    <p className="text-base font-bold">Net Sales Engine Output</p>
-                    <p className="text-xs text-muted-foreground">
-                      Amazon MTR + Meesho Sales & Returns Merged
-                    </p>
-                  </div>
-                </div>
-                <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-600">
-                  ✓ 100% Validated
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 text-center sm:grid-cols-3">
-                <div className="rounded-xl border border-border bg-background p-4">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase">
-                    Gross Sales
-                  </p>
-                  <p className="mt-1 text-xl font-bold text-emerald-600 dark:text-emerald-400">
-                    ₹4,85,200.00
-                  </p>
-                </div>
-                <div className="rounded-xl border border-border bg-background p-4">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase">
-                    Sales Returns
-                  </p>
-                  <p className="mt-1 text-xl font-bold text-rose-500">- ₹42,150.00</p>
-                </div>
-                <div className="rounded-xl border border-primary/40 bg-primary/10 p-4">
-                  <p className="text-xs font-semibold text-primary uppercase">Net Sales Taxable</p>
-                  <p className="mt-1 text-2xl font-bold text-primary">₹4,43,050.00</p>
-                </div>
-              </div>
-            </div>
+          <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Button asChild variant="brand" size="xl" className="w-full sm:w-auto">
+              <Link href="/register">
+                <Zap />
+                Start free — 2 returns
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="xl" className="w-full sm:w-auto">
+              <Link href="#demo">
+                <Play />
+                Try the live demo
+              </Link>
+            </Button>
           </div>
+
+          <ul className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 pt-2 text-xs font-medium text-muted-foreground">
+            {HERO_PROOF.map((item) => (
+              <li key={item} className="flex items-center gap-1.5">
+                <Check className="size-3.5 text-success" aria-hidden />
+                {item}
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
 
-      {/* Problem vs Solution */}
-      <section className="mx-auto max-w-7xl space-y-12 px-6">
-        <div className="mx-auto max-w-2xl space-y-2 text-center">
-          <h2 className="text-2xl font-extrabold sm:text-3xl">
-            Why Traditional GST Tools Fail E-Commerce Sellers
+      {/* ── Interactive demo ─────────────────────────────────────────────── */}
+      <section id="demo" className="mx-auto max-w-6xl scroll-mt-24 space-y-8 px-6">
+        <div className="mx-auto max-w-2xl space-y-2.5 text-center">
+          <Badge variant="primary" size="md">
+            <Sparkles className="size-3" aria-hidden />
+            Interactive demo
+          </Badge>
+          <h2 className="text-3xl font-bold tracking-tight text-balance">
+            Watch a real conversion, right here
           </h2>
           <p className="text-sm text-muted-foreground">
-            Every marketplace exports different headers and formats. GSTPilot standardizes
-            everything into one pipeline.
+            Load a sample marketplace export, run it through the pipeline, and compare the raw file
+            against the filing-ready output. No signup, no upload.
           </p>
         </div>
-
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-          {/* Problem */}
-          <div className="space-y-4 rounded-3xl border border-destructive/30 bg-destructive/5 p-8">
-            <h3 className="text-lg font-bold text-destructive">
-              The Old Way (Manual & Complex ERPs)
-            </h3>
-            <ul className="space-y-3 text-xs text-muted-foreground">
-              <li className="flex items-start gap-2">
-                <span className="font-bold text-destructive">✗</span> Hours spent manually
-                formatting Amazon, Meesho, and Flipkart Excel files.
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="font-bold text-destructive">✗</span> Overpaying tax on returned
-                goods by failing to deduct sales returns.
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="font-bold text-destructive">✗</span> Mismatched state codes causing
-                GST notices.
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="font-bold text-destructive">✗</span> Complex ERP software requiring
-                expensive monthly subscriptions.
-              </li>
-            </ul>
-          </div>
-
-          {/* Solution */}
-          <div className="space-y-4 rounded-3xl border border-emerald-500/30 bg-emerald-500/5 p-8">
-            <h3 className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
-              The GSTPilot Way
-            </h3>
-            <ul className="space-y-3 text-xs text-muted-foreground">
-              <li className="flex items-start gap-2">
-                <CheckCircle className="size-4 flex-shrink-0 text-emerald-500" /> Drag-and-drop
-                report files for Amazon, Meesho, Flipkart, etc.
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle className="size-4 flex-shrink-0 text-emerald-500" /> Net Sales Engine
-                automatically computes Sales − Returns.
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle className="size-4 flex-shrink-0 text-emerald-500" /> 1-click
-                Auto-Fixers sanitize GSTINs, state codes, and HSN codes.
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle className="size-4 flex-shrink-0 text-emerald-500" /> Instant official
-                GSTN v3.0 JSON and multi-sheet Excel exports.
-              </li>
-            </ul>
-          </div>
-        </div>
+        <DemoGenerator />
       </section>
 
-      {/* Supported Marketplaces */}
-      <section className="mx-auto max-w-7xl space-y-12 px-6">
-        <div className="mx-auto max-w-2xl space-y-2 text-center">
-          <h2 className="text-2xl font-extrabold sm:text-3xl">Supported E-Commerce Marketplaces</h2>
-          <p className="text-sm text-muted-foreground">
-            GSTPilot includes dedicated strategy parsers for every major seller portal.
-          </p>
-        </div>
+      <WorkflowSection />
+      <FeaturesSection />
 
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-          {[
-            { name: "Amazon MTR", slug: "amazon-gst-report-generator", badge: "v3 Supported" },
-            { name: "Meesho Panel", slug: "meesho-gst-report-generator", badge: "Sales + Returns" },
-            { name: "Flipkart Hub", slug: "flipkart-gst-report-generator", badge: "Seller Export" },
-            { name: "Myntra Partner", slug: "myntra-gst-report-generator", badge: "Tax Invoices" },
-            {
-              name: "JioMart Partner",
-              slug: "jiomart-gst-report-generator",
-              badge: "Orders Export",
-            },
-            { name: "Shopdeck D2C", slug: "shopdeck-gst-report-generator", badge: "D2C Stores" },
-            { name: "GlowRoad", slug: "glowroad-gst-report-generator", badge: "Reseller Sales" },
-            { name: "Snapdeal", slug: "snapdeal-gst-report-generator", badge: "Seller Orders" },
-            { name: "Roposo Clout", slug: "custom-excel-gst-generator", badge: "Clout Reports" },
-            { name: "Custom Excel", slug: "custom-excel-gst-generator", badge: "Universal Mapper" },
-          ].map((m) => (
+      {/* ── Marketplaces ─────────────────────────────────────────────────── */}
+      <Section
+        eyebrow="Coverage"
+        title="Every major Indian marketplace"
+        description="Dedicated parsers per platform, plus a universal mapper for anything else."
+      >
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          {MARKETPLACES.map((m) => (
             <Link
               key={m.name}
               href={`/platforms/${m.slug}`}
-              className="group space-y-2 rounded-2xl border border-border bg-card p-5 text-center shadow-sm transition hover:border-primary/50 hover:bg-accent/40"
+              className="group card-lift rounded-xl border border-border bg-card p-4 text-center shadow-sm hover:border-primary/40"
             >
-              <div className="mx-auto flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary transition-transform group-hover:scale-110">
-                <FileSpreadsheet className="size-5" />
-              </div>
-              <p className="text-sm font-bold text-foreground">{m.name}</p>
-              <span className="inline-block rounded bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                {m.badge}
-              </span>
+              <p className="text-sm font-semibold transition-colors group-hover:text-primary-ink">
+                {m.name}
+              </p>
+              <p className="mt-1 text-2xs text-muted-foreground">{m.note}</p>
             </Link>
           ))}
         </div>
-      </section>
+      </Section>
 
-      {/* Comparison Table */}
-      <section className="mx-auto max-w-5xl space-y-8 px-6">
-        <div className="mx-auto max-w-2xl space-y-2 text-center">
-          <h2 className="text-2xl font-extrabold sm:text-3xl">Manual Filing vs. GSTPilot</h2>
-          <p className="text-sm text-muted-foreground">
-            Compare the speed and accuracy of automated GST filing.
-          </p>
-        </div>
+      <ComparisonSection />
 
-        <div className="overflow-x-auto rounded-2xl border border-border bg-card shadow-sm">
-          <table className="w-full min-w-[560px] text-xs">
-            <thead>
-              <tr className="border-b border-border bg-muted/40 text-left font-bold text-muted-foreground">
-                <th className="px-5 py-4">Feature</th>
-                <th className="px-5 py-4 text-center">Manual Excel Filing</th>
-                <th className="px-5 py-4 text-center font-bold text-primary">GSTPilot Engine</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              <tr>
-                <td className="px-5 py-3 font-semibold">Processing Speed</td>
-                <td className="px-5 py-3 text-center text-muted-foreground">
-                  2 to 4 hours per month
-                </td>
-                <td className="px-5 py-3 text-center font-bold text-emerald-600 dark:text-emerald-400">
-                  Less than 5 seconds
-                </td>
-              </tr>
-              <tr>
-                <td className="px-5 py-3 font-semibold">Multi-Marketplace Combination</td>
-                <td className="px-5 py-3 text-center text-muted-foreground">Manual Copy-Paste</td>
-                <td className="px-5 py-3 text-center font-bold text-emerald-600 dark:text-emerald-400">
-                  1-Click Merge Engine
-                </td>
-              </tr>
-              <tr>
-                <td className="px-5 py-3 font-semibold">Net Sales Calculation (Sales - Returns)</td>
-                <td className="px-5 py-3 text-center text-muted-foreground">
-                  Error-prone manual formulas
-                </td>
-                <td className="px-5 py-3 text-center font-bold text-emerald-600 dark:text-emerald-400">
-                  Automated Net Sales Engine
-                </td>
-              </tr>
-              <tr>
-                <td className="px-5 py-3 font-semibold">TCS Section 52 Reconciliation</td>
-                <td className="px-5 py-3 text-center text-muted-foreground">Not Available</td>
-                <td className="px-5 py-3 text-center font-bold text-emerald-600 dark:text-emerald-400">
-                  State-wise TCS Module
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
+      {/* Rendered inline, not inside Suspense. This route is fully static, so the
+          pricing read resolves at build/revalidate time — wrapping it in a
+          boundary only forces a streaming shell and parks the markup in a hidden
+          div awaiting a client swap. */}
+      <PricingPreview />
 
-      {/* CTA Section */}
+      <TestimonialsSection />
+
+      {/* ── Security strip ───────────────────────────────────────────────── */}
       <section className="mx-auto max-w-5xl px-6">
-        <div className="space-y-6 rounded-3xl border border-border bg-gradient-to-r from-primary via-violet-600 to-indigo-600 p-10 text-center text-white shadow-2xl shadow-primary/20 md:p-14">
-          <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
-            Ready to File Error-Free GSTR-1 Returns?
-          </h2>
-          <p className="mx-auto max-w-xl text-sm opacity-90 sm:text-base">
-            Join e-commerce sellers and CAs using GSTPilot to convert marketplace reports into
-            GSTR-1 files.
-          </p>
-          <Link
-            href="/convert"
-            className="inline-flex items-center gap-2 rounded-2xl bg-white px-8 py-3.5 text-sm font-extrabold text-slate-900 shadow-lg transition hover:bg-slate-100"
-          >
-            <Zap className="size-4 text-primary" />
-            <span>Start Conversion Now</span>
-          </Link>
+        <div className="flex flex-col items-center gap-5 rounded-2xl border border-border bg-subtle px-6 py-8 text-center sm:flex-row sm:text-left">
+          <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-success/10 text-success-ink ring-1 ring-success/20">
+            <ShieldCheck className="size-6" aria-hidden />
+          </span>
+          <div className="flex-1">
+            <p className="text-sm font-semibold">Your sales data stays yours</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Files are transferred over TLS and processed only to produce your return. We never
+              sell or share your data.
+            </p>
+          </div>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/security">
+              Read the security model
+              <ArrowRight />
+            </Link>
+          </Button>
         </div>
       </section>
+
+      <FaqSection />
+      <ClosingCta />
     </div>
   );
 }

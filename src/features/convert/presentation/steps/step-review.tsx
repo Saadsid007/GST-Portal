@@ -109,7 +109,7 @@ export function StepReview({ state, onNext, onBack }: Props) {
           {/* Main Net Sales Formula Card */}
           <div className="space-y-4 rounded-2xl border border-border bg-gradient-to-br from-card via-card to-primary/5 p-6 shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1.5 text-xs font-bold tracking-wider text-primary uppercase">
+              <span className="flex items-center gap-1.5 text-xs font-bold tracking-wider text-primary-ink uppercase">
                 <Sparkles className="size-3.5" /> Net Sales Engine Calculation
               </span>
               <span className="font-mono text-xs text-muted-foreground">
@@ -120,7 +120,7 @@ export function StepReview({ state, onNext, onBack }: Props) {
             <div className="grid grid-cols-1 gap-4 text-center md:grid-cols-3">
               <div className="rounded-xl border border-border bg-background/50 p-4">
                 <p className="text-xs font-semibold text-muted-foreground uppercase">Gross Sales</p>
-                <p className="mt-1 text-xl font-bold text-emerald-600 dark:text-emerald-400">
+                <p className="mt-1 text-xl font-bold text-success">
                   {formatCurrency(statement.totalSalesTaxable)}
                 </p>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
@@ -132,7 +132,7 @@ export function StepReview({ state, onNext, onBack }: Props) {
                 <p className="text-xs font-semibold text-muted-foreground uppercase">
                   Sales Returns / Refunds
                 </p>
-                <p className="mt-1 text-xl font-bold text-rose-500">
+                <p className="mt-1 text-xl font-bold text-destructive">
                   - {formatCurrency(statement.totalReturnTaxable)}
                 </p>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
@@ -141,11 +141,13 @@ export function StepReview({ state, onNext, onBack }: Props) {
               </div>
 
               <div className="rounded-xl border border-primary/40 bg-primary/10 p-4">
-                <p className="text-xs font-semibold text-primary uppercase">Net Sales Taxable</p>
-                <p className="mt-1 text-2xl font-bold text-primary">
+                <p className="text-xs font-semibold text-primary-ink uppercase">
+                  Net Sales Taxable
+                </p>
+                <p className="mt-1 text-2xl font-bold text-primary-ink">
                   {formatCurrency(statement.netTaxable)}
                 </p>
-                <p className="mt-0.5 text-[11px] font-semibold text-primary/90">
+                <p className="mt-0.5 text-[11px] font-semibold text-primary-ink/90">
                   Net Tax: {formatCurrency(statement.netTax)}
                 </p>
               </div>
@@ -241,13 +243,13 @@ export function StepReview({ state, onNext, onBack }: Props) {
                   >
                     <td className="px-4 py-3 font-bold">{p.platformName}</td>
                     <td className="px-4 py-3 text-right font-mono">{p.totalInvoices}</td>
-                    <td className="px-4 py-3 text-right font-medium text-emerald-600 dark:text-emerald-400">
+                    <td className="px-4 py-3 text-right font-medium text-success">
                       {formatCurrency(p.salesTaxable)}
                     </td>
-                    <td className="px-4 py-3 text-right font-medium text-rose-500">
+                    <td className="px-4 py-3 text-right font-medium text-destructive">
                       - {formatCurrency(p.returnTaxable)}
                     </td>
-                    <td className="px-4 py-3 text-right font-bold text-primary">
+                    <td className="px-4 py-3 text-right font-bold text-primary-ink">
                       {formatCurrency(p.netTaxable)}
                     </td>
                     <td className="px-4 py-3 text-right font-semibold">
@@ -294,7 +296,7 @@ export function StepReview({ state, onNext, onBack }: Props) {
                 className={cn(
                   "rounded-md px-2.5 py-1 text-xs font-medium transition",
                   filter === "valid"
-                    ? "bg-emerald-600 text-white"
+                    ? "bg-success text-success-foreground"
                     : "bg-muted text-muted-foreground hover:bg-accent"
                 )}
               >
@@ -344,8 +346,8 @@ export function StepReview({ state, onNext, onBack }: Props) {
                         className={cn(
                           "rounded px-1.5 py-0.5 text-[10px] font-bold",
                           r.transactionType === "Return"
-                            ? "bg-rose-500/10 text-rose-600"
-                            : "bg-emerald-500/10 text-emerald-600"
+                            ? "bg-destructive/10 text-destructive"
+                            : "bg-success/10 text-success"
                         )}
                       >
                         {r.transactionType}
@@ -370,7 +372,7 @@ export function StepReview({ state, onNext, onBack }: Props) {
                           <AlertTriangle className="size-3" /> {r.errors.length} Issue(s)
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 rounded bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600">
+                        <span className="inline-flex items-center gap-1 rounded bg-success/10 px-2 py-0.5 text-[10px] font-semibold text-success">
                           <CheckCircle className="size-3" /> Valid
                         </span>
                       )}

@@ -241,7 +241,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
     <div className="space-y-6 p-4 sm:p-6 md:p-8">
       <div className="flex flex-col justify-between gap-4 border-b border-border pb-6 sm:flex-row sm:items-center">
         <div>
-          <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold tracking-wider text-primary uppercase">
+          <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold tracking-wider text-primary-ink uppercase">
             Step 8 of 10
           </span>
           <h2 className="mt-2 text-xl font-bold">
@@ -271,7 +271,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
             type="button"
             onClick={handleAutoFixAll}
             disabled={autoFixing || statement.errorInvoices === 0}
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-violet-600 px-4 py-2 text-xs font-bold text-primary-foreground shadow-md transition hover:opacity-90 disabled:opacity-50"
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-md transition hover:opacity-90 disabled:opacity-50"
           >
             {autoFixing ? (
               <Loader2 className="size-3.5 animate-spin" />
@@ -284,8 +284,8 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
       </div>
 
       {inferredRows.length > 0 && (
-        <div className="flex items-start gap-2.5 rounded-lg border border-violet-500/40 bg-violet-500/10 px-3.5 py-2.5 text-sm">
-          <Sparkles className="mt-0.5 size-4 shrink-0 text-violet-500" />
+        <div className="flex items-start gap-2.5 rounded-lg border border-primary/40 bg-primary/10 px-3.5 py-2.5 text-sm">
+          <Sparkles className="mt-0.5 size-4 shrink-0 text-primary-ink" />
           <div className="space-y-1.5">
             <p>
               <span className="font-semibold">
@@ -300,7 +300,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
                 type="button"
                 disabled={applyingRates}
                 onClick={() => handleApplySuggestedRates()}
-                className="inline-flex items-center gap-1.5 rounded-md bg-violet-600 px-2.5 py-1 text-xs font-bold text-white transition hover:bg-violet-700 disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1 text-xs font-bold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
               >
                 {applyingRates ? (
                   <Loader2 className="size-3 animate-spin" />
@@ -315,7 +315,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
                   setActiveTab("invoices");
                   setFilter("review");
                 }}
-                className="inline-flex items-center gap-1.5 rounded-md border border-violet-500/50 px-2.5 py-1 text-xs font-bold text-violet-600 transition hover:bg-violet-500/10"
+                className="inline-flex items-center gap-1.5 rounded-md border border-primary/50 px-2.5 py-1 text-xs font-bold text-primary-ink transition hover:bg-primary/10"
               >
                 Review Individually <ArrowRight className="size-3" />
               </button>
@@ -325,8 +325,8 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
       )}
 
       {rateErrorCount > 0 && (
-        <div className="flex items-start gap-2.5 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3.5 py-2.5 text-sm">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+        <div className="flex items-start gap-2.5 rounded-lg border border-warning/40 bg-warning/10 px-3.5 py-2.5 text-sm">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
           <div className="space-y-1.5">
             <p>
               <span className="font-semibold">{rateErrorCount} row(s) have no GST rate.</span> The
@@ -340,7 +340,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
                 setActiveTab("invoices");
                 setFilter("errors");
               }}
-              className="inline-flex items-center gap-1.5 rounded-md bg-amber-600 px-2.5 py-1 text-xs font-bold text-white transition hover:bg-amber-700"
+              className="inline-flex items-center gap-1.5 rounded-md bg-warning px-2.5 py-1 text-xs font-bold text-warning-foreground transition hover:bg-warning/90"
             >
               Fix {rateErrorCount} Rows <ArrowRight className="size-3" />
             </button>
@@ -393,13 +393,13 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
         <div className="space-y-6">
           <div className="space-y-4 rounded-2xl border border-border bg-gradient-to-br from-card via-card to-primary/5 p-6 shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1.5 text-xs font-bold tracking-wider text-primary uppercase">
+              <span className="flex items-center gap-1.5 text-xs font-bold tracking-wider text-primary-ink uppercase">
                 <Sparkles className="size-3.5" /> Net Sales Formula Result
               </span>
               <span className="flex items-center gap-2 font-mono text-xs text-muted-foreground">
                 {statement.validInvoices} Valid / {statement.totalInvoices} Total
                 {reviewCount > 0 && (
-                  <span className="rounded bg-violet-500/10 px-2 py-0.5 font-sans font-bold text-violet-600">
+                  <span className="rounded bg-primary/10 px-2 py-0.5 font-sans font-bold text-primary-ink">
                     {reviewCount} Needs Review
                   </span>
                 )}
@@ -414,7 +414,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
             <div className="grid grid-cols-1 gap-4 text-center md:grid-cols-3">
               <div className="rounded-xl border border-border bg-background/50 p-4">
                 <p className="text-xs font-semibold text-muted-foreground uppercase">Gross Sales</p>
-                <p className="mt-1 text-xl font-bold text-emerald-600 dark:text-emerald-400">
+                <p className="mt-1 text-xl font-bold text-success">
                   {formatCurrency(statement.totalSalesTaxable)}
                 </p>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
@@ -426,7 +426,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
                 <p className="text-xs font-semibold text-muted-foreground uppercase">
                   Sales Returns / Refunds
                 </p>
-                <p className="mt-1 text-xl font-bold text-rose-500">
+                <p className="mt-1 text-xl font-bold text-destructive">
                   - {formatCurrency(statement.totalReturnTaxable)}
                 </p>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
@@ -435,11 +435,13 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
               </div>
 
               <div className="rounded-xl border border-primary/40 bg-primary/10 p-4">
-                <p className="text-xs font-semibold text-primary uppercase">Net Sales Taxable</p>
-                <p className="mt-1 text-2xl font-bold text-primary">
+                <p className="text-xs font-semibold text-primary-ink uppercase">
+                  Net Sales Taxable
+                </p>
+                <p className="mt-1 text-2xl font-bold text-primary-ink">
                   {formatCurrency(statement.netTaxable)}
                 </p>
-                <p className="mt-0.5 text-[11px] font-semibold text-primary/90">
+                <p className="mt-0.5 text-[11px] font-semibold text-primary-ink/90">
                   Net Tax: {formatCurrency(statement.netTax)}
                 </p>
                 {pendingTaxable > 0 && (
@@ -471,13 +473,13 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
                   >
                     <td className="px-4 py-3 font-bold">{p.platformName}</td>
                     <td className="px-4 py-3 text-right font-mono">{p.totalInvoices}</td>
-                    <td className="px-4 py-3 text-right font-medium text-emerald-600 dark:text-emerald-400">
+                    <td className="px-4 py-3 text-right font-medium text-success">
                       {formatCurrency(p.salesTaxable)}
                     </td>
-                    <td className="px-4 py-3 text-right font-medium text-rose-500">
+                    <td className="px-4 py-3 text-right font-medium text-destructive">
                       - {formatCurrency(p.returnTaxable)}
                     </td>
-                    <td className="px-4 py-3 text-right font-bold text-primary">
+                    <td className="px-4 py-3 text-right font-bold text-primary-ink">
                       {formatCurrency(p.netTaxable)}
                     </td>
                     <td className="px-4 py-3 text-right font-semibold">
@@ -497,7 +499,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
               <div>
                 <h3 className="flex items-center gap-2 text-base font-bold">
-                  <Scale className="size-5 text-primary" /> TCS Reconciliation with GST Portal
+                  <Scale className="size-5 text-primary-ink" /> TCS Reconciliation with GST Portal
                 </h3>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   Upload your GST Portal TCS Excel or CSV export to compare state-wise net sales and
@@ -529,7 +531,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
                 <div className="grid grid-cols-1 gap-4 text-center sm:grid-cols-3">
                   <div className="rounded-xl border border-border bg-background p-3">
                     <p className="text-xs text-muted-foreground">Generated GSTR-1 Taxable</p>
-                    <p className="mt-1 text-lg font-bold text-primary">
+                    <p className="mt-1 text-lg font-bold text-primary-ink">
                       {formatCurrency(tcsResult.totalGstr1Taxable)}
                     </p>
                   </div>
@@ -540,11 +542,11 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
                     </p>
                   </div>
                   <div
-                    className={`rounded-xl border p-3 ${tcsResult.isReconciled ? "border-emerald-500/30 bg-emerald-500/10" : "border-rose-500/30 bg-rose-500/10"}`}
+                    className={`rounded-xl border p-3 ${tcsResult.isReconciled ? "border-success/30 bg-success/10" : "border-destructive/30 bg-destructive/10"}`}
                   >
                     <p className="text-xs text-muted-foreground">Difference Amount</p>
                     <p
-                      className={`mt-1 text-lg font-bold ${tcsResult.isReconciled ? "text-emerald-600" : "text-rose-500"}`}
+                      className={`mt-1 text-lg font-bold ${tcsResult.isReconciled ? "text-success" : "text-destructive"}`}
                     >
                       {formatCurrency(tcsResult.totalDiffTaxable)}
                     </p>
@@ -580,7 +582,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
                           </td>
                           <td className="px-4 py-2 text-center">
                             <span
-                              className={`rounded px-2 py-0.5 text-[10px] font-bold ${c.status === "MATCHED" ? "bg-emerald-500/10 text-emerald-600" : "bg-rose-500/10 text-rose-600"}`}
+                              className={`rounded px-2 py-0.5 text-[10px] font-bold ${c.status === "MATCHED" ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}`}
                             >
                               {c.status}
                             </span>
@@ -638,7 +640,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
                 className={cn(
                   "rounded-md px-2.5 py-1 text-xs font-medium transition",
                   filter === "review"
-                    ? "bg-violet-600 text-white"
+                    ? "bg-primary text-primary-foreground"
                     : "bg-muted text-muted-foreground hover:bg-accent"
                 )}
               >
@@ -649,7 +651,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
                 className={cn(
                   "rounded-md px-2.5 py-1 text-xs font-medium transition",
                   filter === "valid"
-                    ? "bg-emerald-600 text-white"
+                    ? "bg-success text-success-foreground"
                     : "bg-muted text-muted-foreground hover:bg-accent"
                 )}
               >
@@ -689,7 +691,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
                       className={cn(
                         "border-b border-border transition last:border-0 hover:bg-accent/30",
                         r.errors.length > 0 && "bg-destructive/5",
-                        inReview && "bg-violet-500/5"
+                        inReview && "bg-primary/5"
                       )}
                     >
                       <td className="px-3 py-2 font-bold">{r.sourcePlatformName}</td>
@@ -698,8 +700,8 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
                           className={cn(
                             "rounded px-1.5 py-0.5 text-[10px] font-bold",
                             r.transactionType === "Return"
-                              ? "bg-rose-500/10 text-rose-600"
-                              : "bg-emerald-500/10 text-emerald-600"
+                              ? "bg-destructive/10 text-destructive"
+                              : "bg-success/10 text-success"
                           )}
                         >
                           {r.transactionType}
@@ -729,7 +731,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
                               className={cn(
                                 "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold",
                                 canApply
-                                  ? "bg-violet-500/10 text-violet-500"
+                                  ? "bg-primary/10 text-primary-ink"
                                   : "bg-muted text-muted-foreground"
                               )}
                             >
@@ -744,7 +746,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
                                 type="button"
                                 disabled={saving || applyingRates}
                                 onClick={() => handleApplySuggestedRates([r.id])}
-                                className="rounded bg-violet-600 px-1.5 py-0.5 text-[10px] font-bold text-white transition hover:bg-violet-700 disabled:opacity-50"
+                                className="rounded bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
                               >
                                 Apply
                               </button>
@@ -771,13 +773,13 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
                           </span>
                         ) : inReview ? (
                           <span
-                            className="inline-flex items-center gap-1 rounded bg-violet-500/10 px-2 py-0.5 text-[10px] font-semibold text-violet-600"
+                            className="inline-flex items-center gap-1 rounded bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary-ink"
                             title={r.reviews?.join(", ")}
                           >
                             <Sparkles className="size-3" /> Needs Review
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 rounded bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600">
+                          <span className="inline-flex items-center gap-1 rounded bg-success/10 px-2 py-0.5 text-[10px] font-semibold text-success">
                             <CheckCircle className="size-3" /> Valid
                           </span>
                         )}
@@ -786,7 +788,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
                         <button
                           type="button"
                           onClick={() => setEditingRowId(r.id)}
-                          className="rounded p-1 text-muted-foreground transition hover:bg-accent hover:text-primary"
+                          className="rounded p-1 text-muted-foreground transition hover:bg-accent hover:text-primary-ink"
                           title="Open this row for editing"
                         >
                           <Edit2 className="size-3" />
@@ -813,7 +815,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
         <button
           type="button"
           onClick={onNext}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-2.5 font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 sm:w-auto"
+          className="flex w-full items-center justify-center gap-2 rounded-xl brand-gradient px-6 py-2.5 font-bold text-primary-foreground shadow-accent transition hover:brightness-110 active:scale-[0.98] sm:w-auto"
         >
           <span>Next: Confirm & Generate Return</span>
           <ArrowRight className="size-4" />

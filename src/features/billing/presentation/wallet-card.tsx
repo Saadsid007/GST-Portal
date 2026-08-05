@@ -6,9 +6,9 @@ import type { WalletSummary } from "@/features/billing/types/billing.types";
 export function WalletCard({ summary }: { summary: WalletSummary }) {
   if (summary.isOnFreeTrial) {
     return (
-      <div className="space-y-2 rounded-xl border border-amber-500/40 bg-amber-500/5 p-5">
+      <div className="space-y-2 rounded-xl border border-warning/40 bg-warning/5 p-5">
         <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase">
-          <Gift className="size-4 text-amber-500" /> Free Trial
+          <Gift className="size-4 text-warning" /> Free Trial
         </div>
         <p className="text-2xl font-bold">
           {summary.freeGenerationsRemaining} free{" "}
@@ -19,7 +19,7 @@ export function WalletCard({ summary }: { summary: WalletSummary }) {
         </p>
         <Link
           href="/billing"
-          className="inline-flex items-center gap-1 pt-2 text-xs font-semibold text-amber-600 hover:underline"
+          className="inline-flex items-center gap-1 pt-2 text-xs font-semibold text-warning hover:underline"
         >
           Activate wallet <ArrowRight className="size-3" />
         </Link>
@@ -30,11 +30,11 @@ export function WalletCard({ summary }: { summary: WalletSummary }) {
   return (
     <div className="space-y-2 rounded-xl border border-border bg-card p-5">
       <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase">
-        <Wallet className="size-4 text-primary" /> Wallet Balance
+        <Wallet className="size-4 text-primary-ink" /> Wallet Balance
       </div>
       <p className="text-2xl font-bold">{summary.balance.toLocaleString("en-IN")} Credits</p>
       <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <Zap className="size-3 text-amber-500" />
+        <Zap className="size-3 text-warning" />
         {summary.estimatedReports} {summary.estimatedReports === 1 ? "return" : "returns"} left ·{" "}
         {summary.generationCost} credits each
       </p>
@@ -45,7 +45,7 @@ export function WalletCard({ summary }: { summary: WalletSummary }) {
       ) : (
         <Link
           href="/billing"
-          className="inline-flex items-center gap-1 pt-2 text-xs font-semibold text-primary hover:underline"
+          className="inline-flex items-center gap-1 pt-2 text-xs font-semibold text-primary-ink hover:underline"
         >
           Recharge wallet <ArrowRight className="size-3" />
         </Link>

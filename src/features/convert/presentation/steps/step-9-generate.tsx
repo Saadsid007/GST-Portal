@@ -72,7 +72,7 @@ export function Step9Generate({ state, onNext, onBack }: Props) {
   return (
     <div className="space-y-6 p-6 md:p-8">
       <div>
-        <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold tracking-wider text-primary uppercase">
+        <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold tracking-wider text-primary-ink uppercase">
           Step 9 of 10 — Review & Final Approval
         </span>
         <h2 className="mt-2 text-xl font-bold">Confirm & Generate Government GSTR-1</h2>
@@ -101,8 +101,8 @@ export function Step9Generate({ state, onNext, onBack }: Props) {
             <p className="mt-1 text-sm font-bold">{statement.totalInvoices}</p>
           </div>
           <div className="rounded-xl border border-primary/40 bg-primary/10 p-3">
-            <p className="text-xs font-semibold text-primary">Net Taxable Amount</p>
-            <p className="mt-1 text-base font-bold text-primary">
+            <p className="text-xs font-semibold text-primary-ink">Net Taxable Amount</p>
+            <p className="mt-1 text-base font-bold text-primary-ink">
               {formatCurrency(statement.netTaxable)}
             </p>
           </div>
@@ -112,17 +112,17 @@ export function Step9Generate({ state, onNext, onBack }: Props) {
           <div className="space-y-1 rounded-xl border border-border bg-background p-4 text-xs">
             <p className="font-bold text-muted-foreground">Generated Files Format:</p>
             <p className="flex items-center gap-2 font-semibold text-foreground">
-              <FileJson className="size-4 text-blue-500" /> GSTN Offline Tool v3.0 JSON Payload
+              <FileJson className="size-4 text-primary-ink" /> GSTN Offline Tool v3.0 JSON Payload
             </p>
             <p className="flex items-center gap-2 font-semibold text-foreground">
-              <FileSpreadsheet className="size-4 text-emerald-500" /> Multi-Sheet Excel (B2B, B2CL,
+              <FileSpreadsheet className="size-4 text-success" /> Multi-Sheet Excel (B2B, B2CL,
               B2CS, CDNR, HSN, ECO, DOCS)
             </p>
           </div>
 
           <div className="space-y-1 rounded-xl border border-border bg-background p-4 text-xs">
             <p className="font-mono font-bold text-muted-foreground">GST Compliance Checks:</p>
-            <p className="font-semibold text-emerald-600 dark:text-emerald-400">
+            <p className="font-semibold text-success">
               ✓ {statement.validInvoices} / {statement.totalInvoices} Invoices Validated
             </p>
             <p className="text-muted-foreground">✓ Place of supply & state codes verified</p>
@@ -147,8 +147,8 @@ export function Step9Generate({ state, onNext, onBack }: Props) {
         )}
 
         {ecoWarnings > 0 && (
-          <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
-            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600" />
+          <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
             <div>
               <p className="font-semibold">
                 Table 14 cannot be generated — no operator GSTIN for {ecoWarnings} row(s)
@@ -166,7 +166,7 @@ export function Step9Generate({ state, onNext, onBack }: Props) {
         {quote && !blocked && (
           <div className="mt-3 flex items-center justify-between rounded-xl border border-border bg-background px-4 py-3 text-xs">
             <span className="flex items-center gap-2 font-semibold text-muted-foreground">
-              <Wallet className="size-4 text-primary" />
+              <Wallet className="size-4 text-primary-ink" />
               {quote.isOnFreeTrial
                 ? `Free trial — ${quote.freeGenerationsRemaining} of ${quote.freeGenerationsUsed + quote.freeGenerationsRemaining} generations left`
                 : quote.plan === "FREE"
@@ -192,7 +192,7 @@ export function Step9Generate({ state, onNext, onBack }: Props) {
           className="mt-3 flex w-full cursor-pointer items-start gap-3 rounded-xl border border-primary/40 bg-primary/5 p-4 text-left transition hover:bg-primary/10"
         >
           {confirmed ? (
-            <CheckSquare className="mt-0.5 size-5 flex-shrink-0 text-primary" />
+            <CheckSquare className="mt-0.5 size-5 flex-shrink-0 text-primary-ink" />
           ) : (
             <Square className="mt-0.5 size-5 flex-shrink-0 text-muted-foreground" />
           )}
@@ -230,7 +230,7 @@ export function Step9Generate({ state, onNext, onBack }: Props) {
           type="button"
           onClick={handleGenerate}
           disabled={!confirmed || pending || blocked}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-2.5 font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:opacity-50 sm:w-auto"
+          className="flex w-full items-center justify-center gap-2 rounded-xl brand-gradient px-6 py-2.5 font-bold text-primary-foreground shadow-accent transition hover:brightness-110 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 sm:w-auto"
         >
           {pending ? <Loader2 className="size-4 animate-spin" /> : null}
           <span>Generate Return &amp; Proceed to Download</span>

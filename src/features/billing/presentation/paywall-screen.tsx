@@ -25,7 +25,7 @@ export function PaywallScreen({ summary, reason }: Props) {
           {frozen ? (
             <AlertTriangle className="size-5 text-destructive" />
           ) : (
-            <Wallet className="size-5 text-primary" />
+            <Wallet className="size-5 text-primary-ink" />
           )}
         </span>
         <div>

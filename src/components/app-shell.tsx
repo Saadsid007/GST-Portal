@@ -64,7 +64,7 @@ export function AppShell({ children, user, showAdmin = false }: AppShellProps) {
     <>
       {/* Logo */}
       <div className="flex items-center gap-2 border-b border-border px-4 py-5">
-        <div className="flex size-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary">
+        <div className="flex size-8 flex-shrink-0 items-center justify-center rounded-lg brand-gradient shadow-accent">
           <FileSpreadsheet className="size-4 text-primary-foreground" />
         </div>
         <div className="min-w-0">
@@ -85,15 +85,23 @@ export function AppShell({ children, user, showAdmin = false }: AppShellProps) {
               href={item.href}
               onClick={() => setDrawerOpen(false)}
               className={cn(
-                "group flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-all",
+                // The left rail marks the active route even when the row is scrolled
+                // past the icon on a narrow drawer.
+                "group relative flex items-center gap-2.5 overflow-hidden rounded-lg px-3 py-2 text-sm font-medium transition-all",
+                "before:absolute before:inset-y-1.5 before:left-0 before:w-0.5 before:rounded-full before:bg-primary-foreground/70 before:transition-opacity",
                 isActive
-                  ? "bg-primary text-primary-foreground shadow-sm"
+                  ? "brand-gradient text-primary-foreground shadow-sm before:opacity-100"
                   : "accent" in item && item.accent
-                    ? "border border-dashed border-primary/40 text-primary hover:border-primary/70 hover:bg-primary/10"
-                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                    ? "border border-dashed border-primary/40 text-primary-ink before:opacity-0 hover:border-primary/70 hover:bg-primary/10"
+                    : "text-muted-foreground before:opacity-0 hover:translate-x-0.5 hover:bg-accent hover:text-foreground"
               )}
             >
-              <item.icon className="size-4 flex-shrink-0" />
+              <item.icon
+                className={cn(
+                  "size-4 flex-shrink-0 transition-transform",
+                  !isActive && "group-hover:scale-110"
+                )}
+              />
               <span className="flex-1 truncate">{item.label}</span>
               {isActive && <ChevronRight className="size-3 flex-shrink-0" />}
             </Link>
@@ -122,7 +130,7 @@ export function AppShell({ children, user, showAdmin = false }: AppShellProps) {
         {/* User info */}
         <div className="mt-2 flex items-center gap-2 px-3 py-2">
           <div className="flex size-7 flex-shrink-0 items-center justify-center rounded-full bg-primary/20">
-            <span className="text-xs font-bold text-primary">
+            <span className="text-xs font-bold text-primary-ink">
               {user.name?.[0]?.toUpperCase() ?? "U"}
             </span>
           </div>
@@ -139,7 +147,7 @@ export function AppShell({ children, user, showAdmin = false }: AppShellProps) {
     <div className="flex min-h-screen bg-background">
       {/* Desktop rail. Below md the same markup is rendered in the drawer instead — a permanently
           visible 224px rail leaves 151px of content on a 375px phone. */}
-      <aside className="hidden w-56 flex-shrink-0 flex-col border-r border-border bg-card md:flex">
+      <aside className="hidden w-56 flex-shrink-0 flex-col border-r border-border bg-sidebar-background md:flex">
         {sidebar}
       </aside>
 
@@ -151,7 +159,7 @@ export function AppShell({ children, user, showAdmin = false }: AppShellProps) {
             onClick={() => setDrawerOpen(false)}
             className="absolute inset-0 bg-black/50"
           />
-          <aside className="absolute inset-y-0 left-0 flex w-64 max-w-[85vw] flex-col border-r border-border bg-card shadow-xl">
+          <aside className="absolute inset-y-0 left-0 flex w-64 max-w-[85vw] animate-slide-in flex-col border-r border-border bg-sidebar-background shadow-xl">
             {sidebar}
           </aside>
         </div>
@@ -170,7 +178,7 @@ export function AppShell({ children, user, showAdmin = false }: AppShellProps) {
             {drawerOpen ? <X className="size-4" /> : <Menu className="size-4" />}
           </button>
           <div className="flex min-w-0 items-center gap-2">
-            <div className="flex size-7 flex-shrink-0 items-center justify-center rounded-lg bg-primary">
+            <div className="flex size-7 flex-shrink-0 items-center justify-center rounded-lg brand-gradient">
               <FileSpreadsheet className="size-3.5 text-primary-foreground" />
             </div>
             <p className="truncate text-sm font-bold">GSTTool</p>

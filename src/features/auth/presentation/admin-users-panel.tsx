@@ -30,7 +30,7 @@ export function AdminUsersPanel() {
     <section className="space-y-4 rounded-2xl border border-border bg-card p-5">
       <div>
         <h2 className="flex items-center gap-2 text-sm font-bold">
-          <ShieldCheck className="size-4 text-primary" /> Administrators
+          <ShieldCheck className="size-4 text-primary-ink" /> Administrators
         </h2>
         <p className="pt-0.5 text-[11px] text-muted-foreground">
           The account must already be registered. Roles are read from the database on every request,

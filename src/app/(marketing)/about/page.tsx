@@ -10,7 +10,7 @@ export default function AboutPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-12 px-6 py-16">
       <div className="space-y-4 text-center">
-        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold tracking-wider text-primary uppercase">
+        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold tracking-wider text-primary-ink uppercase">
           About GSTPilot
         </span>
         <h1 className="text-3xl font-extrabold tracking-tight sm:text-5xl">

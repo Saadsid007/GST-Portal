@@ -135,7 +135,7 @@ export function StepSetup({ state, profiles, onChange, onNext }: Props) {
           <button
             type="button"
             onClick={selectAllPlatforms}
-            className="text-xs font-semibold text-primary hover:underline"
+            className="text-xs font-semibold text-primary-ink hover:underline"
           >
             Select All
           </button>
@@ -163,7 +163,7 @@ export function StepSetup({ state, profiles, onChange, onNext }: Props) {
                     "flex size-9 flex-shrink-0 items-center justify-center rounded-lg transition-all",
                     isSelected
                       ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary"
+                      : "bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary-ink"
                   )}
                 >
                   <IconComponent className="size-4" />

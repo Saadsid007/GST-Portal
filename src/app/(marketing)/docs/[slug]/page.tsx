@@ -56,7 +56,7 @@ export default async function DocDetailPage({ params }: Props) {
         {/* Sidebar Navigation */}
         <aside className="hidden space-y-6 border-border pr-6 lg:block lg:border-r">
           <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-muted-foreground uppercase">
-            <BookOpen className="size-4 text-primary" /> Documentation
+            <BookOpen className="size-4 text-primary-ink" /> Documentation
           </div>
           <nav className="space-y-1 text-xs">
             {allDocs.map((item) => (
@@ -93,7 +93,7 @@ export default async function DocDetailPage({ params }: Props) {
           {/* Title Header */}
           <div className="space-y-2 border-b border-border pb-6">
             <div className="flex items-center gap-3">
-              <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
+              <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary-ink">
                 {doc.category}
               </span>
               <span className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -119,7 +119,7 @@ export default async function DocDetailPage({ params }: Props) {
             </Link>
             <Link
               href="/convert"
-              className="flex items-center gap-1.5 text-xs font-bold text-primary hover:underline"
+              className="flex items-center gap-1.5 text-xs font-bold text-primary-ink hover:underline"
             >
               <span>Start Free Conversion</span>
               <ArrowRight className="size-4" />

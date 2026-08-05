@@ -15,7 +15,7 @@ export default function PlatformsPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-12 px-6 py-16">
       <div className="mx-auto max-w-2xl space-y-3 text-center">
-        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold tracking-wider text-primary uppercase">
+        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold tracking-wider text-primary-ink uppercase">
           Marketplace Directory
         </span>
         <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
@@ -35,14 +35,14 @@ export default function PlatformsPage() {
           >
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <div className="flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-transform group-hover:scale-110">
+                <div className="flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary-ink transition-transform group-hover:scale-110">
                   <FileSpreadsheet className="size-5" />
                 </div>
                 <span className="rounded-full bg-muted px-2.5 py-1 text-[10px] font-bold text-muted-foreground">
                   {plat.badge}
                 </span>
               </div>
-              <h2 className="text-lg font-bold text-foreground transition-colors group-hover:text-primary">
+              <h2 className="text-lg font-bold text-foreground transition-colors group-hover:text-primary-ink">
                 {plat.name}
               </h2>
               <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
@@ -50,7 +50,7 @@ export default function PlatformsPage() {
               </p>
             </div>
 
-            <div className="flex items-center justify-between border-t border-border/60 pt-4 text-xs font-bold text-primary">
+            <div className="flex items-center justify-between border-t border-border/60 pt-4 text-xs font-bold text-primary-ink">
               <span>View Guide & Generator</span>
               <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-1" />
             </div>

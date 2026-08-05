@@ -160,7 +160,7 @@ export function RechargePanel() {
               }`}
             >
               {pack.popular && (
-                <span className="absolute -top-2 right-3 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold tracking-wide text-white uppercase">
+                <span className="absolute -top-2 right-3 rounded-full bg-warning px-2 py-0.5 text-[10px] font-bold tracking-wide text-warning-foreground uppercase">
                   Most Popular
                 </span>
               )}
@@ -171,7 +171,7 @@ export function RechargePanel() {
               <p className="text-xs text-muted-foreground">
                 {pack.breakdown.totalCredits.toLocaleString("en-IN")} credits
                 {pack.breakdown.bonusCredits > 0 && (
-                  <span className="font-semibold text-emerald-600">
+                  <span className="font-semibold text-success">
                     {" "}
                     (+{pack.breakdown.bonusCredits} bonus)
                   </span>
@@ -180,7 +180,7 @@ export function RechargePanel() {
               <p className="text-[11px] text-muted-foreground">
                 ≈ {Math.floor(pack.breakdown.totalCredits / generationCost)} returns
               </p>
-              {isActive && <Check className="absolute right-3 bottom-3 size-4 text-primary" />}
+              {isActive && <Check className="absolute right-3 bottom-3 size-4 text-primary-ink" />}
             </button>
           );
         })}
@@ -216,7 +216,7 @@ export function RechargePanel() {
             </div>
             <div className="rounded-lg bg-muted/50 p-2.5">
               <p className="text-[10px] font-bold text-muted-foreground uppercase">Bonus</p>
-              <p className="text-sm font-bold text-emerald-600">
+              <p className="text-sm font-bold text-success">
                 +{livePreview.bonusCredits} ({livePreview.bonusPercent}%)
               </p>
             </div>
@@ -230,7 +230,7 @@ export function RechargePanel() {
         )}
 
         {livePreview?.campaignName && (
-          <p className="flex items-center gap-1.5 text-xs font-semibold text-amber-600">
+          <p className="flex items-center gap-1.5 text-xs font-semibold text-warning">
             <Sparkles className="size-3.5" /> {livePreview.campaignName} bonus applied
           </p>
         )}

@@ -137,7 +137,7 @@ export function StepUpload({ state, onChange, onNext, onBack }: Props) {
                     className={cn(
                       "relative rounded-xl border border-dashed p-4 transition-all",
                       existing
-                        ? "border-emerald-500/50 bg-emerald-500/5"
+                        ? "border-success/50 bg-success/5"
                         : fileSlot.required
                           ? "border-border bg-background hover:border-primary/50"
                           : "border-border/60 bg-muted/20 hover:border-primary/40"
@@ -148,7 +148,7 @@ export function StepUpload({ state, onChange, onNext, onBack }: Props) {
                         <div className="flex items-center gap-2">
                           <p className="text-xs font-bold">{fileSlot.name}</p>
                           {fileSlot.required ? (
-                            <span className="rounded bg-red-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-red-600 uppercase">
+                            <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] font-semibold text-destructive uppercase">
                               Required
                             </span>
                           ) : (
@@ -175,8 +175,8 @@ export function StepUpload({ state, onChange, onNext, onBack }: Props) {
                     </div>
 
                     {existing ? (
-                      <div className="mt-3 flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-background p-2">
-                        <CheckCircle className="size-4 flex-shrink-0 text-emerald-500" />
+                      <div className="mt-3 flex items-center gap-2 rounded-lg border border-success/30 bg-background p-2">
+                        <CheckCircle className="size-4 flex-shrink-0 text-success" />
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-xs font-medium">{existing.file.name}</p>
                           <p className="text-[10px] text-muted-foreground">
@@ -212,7 +212,7 @@ export function StepUpload({ state, onChange, onNext, onBack }: Props) {
       {/* Upload summary banner */}
       <div className="flex items-center justify-between rounded-xl border border-border bg-muted/40 p-4">
         <div className="flex items-center gap-2">
-          <AlertCircle className="size-4 flex-shrink-0 text-primary" />
+          <AlertCircle className="size-4 flex-shrink-0 text-primary-ink" />
           <p className="text-xs text-muted-foreground">
             Total files attached:{" "}
             <span className="font-bold text-foreground">{selectedFiles.length}</span> file(s) across{" "}

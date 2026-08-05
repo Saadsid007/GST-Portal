@@ -96,7 +96,7 @@ function GenerationCostSection({ cost, onSaved }: { cost: number; onSaved: () =>
   return (
     <Card
       title="Generation Cost"
-      icon={<Zap className="size-4 text-amber-500" />}
+      icon={<Zap className="size-4 text-warning" />}
       hint="Credits deducted for one GSTR-1 return. 1 credit = ₹1."
     >
       <div className="flex max-w-xs items-end gap-2">
@@ -146,7 +146,7 @@ function BonusSlabsSection({
   return (
     <Card
       title="Wallet Bonus Slabs"
-      icon={<Percent className="size-4 text-emerald-500" />}
+      icon={<Percent className="size-4 text-success" />}
       hint="Ranges must be contiguous with no gaps, and the top slab must be open-ended. Validated on save."
     >
       <div className="space-y-2">
@@ -240,7 +240,7 @@ function RechargePacksSection({
   return (
     <Card
       title="Recharge Packs"
-      icon={<Ticket className="size-4 text-violet-500" />}
+      icon={<Ticket className="size-4 text-primary-ink" />}
       hint="Only one pack should be starred Most Popular. Custom amounts below the first bonus slab earn nothing, by design."
     >
       <div className="space-y-2">
@@ -335,7 +335,7 @@ function RewardsSection({
   return (
     <Card
       title="Referral Rewards"
-      icon={<Sparkles className="size-4 text-amber-500" />}
+      icon={<Sparkles className="size-4 text-warning" />}
       hint="Paid to both parties only after the referred user's first successful recharge."
     >
       <div className="grid max-w-lg grid-cols-1 gap-3 sm:grid-cols-2">
@@ -392,7 +392,7 @@ function TrialSection({
   return (
     <Card
       title="Free Trial"
-      icon={<Ticket className="size-4 text-blue-500" />}
+      icon={<Ticket className="size-4 text-primary-ink" />}
       hint="Applies to accounts that have never recharged."
     >
       <div className="grid max-w-2xl grid-cols-1 items-end gap-3 sm:grid-cols-3">
@@ -467,7 +467,7 @@ function CampaignSection({
   return (
     <Card
       title="Seasonal Campaign"
-      icon={<Sparkles className="size-4 text-pink-500" />}
+      icon={<Sparkles className="size-4 text-primary-ink" />}
       hint="Diwali, filing season, FY end, cashback — configuration only, never a code change. The multiplier scales the slab bonus (1.5 turns 10% into 15%); the extra percent is added on top."
     >
       <div className="grid max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2">
@@ -601,7 +601,7 @@ function CreditCodesSection({
   return (
     <Card
       title="Credit Codes"
-      icon={<Ticket className="size-4 text-emerald-500" />}
+      icon={<Ticket className="size-4 text-success" />}
       hint="Hand-issued gift credits. The face value is granted exactly — no bonus slab applies — and redeeming a code never unlocks a referral reward."
     >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
@@ -716,7 +716,7 @@ function CreditCodesSection({
                       }
                       className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase transition ${
                         row.isActive
-                          ? "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20"
+                          ? "bg-success/10 text-success hover:bg-success/20"
                           : "bg-muted text-muted-foreground hover:bg-muted/70"
                       }`}
                     >

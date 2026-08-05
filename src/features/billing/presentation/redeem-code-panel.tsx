@@ -29,7 +29,7 @@ export function RedeemCodePanel() {
   return (
     <div className="space-y-3 rounded-2xl border border-border bg-card p-5">
       <h2 className="flex items-center gap-2 text-sm font-bold">
-        <TicketPercent className="size-4 text-primary" /> Redeem a Credit Code
+        <TicketPercent className="size-4 text-primary-ink" /> Redeem a Credit Code
       </h2>
       <div className="flex items-center gap-2">
         <input

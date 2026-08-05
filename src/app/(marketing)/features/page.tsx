@@ -73,7 +73,7 @@ export default function FeaturesPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-16 px-6 py-16">
       <div className="mx-auto max-w-3xl space-y-4 text-center">
-        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold tracking-wider text-primary uppercase">
+        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold tracking-wider text-primary-ink uppercase">
           Feature Directory
         </span>
         <h1 className="text-3xl font-extrabold tracking-tight sm:text-5xl">
@@ -90,7 +90,7 @@ export default function FeaturesPage() {
             key={f.title}
             className="space-y-3 rounded-3xl border border-border bg-card p-6 shadow-sm transition hover:border-primary/40"
           >
-            <div className="flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <div className="flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary-ink">
               <f.icon className="size-5" />
             </div>
             <h2 className="text-lg font-bold">{f.title}</h2>

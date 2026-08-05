@@ -21,7 +21,7 @@ export default async function BillingPage() {
     <div className="space-y-8">
       <div className="space-y-5 rounded-2xl border border-border bg-gradient-to-br from-card via-card to-primary/5 p-6 shadow-sm md:p-8">
         <div className="space-y-1">
-          <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold tracking-wider text-primary uppercase">
+          <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold tracking-wider text-primary-ink uppercase">
             Wallet
           </span>
           <h1 className="pt-1 text-2xl font-bold">
@@ -35,22 +35,22 @@ export default async function BillingPage() {
 
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Stat
-            icon={<Zap className="size-4 text-amber-500" />}
+            icon={<Zap className="size-4 text-warning" />}
             label="Returns Left"
             value={String(wallet.estimatedReports)}
           />
           <Stat
-            icon={<TrendingUp className="size-4 text-emerald-500" />}
+            icon={<TrendingUp className="size-4 text-success" />}
             label="Lifetime Recharged"
             value={`₹${wallet.lifetimeRecharged.toLocaleString("en-IN")}`}
           />
           <Stat
-            icon={<Gift className="size-4 text-violet-500" />}
+            icon={<Gift className="size-4 text-primary-ink" />}
             label="Bonus Earned"
             value={String(wallet.bonusEarned)}
           />
           <Stat
-            icon={<Wallet className="size-4 text-primary" />}
+            icon={<Wallet className="size-4 text-primary-ink" />}
             label="Credits Used"
             value={String(wallet.lifetimeUsed)}
           />
@@ -64,7 +64,7 @@ export default async function BillingPage() {
         )}
 
         {wallet.isOnFreeTrial && (
-          <p className="flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/5 px-3.5 py-2.5 text-xs font-semibold text-amber-600">
+          <p className="flex items-center gap-2 rounded-xl border border-warning/40 bg-warning/5 px-3.5 py-2.5 text-xs font-semibold text-warning">
             <Gift className="size-4" /> Free trial: {wallet.freeGenerationsRemaining} watermarked{" "}
             {wallet.freeGenerationsRemaining === 1 ? "return" : "returns"} remaining. Recharge to
             remove the watermark.

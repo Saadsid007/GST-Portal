@@ -17,7 +17,7 @@ export function Step1Gstin({ state, profiles, onChange, onNext }: Props) {
     <div className="space-y-6 p-6 md:p-8">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold tracking-wider text-primary uppercase">
+          <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold tracking-wider text-primary-ink uppercase">
             Step 1 of 10
           </span>
           <h2 className="mt-2 text-xl font-bold">Select GST Profile</h2>
@@ -27,7 +27,7 @@ export function Step1Gstin({ state, profiles, onChange, onNext }: Props) {
         </div>
         <Link
           href="/profile"
-          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-primary/40 px-3 py-1.5 text-xs font-semibold text-primary hover:underline sm:w-auto"
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-primary/40 px-3 py-1.5 text-xs font-semibold text-primary-ink hover:underline sm:w-auto"
         >
           <Plus className="size-3.5" /> Add New GSTIN
         </Link>
@@ -59,7 +59,7 @@ export function Step1Gstin({ state, profiles, onChange, onNext }: Props) {
                     {p.tradeName && <p className="text-xs text-muted-foreground">{p.tradeName}</p>}
                   </div>
                 </div>
-                {isSelected && <CheckCircle className="size-5 text-primary" />}
+                {isSelected && <CheckCircle className="size-5 text-primary-ink" />}
               </div>
 
               <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-3 font-mono text-xs">
@@ -78,7 +78,7 @@ export function Step1Gstin({ state, profiles, onChange, onNext }: Props) {
           type="button"
           onClick={onNext}
           disabled={!state.gstinNumber}
-          className="flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:opacity-50"
+          className="flex items-center gap-2 rounded-xl brand-gradient px-6 py-2.5 font-bold text-primary-foreground shadow-accent transition hover:brightness-110 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50"
         >
           <span>Next: Return Filing Period</span>
           <ArrowRight className="size-4" />

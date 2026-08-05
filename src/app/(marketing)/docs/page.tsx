@@ -15,7 +15,7 @@ export default function DocsPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-12 px-6 py-16">
       <div className="mx-auto max-w-2xl space-y-3 text-center">
-        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold tracking-wider text-primary uppercase">
+        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold tracking-wider text-primary-ink uppercase">
           Documentation Portal
         </span>
         <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
@@ -35,12 +35,12 @@ export default function DocsPage() {
           >
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs">
-                <span className="rounded-full bg-primary/10 px-2.5 py-0.5 font-bold text-primary">
+                <span className="rounded-full bg-primary/10 px-2.5 py-0.5 font-bold text-primary-ink">
                   {doc.category}
                 </span>
                 <span className="font-mono text-muted-foreground">{doc.readTime}</span>
               </div>
-              <h2 className="text-lg font-bold text-foreground transition-colors group-hover:text-primary">
+              <h2 className="text-lg font-bold text-foreground transition-colors group-hover:text-primary-ink">
                 {doc.title}
               </h2>
               <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
@@ -48,7 +48,7 @@ export default function DocsPage() {
               </p>
             </div>
 
-            <div className="flex items-center justify-between border-t border-border/60 pt-3 text-xs font-bold text-primary">
+            <div className="flex items-center justify-between border-t border-border/60 pt-3 text-xs font-bold text-primary-ink">
               <span>Read Guide</span>
               <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-1" />
             </div>

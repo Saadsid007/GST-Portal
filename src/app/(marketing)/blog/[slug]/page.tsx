@@ -53,7 +53,7 @@ export default async function BlogPostPage({ params }: Props) {
       />
 
       <div className="space-y-4 border-b border-border pb-8 text-center">
-        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
+        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary-ink">
           {post.category}
         </span>
         <h1 className="text-3xl leading-tight font-extrabold tracking-tight sm:text-5xl">
@@ -85,7 +85,7 @@ export default async function BlogPostPage({ params }: Props) {
         </Link>
         <Link
           href="/convert"
-          className="flex items-center gap-1.5 text-xs font-bold text-primary hover:underline"
+          className="flex items-center gap-1.5 text-xs font-bold text-primary-ink hover:underline"
         >
           <span>Start Free Conversion</span>
           <ArrowRight className="size-4" />
