@@ -4,7 +4,7 @@ import { PLATFORMS_SEO_DATA } from "@/lib/seo/platforms-data";
 import { FileSpreadsheet, ArrowRight } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Supported Marketplaces Directory | GSTPilot",
+  title: "Supported Marketplaces Directory",
   description:
     "Browse supported e-commerce marketplaces: Amazon MTR, Meesho, Flipkart, Myntra, JioMart, Shopdeck, GlowRoad, Snapdeal, and Custom Excel.",
 };

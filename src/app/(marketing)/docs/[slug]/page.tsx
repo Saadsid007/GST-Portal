@@ -14,7 +14,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!doc) return {};
 
   return {
-    title: doc.metaTitle,
+    // absolute: these metaTitles already carry their own brand suffix,
+    // so the root template must not append a second one.
+    title: { absolute: doc.metaTitle },
     description: doc.metaDescription,
   };
 }

@@ -4,7 +4,7 @@ import { DOCS_DATA } from "@/lib/seo/docs-data";
 import { ArrowRight } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Documentation Portal & Guides | GSTPilot",
+  title: "Documentation Portal & Guides",
   description:
     "Comprehensive guides for uploading Amazon, Meesho, and Flipkart reports, fixing GSTIN errors, and reconciling TCS.",
 };

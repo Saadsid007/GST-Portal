@@ -14,7 +14,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!plat) return {};
 
   return {
-    title: plat.metaTitle,
+    // absolute: these metaTitles already carry their own brand suffix,
+    // so the root template must not append a second one.
+    title: { absolute: plat.metaTitle },
     description: plat.metaDescription,
     openGraph: {
       title: plat.metaTitle,

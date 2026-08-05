@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Features Directory — Multi-Marketplace GSTR-1 Engine | GSTPilot",
+  title: "Features Directory — Multi-Marketplace GSTR-1 Engine",
   description:
     "Explore all features of GSTPilot: Multi-marketplace upload, auto platform detection, transformation engine, validation rules, TCS reconciliation, and GSTR-1 JSON export.",
 };

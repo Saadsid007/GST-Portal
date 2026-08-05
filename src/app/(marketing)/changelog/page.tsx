@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Sparkles, CheckCircle } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Changelog & Product Updates | GSTPilot",
+  title: "Changelog & Product Updates",
   description:
     "Recent updates, engine improvements, and new marketplace parser releases in GSTPilot.",
 };

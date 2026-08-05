@@ -4,7 +4,7 @@ import { BLOG_POSTS_DATA } from "@/lib/seo/blog-data";
 import { ArrowRight } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "GST Compliance & E-Commerce Blog | GSTPilot",
+  title: "GST Compliance & E-Commerce Blog",
   description:
     "Guides, tutorials, and GST updates for Amazon sellers, Meesho suppliers, Flipkart merchants, and CAs.",
 };

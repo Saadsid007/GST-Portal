@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Mail, MapPin, Send } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Contact Sales & Support | GSTPilot",
+  title: "Contact Sales & Support",
   description:
     "Get in touch with GSTPilot team for sales inquiries, CA firm bulk accounts, or technical support.",
 };

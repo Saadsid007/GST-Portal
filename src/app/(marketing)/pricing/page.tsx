@@ -6,7 +6,7 @@ import { getPricingConfig } from "@/features/billing/services/config.service";
 import { CA_PLANS, FREE_TRIAL_LIMITS } from "@/features/billing/constants/billing.constants";
 
 export const metadata: Metadata = {
-  title: "Pricing — Pay Per Return, No Subscription | GSTPilot",
+  title: "Pricing — Pay Per Return, No Subscription",
   description:
     "Recharge your GSTPilot wallet and pay only for the returns you file. 1 credit = ₹1, one GSTR-1 costs 6 credits. Bigger recharges earn bigger bonus credits.",
 };
