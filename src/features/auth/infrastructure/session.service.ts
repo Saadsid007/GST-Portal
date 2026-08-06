@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 
@@ -18,7 +19,7 @@ export const getServerSession = cache(async () => {
 export async function requireSession() {
   const session = await getServerSession();
   if (!session) {
-    throw new Error("UNAUTHENTICATED");
+    redirect("/login");
   }
   return session;
 }
@@ -46,7 +47,7 @@ export async function isAdmin(): Promise<boolean> {
 export async function requireAdmin() {
   const session = await requireSession();
   if ((await getUserRole()) !== "ADMIN") {
-    throw new Error("FORBIDDEN");
+    redirect("/dashboard");
   }
   return session;
 }
