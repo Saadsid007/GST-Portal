@@ -1,16 +1,24 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { CheckCircle2, Clock, RefreshCw, ShieldCheck, Smartphone, X } from "lucide-react";
+import {
+  CheckCircle2,
+  Clock,
+  ExternalLink,
+  RefreshCw,
+  ShieldCheck,
+  Smartphone,
+  X,
+} from "lucide-react";
 import { Badge, Button, Spinner } from "@/components/ui";
 import {
   createQrRechargeAction,
   getQrRechargeStatusAction,
 } from "@/features/billing/actions/recharge.actions";
 import type { QrRecharge } from "@/features/billing/services/recharge.service";
+import { UpiQrImage } from "@/features/billing/presentation/upi-qr-image";
 import { cn } from "@/lib/utils";
 
 const POLL_MS = 3000;
@@ -152,25 +160,30 @@ export function UpiQrDialog({ amount, onClose }: { amount: number; onClose: () =
 
           {phase.state === "awaiting" && (
             <div className="space-y-5 text-center">
-              <div className="relative mx-auto w-fit rounded-xl border border-border bg-white p-3">
-                {/* Razorpay serves the QR as a PNG on their CDN. */}
-                <Image
-                  src={phase.qr.imageUrl}
-                  alt={`UPI QR code to pay ₹${amount}`}
-                  width={220}
-                  height={220}
-                  unoptimized
-                  className="size-[220px]"
-                />
+              {/* Amount leads: it is the one thing to confirm before scanning. */}
+              <div>
+                <p className="text-3xl font-bold tracking-tight tabular-nums">
+                  ₹{amount.toLocaleString("en-IN")}
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Locked to this QR — the amount cannot be changed
+                </p>
               </div>
 
-              <div className="space-y-1">
-                <p className="text-sm font-medium">
-                  Scan with any UPI app to pay ₹{amount.toLocaleString("en-IN")}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  GPay, PhonePe, Paytm, BHIM or your bank&rsquo;s app
-                </p>
+              <UpiQrImage imageUrl={phase.qr.imageUrl} amount={amount} />
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Scan with any UPI app</p>
+                <div className="flex flex-wrap items-center justify-center gap-1.5">
+                  {["GPay", "PhonePe", "Paytm", "BHIM", "Bank app"].map((app) => (
+                    <span
+                      key={app}
+                      className="rounded-md border border-border bg-card px-2 py-1 text-2xs font-medium text-muted-foreground"
+                    >
+                      {app}
+                    </span>
+                  ))}
+                </div>
               </div>
 
               <div className="flex items-center justify-center gap-2 rounded-lg bg-muted px-3 py-2">
@@ -202,6 +215,19 @@ export function UpiQrDialog({ amount, onClose }: { amount: number; onClose: () =
                   <dd className="font-bold tabular-nums">{phase.qr.breakdown.totalCredits}</dd>
                 </div>
               </dl>
+
+              {/* Escape hatch. The QR is cropped out of a Razorpay poster whose
+                  layout we do not control, so there is always a way to reach
+                  the original if the crop ever drifts. */}
+              <a
+                href={phase.qr.imageUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-2xs font-medium text-primary-ink underline underline-offset-2 hover:opacity-80"
+              >
+                <ExternalLink className="size-3" aria-hidden />
+                Trouble scanning? Open the full QR
+              </a>
 
               <p className="flex items-center justify-center gap-1.5 text-2xs text-muted-foreground">
                 <ShieldCheck className="size-3" aria-hidden />
