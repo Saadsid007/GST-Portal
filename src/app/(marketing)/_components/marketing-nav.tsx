@@ -121,18 +121,13 @@ function AuthActions() {
 
   if (session) {
     return (
-      <>
-        <Button asChild variant="ghost" size="sm" className="max-sm:hidden">
-          <Link href="/billing">Wallet</Link>
-        </Button>
-        <Button asChild variant="brand" size="sm">
-          <Link href="/dashboard">
-            <LayoutDashboard />
-            <span className="hidden sm:inline">Go to dashboard</span>
-            <span className="sm:hidden">Dashboard</span>
-          </Link>
-        </Button>
-      </>
+      <Button asChild variant="brand" size="sm">
+        <Link href="/dashboard">
+          <LayoutDashboard />
+          <span className="hidden sm:inline">Go to dashboard</span>
+          <span className="sm:hidden">Dashboard</span>
+        </Link>
+      </Button>
     );
   }
 
@@ -160,22 +155,13 @@ function MobileAuthLinks({ onNavigate }: { onNavigate: () => void }) {
   if (isPending) return <Skeleton className="mt-2 h-9 w-full rounded-md" />;
 
   return session ? (
-    <>
-      <Link
-        href="/dashboard"
-        onClick={onNavigate}
-        className="mt-1 block border-t border-border px-3 pt-3 pb-2 text-primary-ink transition-colors hover:text-foreground"
-      >
-        Go to dashboard
-      </Link>
-      <Link
-        href="/billing"
-        onClick={onNavigate}
-        className="block px-3 pb-2 text-muted-foreground transition-colors hover:text-foreground"
-      >
-        Wallet &amp; billing
-      </Link>
-    </>
+    <Link
+      href="/dashboard"
+      onClick={onNavigate}
+      className="mt-1 block border-t border-border px-3 pt-3 pb-2 text-primary-ink transition-colors hover:text-foreground"
+    >
+      Go to dashboard
+    </Link>
   ) : (
     <Link
       href="/login"
