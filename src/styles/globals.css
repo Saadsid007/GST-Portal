@@ -6,17 +6,23 @@
 /* ============================================================================
    GSTPilot Design System
    ----------------------------------------------------------------------------
-   Base      Ink / slate neutrals. Carries ~95% of every surface. Reads as
-             finance-grade infrastructure rather than a consumer app.
-   Accent    Spicy paprika #EB5E28. Reserved for primary action, focus and
-             active state. Scarcity is what makes it read as premium.
+   Brand palette
+     sky        #0EA5E9   identity hue — gradients, glows, focus rings
+     blue       #2563EB   action — buttons, links, active state
+     teal       #14B8A6   secondary accent, data viz
+     soft blue  #E0F2FE   tinted surfaces
+     canvas     #F8FBFF   page background
+     ink        #0F172A   body text
+     muted      #64748B   secondary text
 
    Two accent steps, deliberately:
-     --primary      the exact brand paprika, for FILLS (buttons, bars, dots)
-     --primary-ink  a darkened/lightened paprika for accent TEXT and icons
-   Brand paprika as small text on a light canvas is 3.3:1 and fails WCAG AA.
-   Splitting the token keeps the brand hex intact on fills while accent text
-   still clears 4.5:1. Same pattern Radix uses for its solid vs. text steps.
+     --brand / --primary   FILLS (buttons, bars, gradients, rings)
+     --primary-ink         accent TEXT and icons
+
+   Measured on this canvas: sky is 2.67:1 and teal 2.4:1, so neither can carry
+   text or a white label. Blue is 5.17:1 and can. Splitting the tokens keeps the
+   brand hues exact where they are seen and legible where they are read — the
+   same solid-vs-text split Radix uses.
 
    Colour tokens are bare "H S% L%" triples so Tailwind's `/opacity` modifier
    keeps working through hsl(var(--token)).
@@ -24,75 +30,81 @@
 
 :root {
   /* --- Surfaces ---------------------------------------------------------- */
-  --background: 220 24% 99%;
-  --foreground: 224 44% 10%;
+  --background: 214.3 100% 98.6%;
+  --foreground: 222.2 47.4% 11.2%;
 
   --card: 0 0% 100%;
-  --card-foreground: 224 44% 10%;
+  --card-foreground: 222.2 47.4% 11.2%;
   --popover: 0 0% 100%;
-  --popover-foreground: 224 44% 10%;
+  --popover-foreground: 222.2 47.4% 11.2%;
 
   /* One step above the canvas, for nested panels and table headers. */
-  --subtle: 220 20% 97%;
+  --subtle: 204 94% 97%;
   --elevated: 0 0% 100%;
 
-  /* --- Accent ------------------------------------------------------------ */
-  --primary: 17 83% 54%;
-  /* Ink on paprika = 5.0:1. White on paprika would be 3.3:1. */
-  --primary-foreground: 224 45% 9%;
-  --primary-ink: 14 84% 40%;
+  /* --- Accent ------------------------------------------------------------
+     --brand is the identity hue (#0EA5E9). It carries gradients, glows and
+     rings, never text or a white label — measured at 2.67:1 on this canvas.
+     --primary (#2563EB) is the action colour: white on it is 5.17:1. */
+  --brand: 198.6 88.7% 48.4%;
+  --brand-deep: 201 96% 32%;
+  --teal: 173.4 80.4% 40%;
 
-  --secondary: 220 18% 95%;
-  --secondary-foreground: 224 32% 18%;
+  --primary: 221.2 83.2% 53.3%;
+  --primary-foreground: 0 0% 100%;
+  --primary-ink: 224 76% 45%;
 
-  --muted: 220 20% 96%;
-  --muted-foreground: 220 13% 44%;
+  --secondary: 204 93.8% 93.7%;
+  --secondary-foreground: 222 47% 20%;
 
-  --accent: 220 20% 95%;
-  --accent-foreground: 224 32% 18%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+
+  --accent: 204 93.8% 93.7%;
+  --accent-foreground: 222 47% 20%;
 
   /* --- Status ------------------------------------------------------------ */
-  --destructive: 353 72% 45%;
+  --destructive: 0 72% 46%;
   --destructive-foreground: 0 0% 100%;
-  --destructive-ink: 353 72% 42%;
+  --destructive-ink: 0 74% 42%;
 
-  --success: 158 68% 26%;
+  --success: 174 84% 26%;
   --success-foreground: 0 0% 100%;
-  --success-ink: 158 70% 24%;
+  --success-ink: 175 86% 22%;
 
-  --warning: 32 88% 34%;
+  --warning: 30 92% 36%;
   --warning-foreground: 0 0% 100%;
-  --warning-ink: 30 90% 30%;
+  --warning-ink: 28 94% 31%;
 
-  --info: 214 75% 42%;
+  --info: 201 96% 32%;
   --info-foreground: 0 0% 100%;
-  --info-ink: 214 78% 38%;
+  --info-ink: 202 96% 28%;
 
   /* --- Lines & focus ----------------------------------------------------- */
-  --border: 220 16% 90%;
-  --border-strong: 220 16% 82%;
-  --input: 220 16% 88%;
-  --ring: 17 83% 54%;
+  --border: 210 40% 90%;
+  --border-strong: 213 30% 82%;
+  --input: 210 40% 88%;
+  --ring: 198.6 88.7% 48.4%;
 
   /* --- Sidebar ----------------------------------------------------------- */
-  --sidebar-background: 220 24% 98%;
-  --sidebar-foreground: 220 16% 36%;
-  --sidebar-accent: 220 20% 94%;
-  --sidebar-accent-foreground: 224 40% 14%;
-  --sidebar-border: 220 16% 91%;
+  --sidebar-background: 0 0% 100%;
+  --sidebar-foreground: 215 16% 42%;
+  --sidebar-accent: 204 94% 96%;
+  --sidebar-accent-foreground: 222 47% 18%;
+  --sidebar-border: 210 40% 91%;
 
   /* --- Data visualisation ------------------------------------------------ */
-  --chart-1: 17 83% 54%;
-  --chart-2: 214 75% 46%;
-  --chart-3: 158 62% 32%;
-  --chart-4: 265 60% 55%;
-  --chart-5: 32 85% 45%;
-  --chart-6: 190 70% 38%;
+  --chart-1: 199 89% 48%;
+  --chart-2: 221 83% 53%;
+  --chart-3: 173 80% 40%;
+  --chart-4: 262 83% 58%;
+  --chart-5: 32 95% 44%;
+  --chart-6: 291 64% 42%;
 
   /* --- Elevation ---------------------------------------------------------
      Tinted with the base hue rather than pure black: neutral-black shadows
      look muddy over a cool canvas. */
-  --shadow-color: 224 45% 18%;
+  --shadow-color: 215 40% 30%;
   --shadow-xs: 0 1px 2px hsl(var(--shadow-color) / 0.06);
   --shadow-sm:
     0 1px 2px hsl(var(--shadow-color) / 0.06), 0 2px 6px -2px hsl(var(--shadow-color) / 0.08);
@@ -101,7 +113,7 @@
   --shadow-lg:
     0 4px 8px hsl(var(--shadow-color) / 0.06), 0 20px 40px -12px hsl(var(--shadow-color) / 0.16);
   --shadow-xl: 0 32px 64px -16px hsl(var(--shadow-color) / 0.22);
-  --shadow-accent: 0 6px 24px -6px hsl(var(--primary) / 0.4);
+  --shadow-accent: 0 6px 24px -6px hsl(var(--brand) / 0.45);
 
   --radius: 0.625rem;
 }
@@ -109,65 +121,71 @@
 .dark {
   /* Dark is designed, not inverted: hue and chroma shift, and surfaces step up
      in lightness as they come forward. */
-  --background: 224 44% 5%;
-  --foreground: 213 32% 96%;
+  --background: 222 47% 7%;
+  --foreground: 210 40% 98%;
 
-  --card: 222 38% 8%;
-  --card-foreground: 213 32% 96%;
-  --popover: 222 36% 10%;
-  --popover-foreground: 213 32% 96%;
+  --card: 222 44% 11%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222 44% 13%;
+  --popover-foreground: 210 40% 98%;
 
-  --subtle: 222 34% 11%;
-  --elevated: 222 32% 13%;
+  --subtle: 222 40% 14%;
+  --elevated: 222 38% 16%;
 
-  --primary: 17 88% 57%;
-  --primary-foreground: 224 45% 7%;
-  --primary-ink: 20 95% 66%;
+  --brand: 199 89% 58%;
+  --brand-deep: 201 90% 44%;
+  --teal: 173 70% 50%;
 
-  --secondary: 222 30% 15%;
-  --secondary-foreground: 213 30% 94%;
+  /* Lighter fill with dark ink — the standard dark-mode inversion, and the
+     only way a blue button clears AA against near-white text. */
+  --primary: 213 94% 68%;
+  --primary-foreground: 222 47% 11%;
+  --primary-ink: 213 94% 76%;
 
-  --muted: 222 30% 14%;
-  --muted-foreground: 216 17% 64%;
+  --secondary: 222 40% 18%;
+  --secondary-foreground: 210 40% 96%;
 
-  --accent: 222 28% 17%;
-  --accent-foreground: 213 30% 94%;
+  --muted: 222 40% 16%;
+  --muted-foreground: 215 20% 68%;
 
-  --destructive: 353 78% 58%;
-  --destructive-foreground: 224 45% 7%;
-  --destructive-ink: 353 88% 70%;
+  --accent: 222 38% 20%;
+  --accent-foreground: 210 40% 96%;
 
-  --success: 158 62% 44%;
-  --success-foreground: 224 45% 7%;
-  --success-ink: 158 62% 54%;
+  --destructive: 0 84% 66%;
+  --destructive-foreground: 222 47% 11%;
+  --destructive-ink: 0 90% 74%;
 
-  --warning: 34 92% 56%;
-  --warning-foreground: 224 45% 7%;
-  --warning-ink: 36 94% 62%;
+  --success: 172 70% 48%;
+  --success-foreground: 222 47% 11%;
+  --success-ink: 172 72% 58%;
 
-  --info: 212 86% 62%;
-  --info-foreground: 224 45% 7%;
-  --info-ink: 210 90% 70%;
+  --warning: 36 92% 58%;
+  --warning-foreground: 222 47% 11%;
+  --warning-ink: 38 94% 64%;
 
-  --border: 220 24% 16%;
-  --border-strong: 220 22% 24%;
-  --input: 220 24% 18%;
-  --ring: 17 88% 57%;
+  --info: 199 89% 62%;
+  --info-foreground: 222 47% 11%;
+  --info-ink: 199 92% 70%;
 
-  --sidebar-background: 224 40% 6%;
-  --sidebar-foreground: 216 16% 66%;
-  --sidebar-accent: 222 28% 14%;
-  --sidebar-accent-foreground: 213 30% 94%;
-  --sidebar-border: 220 24% 14%;
+  --border: 217 33% 20%;
+  --border-strong: 216 30% 30%;
+  --input: 217 33% 22%;
+  --ring: 199 89% 58%;
 
-  --chart-1: 17 88% 60%;
-  --chart-2: 212 86% 62%;
-  --chart-3: 158 62% 48%;
-  --chart-4: 265 78% 70%;
-  --chart-5: 34 92% 58%;
-  --chart-6: 188 76% 52%;
+  --sidebar-background: 222 47% 9%;
+  --sidebar-foreground: 215 20% 68%;
+  --sidebar-accent: 222 38% 17%;
+  --sidebar-accent-foreground: 210 40% 96%;
+  --sidebar-border: 217 33% 17%;
 
-  --shadow-color: 224 60% 2%;
+  --chart-1: 199 89% 60%;
+  --chart-2: 213 94% 68%;
+  --chart-3: 173 70% 52%;
+  --chart-4: 262 87% 74%;
+  --chart-5: 36 92% 60%;
+  --chart-6: 291 70% 68%;
+
+  --shadow-color: 222 60% 2%;
   --shadow-xs: 0 1px 2px hsl(var(--shadow-color) / 0.4);
   --shadow-sm:
     0 1px 2px hsl(var(--shadow-color) / 0.5), 0 2px 6px -2px hsl(var(--shadow-color) / 0.5);
@@ -176,7 +194,7 @@
   --shadow-lg:
     0 4px 8px hsl(var(--shadow-color) / 0.5), 0 20px 40px -12px hsl(var(--shadow-color) / 0.7);
   --shadow-xl: 0 32px 64px -16px hsl(var(--shadow-color) / 0.8);
-  --shadow-accent: 0 6px 24px -6px hsl(var(--primary) / 0.5);
+  --shadow-accent: 0 6px 24px -6px hsl(var(--brand) / 0.5);
 }
 
 @theme inline {
@@ -197,6 +215,9 @@
   --color-subtle: hsl(var(--subtle));
   --color-elevated: hsl(var(--elevated));
 
+  --color-brand: hsl(var(--brand));
+  --color-brand-deep: hsl(var(--brand-deep));
+  --color-teal: hsl(var(--teal));
   --color-primary: hsl(var(--primary));
   --color-primary-foreground: hsl(var(--primary-foreground));
   --color-primary-ink: hsl(var(--primary-ink));
@@ -478,8 +499,8 @@ table th {
   background-image: linear-gradient(
     120deg,
     hsl(var(--foreground)) 0%,
-    hsl(var(--foreground)) 40%,
-    hsl(var(--primary)) 100%
+    hsl(var(--foreground)) 35%,
+    hsl(var(--brand)) 100%
   );
   background-clip: text;
   -webkit-background-clip: text;
@@ -490,7 +511,7 @@ table th {
 @utility brand-glow {
   background-image: radial-gradient(
     50% 50% at 50% 0%,
-    hsl(var(--primary) / 0.16) 0%,
+    hsl(var(--brand) / 0.18) 0%,
     transparent 72%
   );
 }

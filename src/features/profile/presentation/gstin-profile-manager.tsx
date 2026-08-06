@@ -75,7 +75,8 @@ export function GstinProfileManager({ initialProfiles }: Props) {
   }
 
   // Search appears only once the list stops being scannable at a glance.
-  const showSearch = profiles.length >= 5;
+  // From two profiles up. At one, a search field is noise.
+  const showSearch = profiles.length >= 2;
   const visible = useMemo(() => filterGstinProfiles(profiles, query), [profiles, query]);
 
   return (

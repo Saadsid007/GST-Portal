@@ -17,7 +17,8 @@ interface Props {
 }
 
 /** Below this the list is scannable at a glance and a search box is just noise. */
-const SEARCH_THRESHOLD = 5;
+/** Search appears from two profiles up. At one it would be pure noise. */
+const SEARCH_THRESHOLD = 2;
 
 export function Step1Gstin({ state, profiles, onChange, onNext }: Props) {
   const [query, setQuery] = useState("");
