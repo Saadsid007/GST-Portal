@@ -30,7 +30,9 @@ export function formatPeriod(period: string): string {
     "Nov",
     "Dec",
   ];
-  const month = parseInt(period.slice(0, 2)) - 1;
+  const month = parseInt(period.slice(0, 2), 10) - 1;
   const year = period.slice(2);
-  return `${months[month]} ${year}`;
+  // Falls back to the raw value rather than rendering "undefined 2608" when a
+  // caller hands over something that is not MMYYYY.
+  return months[month] ? `${months[month]} ${year}` : period;
 }

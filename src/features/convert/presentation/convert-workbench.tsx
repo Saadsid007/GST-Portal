@@ -76,6 +76,18 @@ const EMPTY_STATE: MultiConvertState = {
   watermark: false,
 };
 
+/**
+ * Return periods are MMYYYY everywhere — step 2, formatPeriod and the GSTR-1
+ * `fp` field all read the first two characters as the month. Seeding YYYYMM
+ * here rendered as "undefined 2608" and would have carried a malformed period
+ * into the filing for anyone who never opened step 2.
+ */
+function currentReturnPeriod(): string {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  return `${month}${now.getFullYear()}`;
+}
+
 export function ConvertWorkbench({ profiles, platforms }: Props) {
   const [step, setStep] = useState(1);
   // Slide direction, so stepping back animates backwards instead of always forward.
@@ -83,7 +95,7 @@ export function ConvertWorkbench({ profiles, platforms }: Props) {
   const stepRef = useRef(1);
   const [state, setState] = useState<MultiConvertState>(() => {
     const defaultProfile = profiles.find((p) => p.isDefault) ?? profiles[0];
-    const defaultMonth = new Date().toISOString().slice(0, 7).replace("-", ""); // YYYYMM format
+    const defaultMonth = currentReturnPeriod();
     return {
       ...EMPTY_STATE,
       gstinNumber: defaultProfile?.gstinNumber ?? "",
@@ -116,7 +128,7 @@ export function ConvertWorkbench({ profiles, platforms }: Props) {
 
   function reset() {
     const defaultProfile = profiles.find((p) => p.isDefault) ?? profiles[0];
-    const defaultMonth = new Date().toISOString().slice(0, 7).replace("-", "");
+    const defaultMonth = currentReturnPeriod();
     setState({
       ...EMPTY_STATE,
       gstinNumber: defaultProfile?.gstinNumber ?? "",
@@ -176,7 +188,7 @@ export function ConvertWorkbench({ profiles, platforms }: Props) {
             <SummaryChip label="GSTIN" value={state.gstinNumber || "—"} mono />
             <SummaryChip
               label="Period"
-              value={state.returnPeriod ? formatPeriod(state.returnPeriod) : "—"}
+              value={state.returnPeriod ? formatPeriod(state.returnPeriod) : "Not selected"}
             />
             <SummaryChip
               label="Platforms"

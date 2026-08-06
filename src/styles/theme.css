@@ -1,0 +1,174 @@
+/* ============================================================================
+   BRAND THEME — the only file you edit to re-skin the application.
+   ----------------------------------------------------------------------------
+   Every colour in the product resolves from the tokens below. Nothing else in
+   the codebase hardcodes a brand colour, so changing a value here changes it
+   everywhere: marketing site, dashboard, admin, emails-in-app, charts.
+
+   HOW TO REBRAND
+     1. Convert your hex values to HSL and paste them below as `H S% L%`.
+        Use one decimal place — at integer precision a hex round-trip drifts by
+        about 1/255 per channel (#0EA5E9 comes back as #0DA2E7).
+     2. Keep the two-step split intact (see CONTRAST below).
+     3. Run the contrast audit before shipping.
+
+   CONTRAST — why there are two accent steps
+     A saturated mid-tone brand colour usually cannot carry text or a white
+     label. On this canvas the current brand sky (#0EA5E9) measures 2.67:1 and
+     the teal 2.4:1; both fail WCAG AA, which needs 4.5:1.
+
+       --brand        identity: gradients, glows, focus rings, decorative fills
+       --primary      action: buttons and links, chosen so its foreground passes
+       --primary-ink  accent TEXT and icons on light surfaces
+
+     Put the exact brand hue in --brand. Put a colour that can take a readable
+     label in --primary. That is the whole trick.
+
+   Values are bare "H S% L%" triples so Tailwind's `/opacity` modifier keeps
+   working through hsl(var(--token)).
+   ========================================================================= */
+
+:root {
+  /* --- Brand ------------------------------------------------------------- */
+  --brand: 198.6 88.7% 48.4%; /* #0EA5E9 sky   — identity */
+  --brand-deep: 201 96% 32%; /* darker sky    — gradient end, info */
+  --teal: 173.4 80.4% 40%; /* #14B8A6 teal  — secondary accent */
+
+  --primary: 221.2 83.2% 53.3%; /* #2563EB blue  — action */
+  --primary-foreground: 0 0% 100%;
+  --primary-ink: 224 76% 45%; /* accent text on light surfaces */
+
+  /* Brand gradient stops. Every stop must stay dark enough to carry
+     --primary-foreground, which is why this ends on deep sky, not #0EA5E9. */
+  --gradient-from: 221.2 83.2% 53.3%;
+  --gradient-via: 208 92% 42%;
+  --gradient-to: 201 96% 32%;
+
+  /* --- Canvas ------------------------------------------------------------ */
+  --background: 214.3 100% 98.6%; /* #F8FBFF */
+  --foreground: 222.2 47.4% 11.2%; /* #0F172A */
+  --card: 0 0% 100%; /* #FFFFFF */
+  --card-foreground: 222.2 47.4% 11.2%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 47.4% 11.2%;
+  --subtle: 204 94% 97%;
+  --elevated: 0 0% 100%;
+
+  --secondary: 204 93.8% 93.7%; /* #E0F2FE soft blue */
+  --secondary-foreground: 222 47% 20%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215.4 16.3% 46.9%; /* #64748B */
+  --accent: 204 93.8% 93.7%;
+  --accent-foreground: 222 47% 20%;
+
+  /* --- Status ------------------------------------------------------------ */
+  --destructive: 0 72% 46%;
+  --destructive-foreground: 0 0% 100%;
+  --destructive-ink: 0 74% 42%;
+
+  --success: 174 84% 26%;
+  --success-foreground: 0 0% 100%;
+  --success-ink: 175 86% 22%;
+
+  --warning: 30 92% 36%;
+  --warning-foreground: 0 0% 100%;
+  --warning-ink: 28 94% 31%;
+
+  --info: 201 96% 32%;
+  --info-foreground: 0 0% 100%;
+  --info-ink: 202 96% 28%;
+
+  /* --- Lines & focus ----------------------------------------------------- */
+  --border: 210 40% 90%;
+  --border-strong: 213 30% 82%;
+  --input: 210 40% 88%;
+  --ring: 198.6 88.7% 48.4%;
+
+  /* --- Sidebar ----------------------------------------------------------- */
+  --sidebar-background: 0 0% 100%;
+  --sidebar-foreground: 215 16% 42%;
+  --sidebar-accent: 204 94% 96%;
+  --sidebar-accent-foreground: 222 47% 18%;
+  --sidebar-border: 210 40% 91%;
+
+  /* --- Data visualisation ------------------------------------------------ */
+  --chart-1: 198.6 88.7% 48.4%;
+  --chart-2: 221.2 83.2% 53.3%;
+  --chart-3: 173.4 80.4% 40%;
+  --chart-4: 262 83% 58%;
+  --chart-5: 32 95% 44%;
+  --chart-6: 291 64% 42%;
+
+  /* --- Shape & elevation -------------------------------------------------- */
+  --radius: 0.625rem;
+  --shadow-color: 215 40% 30%;
+}
+
+/* Dark is designed, not inverted: hue and chroma shift, and surfaces step up in
+   lightness as they come forward. Fills lighten and take dark ink, which is the
+   only way a saturated button clears AA against near-white text. */
+.dark {
+  --brand: 199 89% 58%;
+  --brand-deep: 201 90% 44%;
+  --teal: 173 70% 50%;
+
+  --primary: 213 94% 68%;
+  --primary-foreground: 222 47% 11%;
+  --primary-ink: 213 94% 76%;
+
+  --gradient-from: 213 94% 62%;
+  --gradient-via: 205 90% 50%;
+  --gradient-to: 199 89% 44%;
+
+  --background: 222 47% 7%;
+  --foreground: 210 40% 98%;
+  --card: 222 44% 11%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222 44% 13%;
+  --popover-foreground: 210 40% 98%;
+  --subtle: 222 40% 14%;
+  --elevated: 222 38% 16%;
+
+  --secondary: 222 40% 18%;
+  --secondary-foreground: 210 40% 96%;
+  --muted: 222 40% 16%;
+  --muted-foreground: 215 20% 68%;
+  --accent: 222 38% 20%;
+  --accent-foreground: 210 40% 96%;
+
+  --destructive: 0 84% 66%;
+  --destructive-foreground: 222 47% 11%;
+  --destructive-ink: 0 90% 74%;
+
+  --success: 172 70% 48%;
+  --success-foreground: 222 47% 11%;
+  --success-ink: 172 72% 58%;
+
+  --warning: 36 92% 58%;
+  --warning-foreground: 222 47% 11%;
+  --warning-ink: 38 94% 64%;
+
+  --info: 199 89% 62%;
+  --info-foreground: 222 47% 11%;
+  --info-ink: 199 92% 70%;
+
+  --border: 217 33% 20%;
+  --border-strong: 216 30% 30%;
+  --input: 217 33% 22%;
+  --ring: 199 89% 58%;
+
+  --sidebar-background: 222 47% 9%;
+  --sidebar-foreground: 215 20% 68%;
+  --sidebar-accent: 222 38% 17%;
+  --sidebar-accent-foreground: 210 40% 96%;
+  --sidebar-border: 217 33% 17%;
+
+  --chart-1: 199 89% 60%;
+  --chart-2: 213 94% 68%;
+  --chart-3: 173 70% 52%;
+  --chart-4: 262 87% 74%;
+  --chart-5: 36 92% 60%;
+  --chart-6: 291 70% 68%;
+
+  --shadow-color: 222 60% 2%;
+}

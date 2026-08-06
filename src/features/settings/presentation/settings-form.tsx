@@ -2,25 +2,42 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Loader2, User, Shield, Trash2 } from "lucide-react";
+import { AlertTriangle, Check, Mail, Save, Shield, Trash2, User } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
+import { Badge, Button, Card, Field, Input } from "@/components/ui";
 
 interface Props {
   user: { id: string; name: string; email: string; createdAt: Date };
 }
 
+/** Password floor, mirrored from better-auth's own minimum. */
+const MIN_PASSWORD = 8;
+
 export function SettingsForm({ user }: Props) {
   const [name, setName] = useState(user.name);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loadingName, setLoadingName] = useState(false);
   const [loadingPassword, setLoadingPassword] = useState(false);
 
+  const nameChanged = name.trim() !== user.name && name.trim().length > 0;
+
+  // Surfaced inline rather than on submit — a mismatch the user can already see
+  // should not need a round-trip to report.
+  const passwordTooShort = newPassword.length > 0 && newPassword.length < MIN_PASSWORD;
+  const passwordsDiffer = confirmPassword.length > 0 && newPassword !== confirmPassword;
+  const canSubmitPassword =
+    currentPassword.length > 0 &&
+    newPassword.length >= MIN_PASSWORD &&
+    newPassword === confirmPassword;
+
   async function handleNameSave(e: React.FormEvent) {
     e.preventDefault();
+    if (!nameChanged) return;
     setLoadingName(true);
     try {
-      await authClient.updateUser({ name });
+      await authClient.updateUser({ name: name.trim() });
       toast.success("Name updated");
     } catch {
       toast.error("Failed to update name");
@@ -31,7 +48,7 @@ export function SettingsForm({ user }: Props) {
 
   async function handlePasswordChange(e: React.FormEvent) {
     e.preventDefault();
-    if (!currentPassword || !newPassword) return;
+    if (!canSubmitPassword) return;
     setLoadingPassword(true);
     try {
       const res = await authClient.changePassword({
@@ -44,6 +61,7 @@ export function SettingsForm({ user }: Props) {
         toast.success("Password updated");
         setCurrentPassword("");
         setNewPassword("");
+        setConfirmPassword("");
       }
     } catch {
       toast.error("Failed to update password");
@@ -52,122 +70,216 @@ export function SettingsForm({ user }: Props) {
     }
   }
 
+  const memberSince = new Date(user.createdAt).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
   return (
-    <div className="max-w-xl space-y-6">
-      {/* Account Info */}
-      <div className="space-y-4 rounded-xl border border-border bg-card p-6">
-        <div className="mb-1 flex items-center gap-2">
-          <User className="size-4 text-muted-foreground" />
-          <h2 className="text-sm font-semibold">Account Information</h2>
-        </div>
+    <div className="grid gap-6 lg:grid-cols-[1fr_18rem] lg:items-start">
+      <div className="min-w-0 space-y-6">
+        {/* Profile */}
+        <Card variant="solid">
+          <SectionHead
+            icon={User}
+            title="Profile"
+            description="How your name appears across GSTPilot."
+          />
+          <form onSubmit={handleNameSave} className="space-y-4 p-5 pt-0">
+            <Field label="Full name" htmlFor="settings-name" required>
+              <Input
+                id="settings-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Your full name"
+                autoComplete="name"
+              />
+            </Field>
 
-        <form onSubmit={handleNameSave} className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              Full Name
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 focus:outline-none"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              Email
-            </label>
-            <input
-              type="email"
-              value={user.email}
-              disabled
-              className="w-full cursor-not-allowed rounded-lg border border-border bg-muted px-3 py-2 text-sm text-muted-foreground"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              Member Since
-            </label>
-            <p className="text-sm text-muted-foreground">
-              {new Date(user.createdAt).toLocaleDateString("en-IN", {
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-              })}
+            <Field
+              label="Email"
+              htmlFor="settings-email"
+              hint="Your email is your sign-in identity and cannot be changed here. Contact support if it needs to move."
+            >
+              <Input
+                id="settings-email"
+                type="email"
+                value={user.email}
+                disabled
+                prefixNode={<Mail />}
+                autoComplete="email"
+              />
+            </Field>
+
+            <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
+              <p className="text-xs text-muted-foreground">
+                Member since <span className="font-medium text-foreground">{memberSince}</span>
+              </p>
+              <Button type="submit" size="sm" loading={loadingName} disabled={!nameChanged}>
+                <Save />
+                Save changes
+              </Button>
+            </div>
+          </form>
+        </Card>
+
+        {/* Password */}
+        <Card variant="solid">
+          <SectionHead
+            icon={Shield}
+            title="Password"
+            description={`At least ${MIN_PASSWORD} characters. You stay signed in on your other devices.`}
+          />
+          <form onSubmit={handlePasswordChange} className="space-y-4 p-5 pt-0">
+            <Field label="Current password" htmlFor="settings-current" required>
+              <Input
+                id="settings-current"
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                autoComplete="current-password"
+              />
+            </Field>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field
+                label="New password"
+                htmlFor="settings-new"
+                required
+                error={passwordTooShort ? `Use at least ${MIN_PASSWORD} characters` : undefined}
+              >
+                <Input
+                  id="settings-new"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  invalid={passwordTooShort}
+                  autoComplete="new-password"
+                />
+              </Field>
+
+              <Field
+                label="Confirm new password"
+                htmlFor="settings-confirm"
+                required
+                error={passwordsDiffer ? "Passwords do not match" : undefined}
+              >
+                <Input
+                  id="settings-confirm"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  invalid={passwordsDiffer}
+                  autoComplete="new-password"
+                  suffixNode={
+                    canSubmitPassword ? <Check className="text-success-ink" /> : undefined
+                  }
+                />
+              </Field>
+            </div>
+
+            <div className="flex justify-end border-t border-border pt-4">
+              <Button
+                type="submit"
+                size="sm"
+                loading={loadingPassword}
+                disabled={!canSubmitPassword}
+              >
+                <Shield />
+                Update password
+              </Button>
+            </div>
+          </form>
+        </Card>
+
+        {/* Danger zone */}
+        <Card variant="solid" className="border-destructive/30">
+          <SectionHead
+            icon={Trash2}
+            tone="destructive"
+            title="Delete account"
+            description="Permanently removes your data, conversion history and GST profiles."
+          />
+          <div className="flex flex-col gap-3 p-5 pt-0 sm:flex-row sm:items-center sm:justify-between">
+            <p className="flex items-start gap-2 text-xs text-muted-foreground">
+              <AlertTriangle className="mt-0.5 size-3.5 flex-shrink-0 text-destructive-ink" />
+              This cannot be undone. Download anything you still need first.
             </p>
-          </div>
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={loadingName}
-              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-shrink-0 border-destructive/40 text-destructive-ink hover:bg-destructive/10"
+              onClick={() => toast.error("Please contact support to delete your account")}
             >
-              {loadingName && <Loader2 className="size-4 animate-spin" />}
-              Save Changes
-            </button>
+              Delete account
+            </Button>
           </div>
-        </form>
+        </Card>
       </div>
 
-      {/* Password */}
-      <div className="space-y-4 rounded-xl border border-border bg-card p-6">
-        <div className="mb-1 flex items-center gap-2">
-          <Shield className="size-4 text-muted-foreground" />
-          <h2 className="text-sm font-semibold">Change Password</h2>
-        </div>
-        <form onSubmit={handlePasswordChange} className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              Current Password
-            </label>
-            <input
-              type="password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 focus:outline-none"
-            />
+      {/* Aside: account at a glance */}
+      <aside className="space-y-4 lg:sticky lg:top-24">
+        <Card variant="subtle" className="p-5">
+          <div className="flex items-center gap-3">
+            <span className="flex size-11 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-primary-ink ring-1 ring-primary/25">
+              {user.name?.[0]?.toUpperCase() ?? "U"}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">{user.name}</p>
+              <p className="truncate text-2xs text-muted-foreground">{user.email}</p>
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              New Password
-            </label>
-            <input
-              type="password"
-              minLength={8}
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 focus:outline-none"
-            />
-          </div>
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={loadingPassword || !currentPassword || !newPassword}
-              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
-            >
-              {loadingPassword && <Loader2 className="size-4 animate-spin" />}
-              Update Password
-            </button>
-          </div>
-        </form>
-      </div>
+          <dl className="mt-4 space-y-2 border-t border-border pt-4 text-xs">
+            <div className="flex justify-between gap-3">
+              <dt className="text-muted-foreground">Member since</dt>
+              <dd className="font-medium">{memberSince}</dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="text-muted-foreground">Sign-in</dt>
+              <dd className="font-medium">Email &amp; password</dd>
+            </div>
+          </dl>
+        </Card>
 
-      {/* Danger Zone */}
-      <div className="space-y-3 rounded-xl border border-destructive/30 bg-destructive/5 p-6">
-        <div className="flex items-center gap-2">
-          <Trash2 className="size-4 text-destructive" />
-          <h2 className="text-sm font-semibold text-destructive">Danger Zone</h2>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Deleting your account will permanently remove all your data, conversion history, and GST
-          profiles. This cannot be undone.
-        </p>
-        <button
-          onClick={() => toast.error("Please contact support to delete your account")}
-          className="rounded-lg border border-destructive/30 px-3 py-1.5 text-xs text-destructive transition hover:bg-destructive/10"
-        >
-          Delete Account
-        </button>
+        <Card variant="subtle" className="p-5">
+          <Badge variant="success" dot>
+            Account secure
+          </Badge>
+          <p className="mt-2.5 text-xs leading-relaxed text-muted-foreground">
+            Use a password you don&rsquo;t reuse elsewhere. We never email you asking for it.
+          </p>
+        </Card>
+      </aside>
+    </div>
+  );
+}
+
+function SectionHead({
+  icon: Icon,
+  title,
+  description,
+  tone = "default",
+}: {
+  icon: typeof User;
+  title: string;
+  description: string;
+  tone?: "default" | "destructive";
+}) {
+  return (
+    <div className="flex items-start gap-3 p-5">
+      <span
+        className={
+          tone === "destructive"
+            ? "flex size-9 flex-shrink-0 items-center justify-center rounded-lg bg-destructive/10 text-destructive-ink ring-1 ring-destructive/20"
+            : "flex size-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary-ink ring-1 ring-primary/20"
+        }
+      >
+        <Icon className="size-4" aria-hidden />
+      </span>
+      <div className="min-w-0">
+        <h2 className="text-sm font-semibold">{title}</h2>
+        <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
       </div>
     </div>
   );

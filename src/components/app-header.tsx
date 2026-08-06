@@ -21,6 +21,7 @@ import {
   Wallet,
   X,
   ShieldCheck,
+  Gift,
 } from "lucide-react";
 import { Badge, Button } from "@/components/ui";
 import { NAV_GROUPS, findNavItem } from "@/config/navigation";
@@ -105,6 +106,21 @@ export function AppHeader({
             <span className="text-muted-foreground">credits</span>
           </Link>
         )}
+
+        {/* Rewards are a growth surface, so they get a permanent home in the
+            chrome rather than living inside the wallet page. */}
+        <Button
+          asChild
+          variant="outline"
+          size="sm"
+          className="hidden lg:inline-flex"
+          title="Refer & earn free credits"
+        >
+          <Link href="/refer">
+            <Gift />
+            Refer &amp; earn
+          </Link>
+        </Button>
 
         <NotificationsMenu credits={credits} />
         <ThemeToggle />
@@ -212,15 +228,13 @@ function GlobalSearch({ isAdmin }: { isAdmin: boolean }) {
           className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-foreground/30 backdrop-blur-sm"
           onClick={close}
         >
-          {/* Top-anchored, not centred — a palette belongs near the reading
-              position, and centring makes it jump as results change. */}
-          <div className="flex min-h-full items-start justify-center p-4 pt-[10vh]">
+          <div className="flex min-h-full items-center justify-center p-4">
             <div
               role="dialog"
               aria-modal="true"
               aria-label="Search navigation"
               onClick={(e) => e.stopPropagation()}
-              className="flex max-h-[calc(100dvh-14vh)] w-full max-w-lg animate-scale-in flex-col overflow-hidden rounded-xl border border-border bg-popover shadow-xl"
+              className="flex max-h-[min(32rem,calc(100dvh-4rem))] w-full max-w-xl animate-scale-in flex-col overflow-hidden rounded-2xl border border-border bg-popover shadow-xl"
             >
               <div className="flex flex-shrink-0 items-center gap-2 border-b border-border px-4">
                 <Search className="size-4 flex-shrink-0 text-muted-foreground" aria-hidden />

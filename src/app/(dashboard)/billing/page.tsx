@@ -1,21 +1,17 @@
 import type { Metadata } from "next";
 import { requireSession } from "@/features/auth";
 import { getWalletSummary } from "@/features/billing/services/entitlement.service";
-import { getReferralSummary } from "@/features/billing/services/referral.service";
 import { RechargePanel } from "@/features/billing/presentation/recharge-panel";
-import { RedeemCodePanel } from "@/features/billing/presentation/redeem-code-panel";
-import { ReferralPanel } from "@/features/billing/presentation/referral-panel";
 import { TransactionTable } from "@/features/billing/presentation/transaction-table";
-import { Gift, Snowflake, TrendingUp, Wallet, Zap } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, Gift, Snowflake, TrendingUp, Wallet, Zap } from "lucide-react";
+import { Card } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Wallet & Billing — GSTPilot" };
 
 export default async function BillingPage() {
   const session = await requireSession();
-  const [wallet, referral] = await Promise.all([
-    getWalletSummary(session.user.id),
-    getReferralSummary(session.user.id),
-  ]);
+  const wallet = await getWalletSummary(session.user.id);
 
   return (
     <div className="space-y-8">
@@ -77,10 +73,21 @@ export default async function BillingPage() {
         <RechargePanel />
       </section>
 
-      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
-        <ReferralPanel summary={referral} />
-        <RedeemCodePanel />
-      </div>
+      {/* Referrals and credit codes have their own page — this one stays about
+          the wallet itself: balance, recharge, ledger. */}
+      <Card variant="accent" className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center">
+        <Gift className="size-5 flex-shrink-0 text-primary-ink" aria-hidden />
+        <p className="flex-1 text-sm">
+          Earn free credits by referring other sellers, or redeem a credit code you were given.
+        </p>
+        <Link
+          href="/refer"
+          className="inline-flex flex-shrink-0 items-center gap-1.5 text-xs font-semibold text-primary-ink hover:underline"
+        >
+          Refer &amp; earn
+          <ArrowRight className="size-3" aria-hidden />
+        </Link>
+      </Card>
 
       <TransactionTable />
     </div>

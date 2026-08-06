@@ -12,6 +12,7 @@ import {
   Megaphone,
   ShieldCheck,
   Coins,
+  Gift,
 } from "lucide-react";
 
 export interface NavItem {
@@ -67,6 +68,12 @@ export const NAV_GROUPS: NavGroup[] = [
         href: "/billing",
         icon: Wallet,
         description: "Credits, recharges and referrals",
+      },
+      {
+        label: "Refer & earn",
+        href: "/refer",
+        icon: Gift,
+        description: "Free credits for you and whoever you invite",
       },
       {
         label: "Settings",
