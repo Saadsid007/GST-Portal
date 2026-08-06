@@ -4,23 +4,10 @@ import { useState } from "react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
-/**
- * Marketplace mark.
- *
- * Renders `/platforms/<id>.<ext>` when that file exists and falls back to a
- * branded monogram otherwise, so dropping a logo into `public/platforms/`
- * makes it appear with no code change.
- *
- * The fallback is not a placeholder to be replaced later — Amazon, Flipkart and
- * the rest are third-party trademarks. Shipping them requires either their
- * brand-asset licence terms being met or the files being supplied deliberately,
- * which is a decision for whoever owns the site, not something to smuggle in.
- * The monogram is designed to look intentional on its own.
- */
 const SIZES = {
-  sm: { box: "size-8 rounded-lg", text: "text-2xs", px: 32 },
-  md: { box: "size-10 rounded-xl", text: "text-xs", px: 40 },
-  lg: { box: "size-14 rounded-2xl", text: "text-base", px: 56 },
+  sm: { box: "size-9 rounded-lg p-1", text: "text-2xs", px: 36 },
+  md: { box: "size-11 rounded-xl p-1.5", text: "text-xs", px: 44 },
+  lg: { box: "size-16 rounded-2xl p-2", text: "text-base", px: 64 },
 } as const;
 
 export interface PlatformLogoProps {
@@ -32,6 +19,19 @@ export interface PlatformLogoProps {
   size?: keyof typeof SIZES;
   className?: string;
 }
+
+const PLATFORM_IMAGE_MAP: Record<string, string> = {
+  amazon: "/platforms/amazon.avif",
+  flipkart: "/platforms/flipkart.png",
+  glowroad: "/platforms/glowroad.avif",
+  jiomart: "/platforms/jiomart.jfif",
+  meesho: "/platforms/meesho.png",
+  myntra: "/platforms/myntra.png",
+  roposo: "/platforms/roposo.png",
+  shopdeck: "/platforms/shopdeck.png",
+  snapdeal: "/platforms/snapdeal.webp",
+  custom: "/platforms/custom.svg",
+};
 
 /** Initials from the display name — "JioMart Partner" becomes "JM". */
 function monogram(name: string): string {
@@ -45,15 +45,20 @@ function monogram(name: string): string {
 }
 
 export function PlatformLogo({ id, name, accentColor, size = "md", className }: PlatformLogoProps) {
-  const [failed, setFailed] = useState(false);
+  const [failCount, setFailCount] = useState(0);
   const s = SIZES[size];
 
-  if (failed || !id) {
+  const primarySrc = PLATFORM_IMAGE_MAP[id] ?? `/platforms/${id}.svg`;
+  const fallbackSrc = `/platforms/${id}.svg`;
+
+  const src = failCount === 0 ? primarySrc : failCount === 1 ? fallbackSrc : null;
+
+  if (!src || failCount >= 2 || !id) {
     return (
       <span
         aria-hidden
         className={cn(
-          "flex flex-shrink-0 items-center justify-center bg-gradient-to-br font-bold text-white shadow-sm",
+          "flex flex-shrink-0 items-center justify-center bg-gradient-to-br font-bold text-white shadow-sm transition-transform duration-300 group-hover:scale-105",
           accentColor ?? "from-primary to-brand-deep",
           s.box,
           s.text,
@@ -68,18 +73,18 @@ export function PlatformLogo({ id, name, accentColor, size = "md", className }: 
   return (
     <span
       className={cn(
-        "flex flex-shrink-0 items-center justify-center overflow-hidden bg-white ring-1 ring-border",
+        "flex flex-shrink-0 items-center justify-center overflow-hidden border border-border/80 bg-card shadow-xs ring-1 ring-black/5 transition-transform duration-300 group-hover:scale-105 dark:ring-white/10",
         s.box,
         className
       )}
     >
       <Image
-        src={`/platforms/${id}.svg`}
+        src={src}
         alt={`${name} logo`}
         width={s.px}
         height={s.px}
-        className="size-full object-contain p-1.5"
-        onError={() => setFailed(true)}
+        className="size-full object-contain"
+        onError={() => setFailCount((prev) => prev + 1)}
         unoptimized
       />
     </span>
