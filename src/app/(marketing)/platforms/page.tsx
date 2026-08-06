@@ -41,10 +41,20 @@ export default function PlatformsPage() {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <PlatformLogo
-                  id={plat.slug.split("-")[0] ?? ""}
+                  id={
+                    plat.slug === "custom-excel-gst-generator"
+                      ? "custom"
+                      : (plat.slug.split("-")[0] ?? "")
+                  }
                   name={plat.name}
                   size="lg"
-                  accentColor={configById.get(plat.slug.split("-")[0] ?? "")?.accentColor}
+                  accentColor={
+                    configById.get(
+                      plat.slug === "custom-excel-gst-generator"
+                        ? "custom"
+                        : (plat.slug.split("-")[0] ?? "")
+                    )?.accentColor
+                  }
                 />
                 <span className="rounded-full bg-muted px-2.5 py-1 text-[10px] font-bold text-muted-foreground">
                   {plat.badge}

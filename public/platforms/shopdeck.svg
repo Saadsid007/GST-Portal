@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 40" fill="none">
+  <rect x="4" y="4" width="32" height="32" rx="8" fill="#0284C7"/>
+  <path d="M12 14h16l-2 12H14L12 14z" fill="#FFFFFF"/>
+  <path d="M16 14v-3a4 4 0 018 0v3" stroke="#FFFFFF" stroke-width="2"/>
+  <text x="42" y="26" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="17" fill="#0369A1">Shopdeck</text>
+</svg>

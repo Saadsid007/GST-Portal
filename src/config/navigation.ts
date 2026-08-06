@@ -15,6 +15,7 @@ import {
   Gift,
   LifeBuoy,
   Inbox,
+  BookOpen,
   Megaphone as MegaphoneIcon,
 } from "lucide-react";
 
@@ -132,6 +133,12 @@ export const NAV_GROUPS: NavGroup[] = [
         href: "/admin/support",
         icon: Inbox,
         description: "Contact messages and user support requests",
+      },
+      {
+        label: "Blog Posts",
+        href: "/admin/blog",
+        icon: BookOpen,
+        description: "Publish compliance guides, tutorials and SEO articles",
       },
       {
         label: "Announcements",

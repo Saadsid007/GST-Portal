@@ -536,3 +536,38 @@ model SupportTicketReply {
   @@index([ticketId, createdAt])
   @@map("support_ticket_reply")
 }
+
+// -----------------------------------------------------------------------------
+// CMS — Blog Platform
+// -----------------------------------------------------------------------------
+
+model BlogPost {
+  id              String    @id @default(uuid()) @db.Uuid
+  slug            String    @unique
+  title           String
+  excerpt         String
+  content         String    @db.Text
+  coverImage      String?   @map("cover_image")
+  category        String    @default("Compliance")
+  tags            String[]  @default([])
+  author          String    @default("GSTPilot Team")
+  authorRole      String?   @default("GST Compliance Specialist") @map("author_role")
+  authorAvatar    String?   @map("author_avatar")
+  readTime        String    @default("5 min read") @map("read_time")
+  status          String    @default("DRAFT") // "DRAFT" | "PUBLISHED" | "ARCHIVED"
+  isFeatured      Boolean   @default(false) @map("is_featured")
+  metaTitle       String?   @map("meta_title")
+  metaDescription String?   @map("meta_description")
+  canonicalUrl    String?   @map("canonical_url")
+  ogImage         String?   @map("og_image")
+  publishedAt     DateTime? @map("published_at") @db.Timestamptz
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([slug])
+  @@index([status, publishedAt])
+  @@index([category])
+  @@index([isFeatured])
+  @@map("blog_post")
+}
+
