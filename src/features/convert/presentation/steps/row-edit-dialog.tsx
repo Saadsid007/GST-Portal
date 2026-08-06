@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, Loader2, Save, Sparkles, X } from "lucide-react";
+import { AlertTriangle, Save, Sparkles } from "lucide-react";
+import { Button, Modal } from "@/components/ui";
 import { STATE_CODES } from "@/features/convert/domain/state-codes";
 import { suggestGstRate } from "@/features/convert/engine/error-center/rate-suggester";
 import type {
@@ -52,35 +53,31 @@ export function RowEditDialog({ row, allRows, saving, onSave, onClose }: Props) 
   const labelClass = "text-[11px] font-semibold uppercase tracking-wide text-muted-foreground";
 
   return (
-    <div
-      role="presentation"
-      onClick={onClose}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Edit row ${row.rowIndex}`}
-        onClick={(e) => e.stopPropagation()}
-        className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-border bg-card shadow-2xl"
-      >
-        <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
-          <div>
-            <h3 className="text-base font-bold">Edit Row {row.rowIndex}</h3>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {row.sourcePlatformName} · {row.transactionType} · {row.invoiceNumber}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="rounded-lg p-1 text-muted-foreground transition hover:bg-accent hover:text-foreground"
+    <Modal
+      open
+      onClose={onClose}
+      size="xl"
+      title={`Edit row ${row.rowIndex}`}
+      description={`${row.sourcePlatformName} · ${row.transactionType} · ${row.invoiceNumber}`}
+      footer={
+        <>
+          <Button variant="outline" size="sm" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            loading={saving}
+            loadingText="Saving…"
+            onClick={() => onSave(form)}
           >
-            <X className="size-4" />
-          </button>
-        </div>
-
+            <Save />
+            Save &amp; revalidate row
+          </Button>
+        </>
+      }
+    >
+      <div className="pb-5">
         {row.errors.length > 0 && (
           <div className="mx-5 mt-4 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2.5">
             <p className="flex items-center gap-1.5 text-xs font-bold text-destructive">
@@ -231,26 +228,7 @@ export function RowEditDialog({ row, allRows, saving, onSave, onClose }: Props) 
             )}
           </label>
         </div>
-
-        <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-4">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl border border-border px-4 py-2 text-xs font-semibold transition hover:bg-accent"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            disabled={saving}
-            onClick={() => onSave(form)}
-            className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
-          >
-            {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
-            Save & Revalidate Row
-          </button>
-        </div>
       </div>
-    </div>
+    </Modal>
   );
 }

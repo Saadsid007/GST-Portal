@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { DropdownMenu } from "radix-ui";
@@ -19,6 +19,7 @@ import {
   Sun,
   User,
   Wallet,
+  X,
   ShieldCheck,
 } from "lucide-react";
 import { Badge, Button } from "@/components/ui";
@@ -116,30 +117,81 @@ export function AppHeader({
 function GlobalSearch({ isAdmin }: { isAdmin: boolean }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [cursor, setCursor] = useState(0);
+  const listRef = useRef<HTMLUListElement>(null);
   const router = useRouter();
 
-  // ⌘K / Ctrl+K is the expected shortcut for this control; without it the
-  // button reads as decoration to anyone who works from the keyboard.
+  const items = NAV_GROUPS.filter((g) => !g.adminOnly || isAdmin)
+    .flatMap((g) => g.items.map((i) => ({ ...i, group: g.label })))
+    .filter((i) => {
+      if (!query) return true;
+      const q = query.toLowerCase();
+      return (
+        i.label.toLowerCase().includes(q) ||
+        i.group.toLowerCase().includes(q) ||
+        (i.description ?? "").toLowerCase().includes(q)
+      );
+    });
+
+  const close = useCallback(() => {
+    setOpen(false);
+    setQuery("");
+    setCursor(0);
+  }, []);
+
+  const go = useCallback(
+    (href: string) => {
+      router.push(href);
+      close();
+    },
+    [router, close]
+  );
+
+  // Global shortcut. Registered once; the palette owns its own keys while open.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         setOpen((v) => !v);
       }
-      if (e.key === "Escape") setOpen(false);
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const items = NAV_GROUPS.filter((g) => !g.adminOnly || isAdmin)
-    .flatMap((g) => g.items.map((i) => ({ ...i, group: g.label })))
-    .filter(
-      (i) =>
-        !query ||
-        i.label.toLowerCase().includes(query.toLowerCase()) ||
-        i.group.toLowerCase().includes(query.toLowerCase())
-    );
+  // Body scroll lock while open.
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
+  // Keep the highlighted row inside the scroll viewport.
+  useEffect(() => {
+    listRef.current
+      ?.querySelector<HTMLElement>('[data-index="' + cursor + '"]')
+      ?.scrollIntoView({ block: "nearest" });
+  }, [cursor]);
+
+  function onInputKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      close();
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setCursor((c) => (items.length === 0 ? 0 : (c + 1) % items.length));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setCursor((c) => (items.length === 0 ? 0 : (c - 1 + items.length) % items.length));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const target = items[cursor];
+      if (target) go(target.href);
+    }
+  }
 
   return (
     <>
@@ -151,60 +203,123 @@ function GlobalSearch({ isAdmin }: { isAdmin: boolean }) {
         <Search className="size-3.5" aria-hidden />
         <span>Search</span>
         <kbd className="ml-2 rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px]">
-          ⌘K
+          &#8984;K
         </kbd>
       </button>
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center bg-foreground/20 p-4 pt-[12vh] backdrop-blur-sm"
-          onClick={() => setOpen(false)}
+          className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-foreground/30 backdrop-blur-sm"
+          onClick={close}
         >
-          <div
-            className="w-full max-w-lg animate-scale-in overflow-hidden rounded-xl border border-border bg-popover shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center gap-2 border-b border-border px-4">
-              <Search className="size-4 text-muted-foreground" aria-hidden />
-              {/* A command palette that does not focus its input on open is
-                  broken by definition. */}
-              <input
-                autoFocus
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Jump to…"
-                aria-label="Search navigation"
-                className="h-12 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-              />
-            </div>
-            <ul className="max-h-80 overflow-y-auto p-2">
-              {items.length === 0 && (
-                <li className="px-3 py-6 text-center text-xs text-muted-foreground">
-                  Nothing matches “{query}”
-                </li>
-              )}
-              {items.map((item) => (
-                <li key={item.href}>
+          {/* Top-anchored, not centred — a palette belongs near the reading
+              position, and centring makes it jump as results change. */}
+          <div className="flex min-h-full items-start justify-center p-4 pt-[10vh]">
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Search navigation"
+              onClick={(e) => e.stopPropagation()}
+              className="flex max-h-[calc(100dvh-14vh)] w-full max-w-lg animate-scale-in flex-col overflow-hidden rounded-xl border border-border bg-popover shadow-xl"
+            >
+              <div className="flex flex-shrink-0 items-center gap-2 border-b border-border px-4">
+                <Search className="size-4 flex-shrink-0 text-muted-foreground" aria-hidden />
+                {/* A command palette that does not focus its input on open is
+                    broken by definition. */}
+                <input
+                  autoFocus
+                  value={query}
+                  onChange={(e) => {
+                    setQuery(e.target.value);
+                    setCursor(0);
+                  }}
+                  onKeyDown={onInputKeyDown}
+                  placeholder="Jump to&#8230;"
+                  aria-label="Search navigation"
+                  className="h-12 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                />
+                {query && (
                   <button
                     type="button"
-                    onClick={() => {
-                      router.push(item.href);
-                      setOpen(false);
-                      setQuery("");
-                    }}
-                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-accent"
+                    onClick={() => setQuery("")}
+                    aria-label="Clear search"
+                    className="flex-shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
                   >
-                    <item.icon className="size-4 flex-shrink-0 text-muted-foreground" aria-hidden />
-                    <span className="flex-1 text-sm font-medium">{item.label}</span>
-                    <span className="text-2xs text-muted-foreground">{item.group}</span>
+                    <X className="size-3.5" />
                   </button>
-                </li>
-              ))}
-            </ul>
+                )}
+              </div>
+
+              <ul ref={listRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
+                {items.length === 0 && (
+                  <li className="px-3 py-8 text-center text-xs text-muted-foreground">
+                    Nothing matches &ldquo;{query}&rdquo;
+                  </li>
+                )}
+                {items.map((item, i) => (
+                  <li key={item.href}>
+                    <button
+                      type="button"
+                      data-index={i}
+                      onMouseEnter={() => setCursor(i)}
+                      onClick={() => go(item.href)}
+                      className={cn(
+                        "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors",
+                        i === cursor ? "bg-accent" : "hover:bg-accent/60"
+                      )}
+                    >
+                      <item.icon
+                        className={cn(
+                          "size-4 flex-shrink-0",
+                          i === cursor ? "text-primary-ink" : "text-muted-foreground"
+                        )}
+                        aria-hidden
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium">{item.label}</span>
+                        {item.description && (
+                          <span className="block truncate text-2xs text-muted-foreground">
+                            {item.description}
+                          </span>
+                        )}
+                      </span>
+                      <span className="flex-shrink-0 text-2xs text-muted-foreground">
+                        {item.group}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+
+              {/* Doubles as the affordance that the list scrolls. */}
+              <div className="flex flex-shrink-0 items-center gap-3 border-t border-border bg-subtle px-4 py-2 text-[10px] text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <Kbd>&#8593;</Kbd>
+                  <Kbd>&#8595;</Kbd> navigate
+                </span>
+                <span className="flex items-center gap-1">
+                  <Kbd>&#8629;</Kbd> open
+                </span>
+                <span className="flex items-center gap-1">
+                  <Kbd>esc</Kbd> close
+                </span>
+                <span className="ml-auto tabular-nums">
+                  {items.length} result{items.length === 1 ? "" : "s"}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       )}
     </>
+  );
+}
+
+function Kbd({ children }: { children: React.ReactNode }) {
+  return (
+    <kbd className="rounded border border-border bg-card px-1 py-0.5 font-mono text-[10px] leading-none">
+      {children}
+    </kbd>
   );
 }
 

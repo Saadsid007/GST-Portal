@@ -24,3 +24,4 @@ export {
 } from "./table";
 export { PageHeader, SectionHeading, type PageHeaderProps } from "./page-header";
 export { Spinner, LoadingOverlay } from "./spinner";
+export { Modal, type ModalProps } from "./modal";
