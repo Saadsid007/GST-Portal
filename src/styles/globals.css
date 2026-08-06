@@ -482,3 +482,21 @@ table th {
     scroll-behavior: auto !important;
   }
 }
+
+/* The blanket reduced-motion rule above collapses every animation to 0.01ms.
+   For the offer marquee that parks the track at its end position, leaving an
+   apparently empty strip. Stop it at the start instead and let the reader
+   scroll the offers by hand. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee {
+    animation: none !important;
+    transform: none !important;
+  }
+  .marquee-viewport {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .marquee-viewport::-webkit-scrollbar {
+    display: none;
+  }
+}

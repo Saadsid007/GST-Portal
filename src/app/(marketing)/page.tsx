@@ -47,6 +47,13 @@ const MARKETPLACES = [
   { name: "Custom Excel", slug: "custom-excel-gst-generator", note: "Universal mapper" },
 ];
 
+const HERO_STATS = [
+  { value: "10", label: "Marketplaces" },
+  { value: "< 5s", label: "To process a month" },
+  { value: "3", label: "Files per return" },
+  { value: "₹0", label: "To start" },
+];
+
 const HERO_PROOF = [
   "GSTN v3.0 compliant output",
   "Net sales after returns",
@@ -104,55 +111,108 @@ export default function LandingPage() {
       />
 
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
-      <section className="relative px-6 pt-16 md:pt-24">
+      <section className="relative overflow-hidden px-6 pt-14 pb-4 md:pt-20">
+        {/* Layered backdrop. Each layer is masked so nothing has a visible edge. */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[600px] brand-glow"
+          className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[680px] brand-glow"
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[600px] grid-lines [mask-image:radial-gradient(70%_55%_at_50%_0%,black,transparent)] opacity-50"
+          className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[680px] grid-lines [mask-image:radial-gradient(65%_50%_at_50%_0%,black,transparent)] opacity-[0.55]"
+        />
+        {/* Two soft colour washes, sky and teal, well below text contrast. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -top-24 -left-32 -z-10 size-[38rem] rounded-full bg-[hsl(var(--brand)/0.12)] blur-3xl"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -top-16 -right-32 -z-10 size-[32rem] rounded-full bg-[hsl(var(--teal)/0.10)] blur-3xl"
         />
 
-        <div className="mx-auto max-w-4xl space-y-7 text-center">
-          <Link
-            href="/changelog"
-            className="inline-flex animate-rise items-center gap-2 rounded-full border border-border bg-card/80 py-1.5 pr-4 pl-1.5 text-xs font-medium shadow-sm backdrop-blur transition-colors hover:border-primary/40"
-          >
-            <Badge variant="solid" size="sm">
-              New
-            </Badge>
-            <span className="text-muted-foreground">
-              Amazon MTR v3 &amp; TCS reconciliation are live
-            </span>
-            <ArrowRight className="size-3 text-muted-foreground" aria-hidden />
-          </Link>
+        <div className="mx-auto max-w-5xl">
+          <div className="mx-auto max-w-3xl space-y-6 text-center">
+            <Link
+              href="/changelog"
+              className="group inline-flex animate-rise items-center gap-2 rounded-full border border-border bg-card/70 py-1.5 pr-3.5 pl-1.5 text-xs font-medium shadow-sm backdrop-blur transition-colors hover:border-primary/40"
+            >
+              <Badge variant="solid" size="sm">
+                New
+              </Badge>
+              <span className="text-muted-foreground">
+                Amazon MTR v3 &amp; TCS reconciliation are live
+              </span>
+              <ArrowRight
+                className="size-3 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+                aria-hidden
+              />
+            </Link>
 
-          <h1 className="text-4xl leading-[1.05] font-bold tracking-tight text-balance sm:text-6xl">
-            Marketplace reports to <span className="brand-text">GSTR-1</span>, in seconds
-          </h1>
+            <h1 className="text-[2.5rem] leading-[1.04] font-bold tracking-tight text-balance sm:text-6xl lg:text-7xl">
+              Marketplace reports to{" "}
+              <span className="relative whitespace-nowrap">
+                <span className="brand-text">GSTR-1</span>
+                {/* Hand-drawn underline, sized in em so it tracks the font. */}
+                <svg
+                  aria-hidden
+                  viewBox="0 0 200 12"
+                  preserveAspectRatio="none"
+                  className="absolute -bottom-1 left-0 h-[0.18em] w-full text-[hsl(var(--brand)/0.45)]"
+                >
+                  <path
+                    d="M2 8c40-6 100-7 196-3"
+                    stroke="currentColor"
+                    strokeWidth="5"
+                    strokeLinecap="round"
+                    fill="none"
+                  />
+                </svg>
+              </span>
+              <br className="hidden sm:block" /> in seconds
+            </h1>
 
-          <p className="mx-auto max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-            Amazon, Flipkart, Meesho and Myntra exports go in. One government-ready GSTR-1 JSON and
-            Excel comes out — with returns netted off, states coded and tax split correctly.
-          </p>
+            <p className="mx-auto max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+              Amazon, Flipkart, Meesho and Myntra exports go in. One government-ready GSTR-1 JSON
+              and Excel comes out — returns netted off, states coded, tax split correctly.
+            </p>
 
-          <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Button asChild variant="brand" size="xl" className="w-full sm:w-auto">
-              <Link href="/register">
-                <Zap />
-                Start free — 2 returns
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="xl" className="w-full sm:w-auto">
-              <Link href="#demo">
-                <Play />
-                Try the live demo
-              </Link>
-            </Button>
+            <div className="flex flex-col items-center justify-center gap-3 pt-1 sm:flex-row">
+              <Button asChild variant="brand" size="xl" className="w-full sm:w-auto">
+                <Link href="/register">
+                  <Zap />
+                  Start free — 2 returns
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="xl" className="w-full sm:w-auto">
+                <Link href="#demo">
+                  <Play />
+                  Try the live demo
+                </Link>
+              </Button>
+            </div>
+
+            <p className="text-2xs text-muted-foreground">
+              No card required · Your first two returns are free
+            </p>
           </div>
 
-          <ul className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 pt-2 text-xs font-medium text-muted-foreground">
+          {/* Proof numbers. Concrete beats adjectives. */}
+          <dl className="mx-auto mt-12 grid max-w-3xl grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border bg-border sm:grid-cols-4">
+            {HERO_STATS.map((stat) => (
+              <div key={stat.label} className="bg-card px-4 py-5 text-center">
+                <dt className="sr-only">{stat.label}</dt>
+                <dd>
+                  <span className="block text-xl font-bold tracking-tight tabular-nums sm:text-2xl">
+                    {stat.value}
+                  </span>
+                  <span className="mt-0.5 block text-2xs text-muted-foreground">{stat.label}</span>
+                </dd>
+              </div>
+            ))}
+          </dl>
+
+          <ul className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs font-medium text-muted-foreground">
             {HERO_PROOF.map((item) => (
               <li key={item} className="flex items-center gap-1.5">
                 <Check className="size-3.5 text-success" aria-hidden />

@@ -16,17 +16,17 @@ datasource db {
 // -----------------------------------------------------------------------------
 
 model User {
-  id            String    @id
+  id            String   @id
   name          String
-  email         String    @unique
-  emailVerified Boolean   @default(false)
+  email         String   @unique
+  emailVerified Boolean  @default(false)
   image         String?
-  role          String    @default("USER") // "USER", "ADMIN"
-  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+  role          String   @default("USER") // "USER", "ADMIN"
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
-  sessions    Session[]
-  accounts    Account[]
+  sessions        Session[]
+  accounts        Account[]
   profiles        GstinProfile[]
   ecoOperators    EcoOperatorGstin[]
   conversions     ConversionHistory[]
@@ -125,7 +125,7 @@ model GstinProfile {
 model EcoOperatorGstin {
   id String @id @default(uuid()) @db.Uuid
 
-  userId String @map("user_id")
+  userId      String @map("user_id")
   /// The seller's own GSTIN this mapping applies to.
   gstinNumber String @map("gstin_number")
   platformId  String @map("platform_id")
@@ -147,15 +147,15 @@ model EcoOperatorGstin {
 // -----------------------------------------------------------------------------
 
 model ConversionHistory {
-  id             String   @id @default(uuid()) @db.Uuid
-  userId         String   @map("user_id")
-  gstinNumber    String   @map("gstin_number")
-  returnPeriod   String   @map("return_period") // Format: MMYYYY e.g., "072025"
-  platformId     String   @map("platform_id") // e.g., "amazon", "flipkart", "meesho"
-  fileName       String   @map("file_name")
-  totalInvoices  Int      @default(0) @map("total_invoices")
-  totalTaxable   Decimal  @default(0) @map("total_taxable") @db.Decimal(18, 2)
-  totalTax       Decimal  @default(0) @map("total_tax") @db.Decimal(18, 2)
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @map("user_id")
+  gstinNumber      String   @map("gstin_number")
+  returnPeriod     String   @map("return_period") // Format: MMYYYY e.g., "072025"
+  platformId       String   @map("platform_id") // e.g., "amazon", "flipkart", "meesho"
+  fileName         String   @map("file_name")
+  totalInvoices    Int      @default(0) @map("total_invoices")
+  totalTaxable     Decimal  @default(0) @map("total_taxable") @db.Decimal(18, 2)
+  totalTax         Decimal  @default(0) @map("total_tax") @db.Decimal(18, 2)
   status           String   @default("COMPLETED") // "COMPLETED", "FAILED"
   tcsStatus        String   @default("NOT_RECONCILED") @map("tcs_status")
   processingTimeMs Int      @default(0) @map("processing_time_ms")
@@ -176,14 +176,14 @@ model ConversionHistory {
 // -----------------------------------------------------------------------------
 
 model MappingProfile {
-  id          String   @id @default(uuid()) @db.Uuid
-  userId      String   @map("user_id")
-  name        String
-  platformId  String   @map("platform_id")
-  mappings    Json     @map("mappings") // Record<string, string>
-  isDefault   Boolean  @default(false) @map("is_default")
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id")
+  name       String
+  platformId String   @map("platform_id")
+  mappings   Json     @map("mappings") // Record<string, string>
+  isDefault  Boolean  @default(false) @map("is_default")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -276,9 +276,9 @@ model RechargeOrder {
   /// standalone entity — so exactly one of the two locators below is set.
   method String @default("CHECKOUT") @map("method") // "CHECKOUT" | "UPI_QR"
 
-  razorpayOrderId   String? @unique @map("razorpay_order_id")
-  razorpayQrCodeId  String? @unique @map("razorpay_qr_code_id")
-  razorpayPaymentId String? @map("razorpay_payment_id")
+  razorpayOrderId   String?  @unique @map("razorpay_order_id")
+  razorpayQrCodeId  String?  @unique @map("razorpay_qr_code_id")
+  razorpayPaymentId String?  @map("razorpay_payment_id")
   amount            Int // rupees, equals base credits
   bonusCredits      Int      @default(0) @map("bonus_credits")
   totalCredits      Int      @map("total_credits")
@@ -312,12 +312,12 @@ model ReferralCode {
 }
 
 model ReferralToken {
-  id           String    @id @default(uuid()) @db.Uuid
-  userId       String    @map("user_id")
-  token        String    @unique
-  expiresAt    DateTime  @map("expires_at") @db.Timestamptz
-  usedByUserId String?   @map("used_by_user_id")
-  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id")
+  token        String   @unique
+  expiresAt    DateTime @map("expires_at") @db.Timestamptz
+  usedByUserId String?  @map("used_by_user_id")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -446,4 +446,26 @@ model AuditLog {
   @@index([createdAt])
   @@index([action])
   @@map("audit_log")
+}
+
+/// Offer strip shown above the public header. Admin-managed so campaigns can
+/// start and stop without a deploy. Multiple active rows scroll as a marquee,
+/// which is also what keeps the strip to one line on a phone.
+model Announcement {
+  id        String    @id @default(uuid()) @db.Uuid
+  message   String
+  /// Optional call to action. Both must be set for the link to render.
+  linkLabel String?   @map("link_label")
+  linkHref  String?   @map("link_href")
+  isActive  Boolean   @default(true) @map("is_active")
+  /// Lower sorts first within the marquee.
+  sortOrder Int       @default(0) @map("sort_order")
+  /// Optional schedule. Null on either side means "no bound on that side".
+  startsAt  DateTime? @map("starts_at") @db.Timestamptz
+  endsAt    DateTime? @map("ends_at") @db.Timestamptz
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([isActive, sortOrder])
+  @@map("announcement")
 }
