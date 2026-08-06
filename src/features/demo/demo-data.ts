@@ -1,12 +1,18 @@
+import type { NormalizedInvoiceRow } from "@/features/convert/types/convert.types";
+
 /**
  * Self-contained dataset for the public homepage demo.
  *
- * Every figure below reconciles: the gross of the raw rows (₹6,165.00) equals
- * the net taxable value plus tax of the generated output (₹5,500.00 + ₹665.00).
- * A CA will check that, so it has to hold.
+ * These rows are shaped as real `NormalizedInvoiceRow`s so the demo downloads
+ * can be produced by the *same* generators the product uses — the visitor gets
+ * a genuine GSTR-1 JSON, GSTN workbook and CA review report, not a mock-up.
  *
- * The seller is registered in Karnataka (29), which is what makes the
- * intra-state rows split into CGST + SGST and the rest fall to IGST.
+ * Every figure reconciles: gross of the raw lines equals net taxable + tax.
+ * A CA will check that, so it has to hold. The arithmetic is asserted by
+ * `tests/unit/demo-data.test.ts`.
+ *
+ * Seller is registered in Karnataka (29), which is what makes intra-state rows
+ * split into CGST + SGST while everything else falls to IGST.
  */
 
 export const DEMO_SELLER = {
@@ -30,154 +36,333 @@ export interface RawRow {
   /** Rate as an exported string, not a number. */
   taxRate: string;
   hsn: string;
+  platform: string;
 }
 
 /** Raw marketplace export — deliberately messy, the way the real file arrives. */
 export const RAW_ROWS: RawRow[] = [
   {
-    orderId: "408-3719411-communal",
+    orderId: "408-3719411-8842",
     invoiceDate: "03-08-2026",
     shipToState: "KARNATAKA",
     transactionType: "Shipment",
     invoiceAmount: "₹1,180.00",
     taxRate: "18%",
     hsn: "610910",
+    platform: "Amazon",
   },
   {
-    orderId: "171-9930244-lateral",
-    invoiceDate: "07-08-2026",
+    orderId: "171-9930244-2201",
+    invoiceDate: "05-08-2026",
     shipToState: "Maharashtra",
     transactionType: "Shipment",
     invoiceAmount: "₹1,180.00",
     taxRate: "18%",
     hsn: "610910",
+    platform: "Amazon",
   },
   {
-    orderId: "402-6621807-tandem",
-    invoiceDate: "12-08-2026",
+    orderId: "402-6621807-7714",
+    invoiceDate: "08-08-2026",
     shipToState: "maharashtra ",
     transactionType: "Shipment",
     invoiceAmount: "₹2,360.00",
     taxRate: "18%",
     hsn: "610910",
+    platform: "Amazon",
   },
   {
-    orderId: "171-9930244-lateral",
+    orderId: "171-9930244-2201",
     invoiceDate: "19-08-2026",
     shipToState: "Maharashtra",
     transactionType: "Refund",
     invoiceAmount: "-₹1,180.00",
     taxRate: "18%",
     hsn: "610910",
+    platform: "Amazon",
   },
   {
-    orderId: "404-1180255-vertex",
-    invoiceDate: "22-08-2026",
+    orderId: "404-1180255-3390",
+    invoiceDate: "11-08-2026",
     shipToState: "Delhi",
     transactionType: "Shipment",
     invoiceAmount: "₹525.00",
     taxRate: "5%",
     hsn: "640399",
+    platform: "Amazon",
   },
   {
-    orderId: "408-7724190-quartz",
+    orderId: "MEE-5540912",
+    invoiceDate: "12-08-2026",
+    shipToState: "Tamil Nadu",
+    transactionType: "Shipment",
+    invoiceAmount: "₹2,100.00",
+    taxRate: "5%",
+    hsn: "640399",
+    platform: "Meesho",
+  },
+  {
+    orderId: "MEE-5540912",
+    invoiceDate: "24-08-2026",
+    shipToState: "TAMILNADU",
+    transactionType: "Refund",
+    invoiceAmount: "-₹525.00",
+    taxRate: "5%",
+    hsn: "640399",
+    platform: "Meesho",
+  },
+  {
+    orderId: "FK-77120945",
+    invoiceDate: "16-08-2026",
+    shipToState: "Uttar Pradesh",
+    transactionType: "Shipment",
+    invoiceAmount: "₹3,540.00",
+    taxRate: "18%",
+    hsn: "851762",
+    platform: "Flipkart",
+  },
+  {
+    orderId: "FK-77120946",
+    invoiceDate: "21-08-2026",
+    shipToState: "Gujarat",
+    transactionType: "Shipment",
+    invoiceAmount: "₹1,416.00",
+    taxRate: "18%",
+    hsn: "851762",
+    platform: "Flipkart",
+  },
+  {
+    orderId: "408-7724190-1156",
     invoiceDate: "28-08-2026",
     shipToState: "Karnataka",
     transactionType: "Shipment",
     invoiceAmount: "₹2,100.00",
     taxRate: "5%",
     hsn: "640399",
+    platform: "Amazon",
   },
 ];
 
+const STATE_NAME: Record<string, string> = {
+  "29": "Karnataka",
+  "27": "Maharashtra",
+  "07": "Delhi",
+  "33": "Tamil Nadu",
+  "09": "Uttar Pradesh",
+  "24": "Gujarat",
+};
+
+interface Spec {
+  invoiceNumber: string;
+  date: string;
+  pos: string;
+  rate: number;
+  /** Net taxable value after any refund on the same order has been applied. */
+  taxable: number;
+  hsn: string;
+  platform: string;
+  qty: number;
+}
+
+/**
+ * The pipeline's output: refunds netted into their original shipment, states
+ * coded, rates numeric, tax split by place of supply against the seller's own
+ * state. Ten raw lines collapse to eight invoice rows.
+ */
+const SPECS: Spec[] = [
+  {
+    invoiceNumber: "AMZ-2026-0801",
+    date: "2026-08-03",
+    pos: "29",
+    rate: 18,
+    taxable: 1000,
+    hsn: "610910",
+    platform: "Amazon",
+    qty: 2,
+  },
+  // 1000 + 2000 − 1000 refund
+  {
+    invoiceNumber: "AMZ-2026-0802",
+    date: "2026-08-05",
+    pos: "27",
+    rate: 18,
+    taxable: 2000,
+    hsn: "610910",
+    platform: "Amazon",
+    qty: 4,
+  },
+  {
+    invoiceNumber: "AMZ-2026-0803",
+    date: "2026-08-11",
+    pos: "07",
+    rate: 5,
+    taxable: 500,
+    hsn: "640399",
+    platform: "Amazon",
+    qty: 1,
+  },
+  // 2000 − 500 refund
+  {
+    invoiceNumber: "MEE-2026-0801",
+    date: "2026-08-12",
+    pos: "33",
+    rate: 5,
+    taxable: 1500,
+    hsn: "640399",
+    platform: "Meesho",
+    qty: 3,
+  },
+  {
+    invoiceNumber: "FLK-2026-0801",
+    date: "2026-08-16",
+    pos: "09",
+    rate: 18,
+    taxable: 3000,
+    hsn: "851762",
+    platform: "Flipkart",
+    qty: 1,
+  },
+  {
+    invoiceNumber: "FLK-2026-0802",
+    date: "2026-08-21",
+    pos: "24",
+    rate: 18,
+    taxable: 1200,
+    hsn: "851762",
+    platform: "Flipkart",
+    qty: 1,
+  },
+  {
+    invoiceNumber: "AMZ-2026-0804",
+    date: "2026-08-28",
+    pos: "29",
+    rate: 5,
+    taxable: 2000,
+    hsn: "640399",
+    platform: "Amazon",
+    qty: 4,
+  },
+  {
+    invoiceNumber: "AMZ-2026-0805",
+    date: "2026-08-30",
+    pos: "29",
+    rate: 18,
+    taxable: 800,
+    hsn: "610910",
+    platform: "Amazon",
+    qty: 2,
+  },
+];
+
+function buildRow(spec: Spec, index: number): NormalizedInvoiceRow {
+  const intra = spec.pos === DEMO_SELLER.stateCode;
+  const half = spec.rate / 2;
+  const cgst = intra ? +(spec.taxable * (half / 100)).toFixed(2) : 0;
+  const sgst = cgst;
+  const igst = intra ? 0 : +(spec.taxable * (spec.rate / 100)).toFixed(2);
+
+  return {
+    id: `demo-${index + 1}`,
+    rowIndex: index + 1,
+    sourcePlatformId: spec.platform.toLowerCase(),
+    sourcePlatformName: spec.platform,
+    sourceFileName: DEMO_SELLER.sourceFile,
+    transactionType: "Sales",
+    invoiceNumber: spec.invoiceNumber,
+    invoiceDate: spec.date,
+    invoiceType: "B2CS",
+    buyerName: "Unregistered buyer",
+    buyerGstin: "",
+    placeOfSupply: spec.pos,
+    hsnCode: spec.hsn,
+    itemDescription:
+      spec.hsn === "610910"
+        ? "Cotton T-shirt"
+        : spec.hsn === "640399"
+          ? "Footwear"
+          : "Wireless earbuds",
+    uqc: "PCS",
+    quantity: spec.qty,
+    taxableValue: spec.taxable,
+    cgstRate: intra ? half : 0,
+    sgstRate: intra ? half : 0,
+    igstRate: intra ? 0 : spec.rate,
+    cessRate: 0,
+    cgstAmount: cgst,
+    sgstAmount: sgst,
+    igstAmount: igst,
+    cessAmount: 0,
+    totalValue: +(spec.taxable + cgst + sgst + igst).toFixed(2),
+    errors: [],
+  };
+}
+
+/** Filing-ready rows, fed straight into the production generators. */
+export const DEMO_ROWS: NormalizedInvoiceRow[] = SPECS.map(buildRow);
+
+const sum = (pick: (r: NormalizedInvoiceRow) => number) =>
+  +DEMO_ROWS.reduce((t, r) => t + pick(r), 0).toFixed(2);
+
+export const DEMO_TOTALS = {
+  rawLineCount: RAW_ROWS.length,
+  outputLineCount: DEMO_ROWS.length,
+  refundsNetted: 1705, // ₹1,180 + ₹525 gross
+  netTaxable: sum((r) => r.taxableValue),
+  totalTax: sum((r) => r.cgstAmount + r.sgstAmount + r.igstAmount),
+  grossValue: sum((r) => r.totalValue),
+  states: new Set(DEMO_ROWS.map((r) => r.placeOfSupply)).size,
+  platforms: new Set(DEMO_ROWS.map((r) => r.sourcePlatformName)).size,
+};
+
+/** Grouped B2CS view (GSTR-1 table 7) shown in the before/after comparison. */
 export interface Gstr1Row {
-  /** GSTR-1 table this row belongs to. */
-  table: string;
   placeOfSupply: string;
   rate: number;
   taxableValue: number;
   igst: number;
   cgst: number;
   sgst: number;
-  /** Which raw row indices collapsed into this line. */
-  sourceRows: number[];
-  /** Set when a refund was netted off, so the UI can flag it. */
   netted?: boolean;
 }
 
-/**
- * B2CS output, grouped by place of supply and rate — exactly how GSTR-1 table 7
- * expects it, and the reason six raw lines become four.
- */
-export const GSTR1_ROWS: Gstr1Row[] = [
-  {
-    table: "B2CS",
-    placeOfSupply: "29-Karnataka",
-    rate: 18,
-    taxableValue: 1000,
-    igst: 0,
-    cgst: 90,
-    sgst: 90,
-    sourceRows: [0],
-  },
-  {
-    table: "B2CS",
-    placeOfSupply: "29-Karnataka",
-    rate: 5,
-    taxableValue: 2000,
-    igst: 0,
-    cgst: 50,
-    sgst: 50,
-    sourceRows: [5],
-  },
-  {
-    table: "B2CS",
-    placeOfSupply: "27-Maharashtra",
-    rate: 18,
-    taxableValue: 2000,
-    igst: 360,
-    cgst: 0,
-    sgst: 0,
-    sourceRows: [1, 2, 3],
-    netted: true,
-  },
-  {
-    table: "B2CS",
-    placeOfSupply: "07-Delhi",
-    rate: 5,
-    taxableValue: 500,
-    igst: 25,
-    cgst: 0,
-    sgst: 0,
-    sourceRows: [4],
-  },
-];
-
-export const DEMO_TOTALS = {
-  rawLineCount: RAW_ROWS.length,
-  outputLineCount: GSTR1_ROWS.length,
-  grossValue: 6165,
-  netTaxable: GSTR1_ROWS.reduce((sum, r) => sum + r.taxableValue, 0),
-  totalTax: GSTR1_ROWS.reduce((sum, r) => sum + r.igst + r.cgst + r.sgst, 0),
-  refundsNetted: 1180,
-};
+export const GSTR1_ROWS: Gstr1Row[] = Object.values(
+  DEMO_ROWS.reduce<Record<string, Gstr1Row>>((acc, r) => {
+    const key = `${r.placeOfSupply}-${r.igstRate || r.cgstRate * 2}`;
+    const rate = r.igstRate || r.cgstRate * 2;
+    acc[key] ??= {
+      placeOfSupply: `${r.placeOfSupply}-${STATE_NAME[r.placeOfSupply] ?? ""}`,
+      rate,
+      taxableValue: 0,
+      igst: 0,
+      cgst: 0,
+      sgst: 0,
+      netted: r.placeOfSupply === "27" || r.placeOfSupply === "33",
+    };
+    const g = acc[key]!;
+    g.taxableValue = +(g.taxableValue + r.taxableValue).toFixed(2);
+    g.igst = +(g.igst + r.igstAmount).toFixed(2);
+    g.cgst = +(g.cgst + r.cgstAmount).toFixed(2);
+    g.sgst = +(g.sgst + r.sgstAmount).toFixed(2);
+    return acc;
+  }, {})
+).sort((a, b) => a.placeOfSupply.localeCompare(b.placeOfSupply));
 
 /** The transformations worth calling out beside the diff. */
 export const TRANSFORMATIONS = [
   {
     id: "state",
-    label: "State names → GSTN state codes",
-    detail: '"maharashtra " became "27-Maharashtra" — trimmed, cased and coded.',
+    label: "State names → GSTN codes",
+    detail: '"maharashtra " and "TAMILNADU" became 27 and 33 — trimmed, cased and coded.',
   },
   {
     id: "net",
     label: "Sales returns netted off",
-    detail: "A ₹1,180 refund was subtracted from its original shipment, not filed separately.",
+    detail: "₹1,705 of refunds were matched to their original shipments and subtracted.",
   },
   {
     id: "tax",
     label: "Tax extracted from gross",
-    detail: "Tax-inclusive invoice values were split into taxable value and tax.",
+    detail: "Tax-inclusive invoice values split into taxable value and tax.",
   },
   {
     id: "split",
@@ -185,18 +370,24 @@ export const TRANSFORMATIONS = [
     detail: "Place of supply compared against the seller's state on every line.",
   },
   {
+    id: "merge",
+    label: "Three marketplaces merged",
+    detail: "Amazon, Meesho and Flipkart exports combined into one return.",
+  },
+  {
     id: "group",
-    label: "Grouped into GSTR-1 table 7",
-    detail: "6 raw lines collapsed into 4 B2CS rows keyed by place of supply and rate.",
+    label: "Grouped into GSTR-1 tables",
+    detail: `${RAW_ROWS.length} raw lines became ${DEMO_ROWS.length} invoice rows across ${new Set(DEMO_ROWS.map((r) => r.placeOfSupply)).size} states.`,
   },
 ];
 
 export const PIPELINE_STAGES = [
-  "Reading workbook",
-  "Detecting marketplace format",
+  "Reading workbooks",
+  "Detecting marketplace formats",
   "Mapping columns",
   "Normalising states & rates",
   "Netting sales returns",
+  "Merging across marketplaces",
   "Splitting IGST / CGST / SGST",
   "Validating against GSTN rules",
   "Building GSTR-1 tables",
@@ -210,31 +401,4 @@ const INR = new Intl.NumberFormat("en-IN", {
 
 export function formatInr(value: number): string {
   return INR.format(value);
-}
-
-/** Builds the downloadable demo output client-side — no server round-trip. */
-export function buildDemoCsv(): string {
-  const header = ["Table", "Place Of Supply", "Rate (%)", "Taxable Value", "IGST", "CGST", "SGST"];
-  const lines = GSTR1_ROWS.map((r) =>
-    [r.table, r.placeOfSupply, r.rate, r.taxableValue, r.igst, r.cgst, r.sgst].join(",")
-  );
-  const totals = [
-    "TOTAL",
-    "",
-    "",
-    DEMO_TOTALS.netTaxable,
-    GSTR1_ROWS.reduce((s, r) => s + r.igst, 0),
-    GSTR1_ROWS.reduce((s, r) => s + r.cgst, 0),
-    GSTR1_ROWS.reduce((s, r) => s + r.sgst, 0),
-  ].join(",");
-
-  return [
-    `# GSTPilot demo output — ${DEMO_SELLER.legalName}`,
-    `# GSTIN ${DEMO_SELLER.gstin} | Period ${DEMO_SELLER.returnPeriodLabel}`,
-    "# Sample data for demonstration only. Not for filing.",
-    "",
-    header.join(","),
-    ...lines,
-    totals,
-  ].join("\n");
 }

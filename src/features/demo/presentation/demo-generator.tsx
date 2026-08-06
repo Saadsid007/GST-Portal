@@ -10,6 +10,9 @@ import {
   Sparkles,
   UploadCloud,
   Wand2,
+  FileJson,
+  FileSpreadsheet as FileXls,
+  ClipboardCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { Badge, Button } from "@/components/ui";
@@ -21,7 +24,6 @@ import {
   PIPELINE_STAGES,
   RAW_ROWS,
   TRANSFORMATIONS,
-  buildDemoCsv,
   formatInr,
 } from "@/features/demo/demo-data";
 
@@ -65,14 +67,11 @@ export function DemoGenerator() {
     setPhase("idle");
   }, [clearTimers]);
 
-  function download() {
-    const blob = new Blob([buildDemoCsv()], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "GSTPilot-demo-GSTR1-output.csv";
-    a.click();
-    URL.revokeObjectURL(url);
+  // The real generators run server-side: xlsx + exceljs are megabytes, and
+  // bundling them here would cost every homepage visitor for a feature most
+  // never trigger.
+  function download(file: "json" | "excel" | "review") {
+    window.location.href = `/api/demo/download?file=${file}`;
   }
 
   return (
@@ -129,7 +128,7 @@ export function DemoGenerator() {
               <Header
                 eyebrow="Step 1 — your raw file"
                 title="This is what the marketplace gives you"
-                note={`${DEMO_TOTALS.rawLineCount} lines · mixed shipments and refunds · states as free text`}
+                note={`${DEMO_TOTALS.rawLineCount} lines · ${DEMO_TOTALS.platforms} marketplaces · mixed shipments and refunds · states as free text`}
               />
               <RawTable />
               <div className="flex flex-col items-center gap-3 border-t border-border pt-5 sm:flex-row sm:justify-between">
@@ -157,7 +156,7 @@ export function DemoGenerator() {
               <Header
                 eyebrow="Step 2 — filing-ready output"
                 title="Before and after, side by side"
-                note={`${DEMO_TOTALS.rawLineCount} raw lines became ${DEMO_TOTALS.outputLineCount} GSTR-1 rows`}
+                note={`${DEMO_TOTALS.rawLineCount} raw lines across ${DEMO_TOTALS.platforms} marketplaces became ${DEMO_TOTALS.outputLineCount} invoice rows and ${GSTR1_ROWS.length} B2CS lines`}
               />
 
               <div className="grid gap-4 lg:grid-cols-2">
@@ -172,30 +171,78 @@ export function DemoGenerator() {
               <TransformationList />
               <Reconciliation />
 
-              <div className="flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" size="md" onClick={download}>
-                    <Download />
-                    Download demo output
-                  </Button>
-                  <Button variant="ghost" size="md" onClick={reset}>
+              <div className="space-y-3 border-t border-border pt-5">
+                <p className="text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
+                  Download the same three files the converter produces
+                </p>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <DownloadCard
+                    icon={FileJson}
+                    title="GSTR-1 JSON"
+                    body="GSTN v3.0 schema, ready to upload to the portal."
+                    onClick={() => download("json")}
+                  />
+                  <DownloadCard
+                    icon={FileXls}
+                    title="GSTN workbook"
+                    body="Multi-sheet Excel matching the portal's tables."
+                    onClick={() => download("excel")}
+                  />
+                  <DownloadCard
+                    icon={ClipboardCheck}
+                    title="CA review report"
+                    body="Formatted workbook your accountant can check."
+                    onClick={() => download("review")}
+                  />
+                </div>
+                <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-center sm:justify-between">
+                  <Button variant="ghost" size="sm" onClick={reset}>
                     <RotateCcw />
                     Run it again
                   </Button>
+                  <Button asChild variant="brand" size="lg">
+                    <Link href="/convert">
+                      <Sparkles />
+                      Do this with your own file
+                      <ArrowRight />
+                    </Link>
+                  </Button>
                 </div>
-                <Button asChild variant="brand" size="lg">
-                  <Link href="/convert">
-                    <Sparkles />
-                    Do this with your own file
-                    <ArrowRight />
-                  </Link>
-                </Button>
               </div>
             </div>
           )}
         </div>
       </div>
     </div>
+  );
+}
+
+function DownloadCard({
+  icon: Icon,
+  title,
+  body,
+  onClick,
+}: {
+  icon: typeof FileJson;
+  title: string;
+  body: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex flex-col items-start gap-1.5 rounded-xl border border-border bg-card p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
+    >
+      <span className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary-ink ring-1 ring-primary/20 transition-transform duration-200 group-hover:scale-110">
+        <Icon className="size-4" aria-hidden />
+      </span>
+      <span className="flex items-center gap-1 text-xs font-semibold">
+        {title}
+        <Download className="size-3 text-muted-foreground" aria-hidden />
+      </span>
+      <span className="text-2xs leading-relaxed text-muted-foreground">{body}</span>
+    </button>
   );
 }
 
