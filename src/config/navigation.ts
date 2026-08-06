@@ -13,6 +13,8 @@ import {
   ShieldCheck,
   Coins,
   Gift,
+  LifeBuoy,
+  Inbox,
   Megaphone as MegaphoneIcon,
 } from "lucide-react";
 
@@ -77,6 +79,12 @@ export const NAV_GROUPS: NavGroup[] = [
         description: "Free credits for you and whoever you invite",
       },
       {
+        label: "Support",
+        href: "/support",
+        icon: LifeBuoy,
+        description: "Raise an issue and track it to resolution",
+      },
+      {
         label: "Settings",
         href: "/settings",
         icon: Settings,
@@ -118,6 +126,12 @@ export const NAV_GROUPS: NavGroup[] = [
         href: "/admin/credit-codes",
         icon: Ticket,
         description: "Issue and revoke promotional codes",
+      },
+      {
+        label: "Support inbox",
+        href: "/admin/support",
+        icon: Inbox,
+        description: "Contact messages and user support requests",
       },
       {
         label: "Announcements",

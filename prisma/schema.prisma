@@ -43,6 +43,7 @@ model User {
   auditLogs          AuditLog[]
   creditCodesCreated CreditCode[]
   codeRedemptions    CreditCodeRedemption[]
+  supportTickets     SupportTicket[]
 
   @@map("user")
 }
@@ -468,4 +469,70 @@ model Announcement {
 
   @@index([isActive, sortOrder])
   @@map("announcement")
+}
+
+/// One inbox for everything a human sends us.
+///
+/// The public contact form and the in-app support form are the same domain — a
+/// message that an admin triages, assigns a status to, and replies on. `source`
+/// records which door it came through, so admin gets a single queue instead of
+/// two parallel systems that drift apart.
+model SupportTicket {
+  id        String @id @default(uuid()) @db.Uuid
+  /// Short human-quotable reference shown to the sender, e.g. GP-8F3K2A.
+  reference String @unique
+  /// "CONTACT" (public form) | "SUPPORT" (signed-in user)
+  source    String
+  /// "PAYMENT" | "CONVERSION" | "ACCOUNT" | "BILLING" | "SALES" | "OTHER"
+  category  String @default("OTHER")
+  /// "OPEN" | "IN_PROGRESS" | "WAITING_ON_USER" | "RESOLVED" | "CLOSED"
+  status    String @default("OPEN")
+  /// "LOW" | "NORMAL" | "HIGH" | "URGENT"
+  priority  String @default("NORMAL")
+
+  subject String
+  message String
+
+  /// Captured for anonymous contact submissions. For signed-in tickets these
+  /// mirror the account so the row stays readable if the user is deleted.
+  name  String
+  email String
+
+  /// Null for public contact submissions.
+  userId String? @map("user_id")
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  /// Free-form context the user attached, e.g. a Razorpay payment id.
+  referenceId String? @map("reference_id")
+
+  /// Set when an admin takes ownership.
+  assignedToId String?   @map("assigned_to_id")
+  resolvedAt   DateTime? @map("resolved_at") @db.Timestamptz
+
+  replies   SupportTicketReply[]
+  createdAt DateTime             @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime             @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([status, createdAt])
+  @@index([userId])
+  @@index([source])
+  @@map("support_ticket")
+}
+
+/// A message on a ticket. `isFromAdmin` decides which side of the thread it
+/// renders on and whether the user is allowed to see it.
+model SupportTicketReply {
+  id          String        @id @default(uuid()) @db.Uuid
+  ticketId    String        @map("ticket_id") @db.Uuid
+  ticket      SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  body        String
+  isFromAdmin Boolean       @default(false) @map("is_from_admin")
+  /// Admin-only note: never returned to the user.
+  isInternal  Boolean       @default(false) @map("is_internal")
+  authorName  String        @map("author_name")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([ticketId, createdAt])
+  @@map("support_ticket_reply")
 }
