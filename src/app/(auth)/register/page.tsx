@@ -4,7 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { FileSpreadsheet, Loader2, Eye, EyeOff, ArrowRight, Gift } from "lucide-react";
+import { Loader2, Eye, EyeOff, ArrowRight, Gift } from "lucide-react";
+import { AppLogo } from "@/components/app-logo";
 import { authClient } from "@/lib/auth-client";
 import { applyReferralAction } from "@/features/billing/actions/referral.actions";
 
@@ -51,11 +52,11 @@ export default function RegisterPage() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12">
       <div className="w-full max-w-md space-y-6">
         <div className="space-y-2 text-center">
-          <Link href="/" className="group inline-flex items-center gap-2.5">
-            <div className="flex size-10 items-center justify-center rounded-2xl bg-primary font-bold text-primary-foreground shadow-lg shadow-primary/20 transition-transform group-hover:scale-105">
-              <FileSpreadsheet className="size-5" />
-            </div>
-            <span className="text-2xl font-extrabold tracking-tight">GSTPilot</span>
+          <Link
+            href="/"
+            className="group inline-flex items-center justify-center transition-transform hover:scale-105"
+          >
+            <AppLogo size="xl" priority />
           </Link>
           <p className="text-xs text-muted-foreground">
             Start Converting Marketplace Reports to GSTR-1

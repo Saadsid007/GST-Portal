@@ -4,7 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { FileSpreadsheet, Loader2, Eye, EyeOff, ArrowRight } from "lucide-react";
+import { Loader2, Eye, EyeOff, ArrowRight } from "lucide-react";
+import { AppLogo } from "@/components/app-logo";
 import { authClient } from "@/lib/auth-client";
 
 export default function LoginPage() {
@@ -16,18 +17,24 @@ export default function LoginPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!email || !password) return;
+
     setLoading(true);
     try {
-      const res = await authClient.signIn.email({ email, password });
+      const res = await authClient.signIn.email({
+        email,
+        password,
+      });
+
       if (res.error) {
-        toast.error(res.error.message || "Login failed");
+        toast.error(res.error.message ?? "Invalid email or password");
       } else {
-        toast.success("Welcome back to GSTPilot!");
+        toast.success("Welcome back!");
         router.push("/dashboard");
         router.refresh();
       }
     } catch {
-      toast.error("Something went wrong. Please try again.");
+      toast.error("An unexpected error occurred");
     } finally {
       setLoading(false);
     }
@@ -38,11 +45,11 @@ export default function LoginPage() {
       <div className="w-full max-w-md space-y-6">
         {/* Logo Header */}
         <div className="space-y-2 text-center">
-          <Link href="/" className="group inline-flex items-center gap-2.5">
-            <div className="flex size-10 items-center justify-center rounded-2xl bg-primary font-bold text-primary-foreground shadow-lg shadow-primary/20 transition-transform group-hover:scale-105">
-              <FileSpreadsheet className="size-5" />
-            </div>
-            <span className="text-2xl font-extrabold tracking-tight">GSTPilot</span>
+          <Link
+            href="/"
+            className="group inline-flex items-center justify-center transition-transform hover:scale-105"
+          >
+            <AppLogo size="xl" priority />
           </Link>
           <p className="text-xs text-muted-foreground">Marketplace to GSTR-1 Excel & JSON Engine</p>
         </div>

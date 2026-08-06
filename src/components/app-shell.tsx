@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FileSpreadsheet, X } from "lucide-react";
+import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_GROUPS, isItemActive, type NavGroup } from "@/config/navigation";
 import { AppHeader } from "@/components/app-header";
+import { AppLogo } from "@/components/app-logo";
 import { SITE } from "@/config/site";
 import { createPersistedToggle } from "@/lib/persisted-toggle";
 
@@ -134,17 +135,15 @@ function SidebarContent({
           collapsed ? "justify-center px-2" : "px-4"
         )}
       >
-        <Link href="/dashboard" className="flex min-w-0 items-center gap-2.5" title={SITE.name}>
-          <span className="flex size-8 flex-shrink-0 items-center justify-center rounded-lg brand-gradient text-primary-foreground shadow-accent">
-            <FileSpreadsheet className="size-4" aria-hidden />
-          </span>
-          {!collapsed && (
-            <span className="min-w-0">
-              <span className="block truncate text-sm leading-none font-bold">{SITE.name}</span>
-              <span className="mt-1 block truncate font-mono text-[10px] leading-none text-muted-foreground">
-                {SITE.tagline}
-              </span>
-            </span>
+        <Link
+          href="/dashboard"
+          className="flex min-w-0 items-center gap-2.5 overflow-hidden"
+          title={SITE.name}
+        >
+          {collapsed ? (
+            <AppLogo size="sm" className="max-w-[40px] overflow-hidden" />
+          ) : (
+            <AppLogo size="md" priority />
           )}
         </Link>
       </div>
