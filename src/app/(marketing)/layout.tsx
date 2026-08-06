@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { FileSpreadsheet, ShieldCheck, Lock } from "lucide-react";
+import { ShieldCheck, Lock } from "lucide-react";
+import { AppLogo } from "@/components/app-logo";
 import { MarketingNav } from "./_components/marketing-nav";
 import { OfferStrip } from "@/features/announcements/presentation/offer-strip";
 import { getActiveAnnouncements } from "@/features/announcements/services/announcement.service";
@@ -18,25 +19,23 @@ const FOOTER_COLUMNS = [
     heading: "Resources",
     links: [
       { label: "Documentation", href: "/docs" },
-      { label: "Amazon MTR guide", href: "/docs/how-to-upload-amazon-b2b-report" },
-      { label: "Meesho return guide", href: "/docs/how-to-upload-meesho-sales-report" },
-      { label: "GST compliance blog", href: "/blog" },
-      { label: "Changelog", href: "/changelog" },
+      { label: "Guides & blog", href: "/blog" },
+      { label: "What's new", href: "/changelog" },
     ],
   },
   {
     heading: "Company",
     links: [
       { label: "About us", href: "/about" },
-      { label: "Contact sales", href: "/contact" },
-      { label: "Security model", href: "/security" },
+      { label: "Security & privacy", href: "/security" },
+      { label: "Contact support", href: "/contact" },
     ],
   },
   {
     heading: "Legal",
     links: [
-      { label: "Privacy policy", href: "/privacy-policy" },
       { label: "Terms of service", href: "/terms" },
+      { label: "Privacy policy", href: "/privacy-policy" },
       { label: "Refund policy", href: "/refund-policy" },
     ],
   },
@@ -56,18 +55,11 @@ export default async function MarketingLayout({ children }: { children: React.Re
 
       <header className="sticky top-0 z-50 border-b border-border/70 bg-background/80 backdrop-blur-xl">
         <div className="relative mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6">
-          <Link href="/" className="group flex min-w-0 items-center gap-2.5">
-            <div className="flex size-9 flex-shrink-0 items-center justify-center rounded-xl brand-gradient text-primary-foreground shadow-accent transition-transform duration-200 group-hover:scale-105">
-              <FileSpreadsheet className="size-5" aria-hidden />
-            </div>
-            <div className="min-w-0">
-              <span className="block truncate text-lg leading-none font-bold tracking-tight">
-                GSTPilot
-              </span>
-              <span className="mt-1 hidden font-mono text-2xs leading-none text-muted-foreground sm:block">
-                Marketplace → GSTR-1
-              </span>
-            </div>
+          <Link
+            href="/"
+            className="group flex min-w-0 items-center gap-2.5 transition-transform hover:opacity-95"
+          >
+            <AppLogo size="lg" priority />
           </Link>
 
           <MarketingNav />
@@ -80,11 +72,8 @@ export default async function MarketingLayout({ children }: { children: React.Re
         <div className="mx-auto max-w-7xl px-6 py-16">
           <div className="grid grid-cols-2 gap-10 md:grid-cols-6">
             <div className="col-span-2 space-y-4">
-              <div className="flex items-center gap-2">
-                <div className="flex size-7 items-center justify-center rounded-lg brand-gradient text-primary-foreground">
-                  <FileSpreadsheet className="size-4" aria-hidden />
-                </div>
-                <span className="text-sm font-bold">GSTPilot</span>
+              <div className="flex items-center">
+                <AppLogo size="md" />
               </div>
               <p className="max-w-xs text-xs leading-relaxed text-muted-foreground">
                 Convert marketplace reports from Amazon, Flipkart, Meesho, Myntra and more into
@@ -125,8 +114,16 @@ export default async function MarketingLayout({ children }: { children: React.Re
             <p className="text-2xs text-muted-foreground">
               © {new Date().getFullYear()} GSTPilot. All rights reserved.
             </p>
-            <p className="text-2xs text-muted-foreground">
-              Built for Indian e-commerce sellers and their CAs.
+            <p className="flex items-center gap-1 text-2xs text-muted-foreground">
+              Developed by{" "}
+              <a
+                href="https://growthtechnos.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-foreground underline decoration-border underline-offset-4 transition-colors hover:text-primary hover:decoration-primary"
+              >
+                Growth Technos
+              </a>
             </p>
           </div>
         </div>

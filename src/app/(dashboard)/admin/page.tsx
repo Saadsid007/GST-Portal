@@ -47,7 +47,7 @@ export default async function AdminOverviewPage() {
       prisma.walletTransaction.findMany({
         orderBy: { createdAt: "desc" },
         take: 6,
-        select: { id: true, type: true, amount: true, createdAt: true, userId: true },
+        select: { id: true, type: true, creditAmount: true, createdAt: true, walletId: true },
       }),
     ]);
 
@@ -199,11 +199,11 @@ export default async function AdminOverviewPage() {
                       <TableCell
                         align="right"
                         className={`text-xs font-semibold tabular-nums ${
-                          t.amount >= 0 ? "text-success-ink" : "text-destructive-ink"
+                          t.creditAmount >= 0 ? "text-success-ink" : "text-destructive-ink"
                         }`}
                       >
-                        {t.amount >= 0 ? "+" : ""}
-                        {t.amount}
+                        {t.creditAmount >= 0 ? "+" : ""}
+                        {t.creditAmount}
                       </TableCell>
                       <TableCell align="right" className="text-2xs text-muted-foreground">
                         {t.createdAt.toLocaleDateString("en-IN")}
