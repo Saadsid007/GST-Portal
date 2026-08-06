@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { PLATFORMS_CONFIG } from "@/features/convert/config/platform.config";
+import { PlatformLogo } from "@/features/convert/presentation/platform-logo";
 import type { MultiConvertState } from "@/features/convert/presentation/convert-workbench";
 import type { MultiUploadFileInput } from "@/features/convert/types/convert.types";
 import { CompletenessChecker } from "@/features/convert/engine/rules/completeness.checker";
@@ -9,7 +10,6 @@ import { PlatformDetector } from "@/features/convert/engine/detection/platform.d
 import { cn } from "@/lib/utils";
 import {
   UploadCloud,
-  FileSpreadsheet,
   CheckCircle,
   ArrowLeft,
   ArrowRight,
@@ -139,11 +139,12 @@ export function Step5Upload({ state, onChange, onNext, onBack }: Props) {
             >
               <div className="flex items-center justify-between gap-3 border-b border-border pb-3">
                 <div className="flex min-w-0 items-center gap-3">
-                  <div
-                    className={`size-9 rounded-xl bg-gradient-to-br ${plat.accentColor} flex flex-shrink-0 items-center justify-center text-xs font-bold text-white shadow-sm`}
-                  >
-                    <FileSpreadsheet className="size-4" />
-                  </div>
+                  <PlatformLogo
+                    id={plat.id}
+                    name={plat.name}
+                    accentColor={plat.accentColor}
+                    size="sm"
+                  />
                   <div className="min-w-0">
                     <h3 className="truncate text-sm font-bold">{plat.name}</h3>
                     <p className="truncate text-xs text-muted-foreground">{plat.description}</p>

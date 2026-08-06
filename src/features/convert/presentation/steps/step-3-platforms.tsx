@@ -3,19 +3,9 @@
 import type { MultiConvertState } from "@/features/convert/presentation/convert-workbench";
 import { EcoGstinFields } from "@/features/convert/presentation/steps/eco-gstin-fields";
 import { PLATFORMS_CONFIG } from "@/features/convert/config/platform.config";
+import { PlatformLogo } from "@/features/convert/presentation/platform-logo";
 import { cn } from "@/lib/utils";
-import {
-  Check,
-  ArrowLeft,
-  ArrowRight,
-  Store,
-  ShoppingBag,
-  ShoppingCart,
-  Sparkles,
-  Package,
-  Zap,
-  FileSpreadsheet,
-} from "lucide-react";
+import { Check, ArrowLeft, ArrowRight } from "lucide-react";
 
 interface Props {
   state: MultiConvertState;
@@ -23,16 +13,6 @@ interface Props {
   onNext: () => void;
   onBack: () => void;
 }
-
-const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
-  ShoppingBag,
-  Store,
-  ShoppingCart,
-  Sparkles,
-  Package,
-  Zap,
-  FileSpreadsheet,
-};
 
 export function Step3Platforms({ state, onChange, onNext, onBack }: Props) {
   function togglePlatform(id: string) {
@@ -76,7 +56,6 @@ export function Step3Platforms({ state, onChange, onNext, onBack }: Props) {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {PLATFORMS_CONFIG.map((plat) => {
           const isSelected = state.selectedPlatformIds.includes(plat.id);
-          const IconComponent = ICON_MAP[plat.iconName] ?? Store;
 
           return (
             <button
@@ -85,7 +64,7 @@ export function Step3Platforms({ state, onChange, onNext, onBack }: Props) {
               onClick={() => togglePlatform(plat.id)}
               aria-pressed={isSelected}
               className={cn(
-                "group relative flex items-start gap-3 overflow-hidden rounded-2xl border p-4 text-left transition-all duration-200",
+                "group relative flex items-start gap-3.5 overflow-hidden rounded-2xl border p-4 text-left transition-all duration-200",
                 isSelected
                   ? "-translate-y-0.5 border-primary bg-primary/5 shadow-md ring-2 ring-primary/20"
                   : "border-border bg-card hover:-translate-y-0.5 hover:border-primary/40 hover:bg-accent/40 hover:shadow-sm"
@@ -99,16 +78,12 @@ export function Step3Platforms({ state, onChange, onNext, onBack }: Props) {
                   isSelected ? "opacity-100" : "opacity-0"
                 )}
               />
-              <div
-                className={cn(
-                  "flex size-10 flex-shrink-0 items-center justify-center rounded-xl transition-all duration-200",
-                  isSelected
-                    ? "brand-gradient text-primary-foreground shadow-sm"
-                    : "bg-muted text-muted-foreground group-hover:scale-110 group-hover:bg-primary/10 group-hover:text-primary-ink"
-                )}
-              >
-                <IconComponent className="size-5" />
-              </div>
+              <PlatformLogo
+                id={plat.id}
+                name={plat.name}
+                accentColor={plat.accentColor}
+                size="md"
+              />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <p className="truncate text-sm font-bold">{plat.name}</p>
