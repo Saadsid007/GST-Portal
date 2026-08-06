@@ -285,17 +285,16 @@ function GlobalSearch({ isAdmin }: { isAdmin: boolean }) {
         open &&
         createPortal(
           <div
-            className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-background/80 backdrop-blur-md transition-opacity duration-200"
+            className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-foreground/45 backdrop-blur-sm"
             onClick={close}
           >
-            {/* Spotlight positioning: items-start + top padding */}
-            <div className="flex min-h-full items-start justify-center p-3 pt-12 sm:p-4 sm:pt-20">
+            <div className="flex min-h-full items-center justify-center p-4">
               <div
                 role="dialog"
                 aria-modal="true"
                 aria-label="Search navigation"
                 onClick={(e) => e.stopPropagation()}
-                className="flex max-h-[min(32rem,calc(100dvh-5rem))] w-full max-w-xl animate-scale-in flex-col overflow-hidden rounded-2xl border border-border bg-popover shadow-2xl transition-all"
+                className="flex max-h-[min(34rem,calc(100dvh-2rem))] w-full max-w-xl animate-scale-in flex-col overflow-hidden rounded-2xl border border-border bg-popover shadow-2xl"
               >
                 <div className="flex flex-shrink-0 items-center gap-3 border-b border-border px-4 py-3">
                   <Search className="size-4 flex-shrink-0 text-primary" aria-hidden />
