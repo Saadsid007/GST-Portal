@@ -114,8 +114,16 @@ export default async function MarketingLayout({ children }: { children: React.Re
             <p className="text-2xs text-muted-foreground">
               © {new Date().getFullYear()} GSTPilot. All rights reserved.
             </p>
-            <p className="text-2xs text-muted-foreground">
-              Built for Indian e-commerce sellers and their CAs.
+            <p className="flex items-center gap-1 text-2xs text-muted-foreground">
+              Developed by{" "}
+              <a
+                href="https://growthtechnos.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-foreground underline decoration-border underline-offset-4 transition-colors hover:text-primary hover:decoration-primary"
+              >
+                Growth Technos
+              </a>
             </p>
           </div>
         </div>
