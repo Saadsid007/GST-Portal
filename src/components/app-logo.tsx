@@ -1,8 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import logoDark from "@/assets/img/logo dark.png";
-import logoLight from "@/assets/img/logo light.png";
+import logoDark from "@/assets/img/logo-dark.png";
+import logoLight from "@/assets/img/logo-light.png";
 import { cn } from "@/lib/utils";
 
 interface AppLogoProps {
