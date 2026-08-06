@@ -7,11 +7,11 @@ import {
   Building2,
   Infinity as InfinityIcon,
 } from "lucide-react";
-import { Badge, Button, Card } from "@/components/ui";
+import { Button, Card } from "@/components/ui";
+import { PackCard, TrustStrip } from "@/app/(marketing)/_components/pricing-blocks";
 import { calculateBonus } from "@/features/billing/domain/bonus-calculator";
 import { getPricingConfig } from "@/features/billing/services/config.service";
 import { CA_PLANS, FREE_TRIAL_LIMITS } from "@/features/billing/constants/billing.constants";
-import { cn } from "@/lib/utils";
 import { Section } from "./home-sections";
 
 export async function PricingPreview() {
@@ -38,55 +38,12 @@ export async function PricingPreview() {
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {featured.map((pack) => {
-          const returns = Math.floor(pack.breakdown.totalCredits / generationCost);
-          return (
-            <Card
-              key={pack.id}
-              variant={pack.popular ? "accent" : "solid"}
-              className={cn("relative flex flex-col p-6", pack.popular && "ring-2 ring-primary/25")}
-            >
-              {pack.popular && (
-                <Badge
-                  variant="solid"
-                  className="absolute -top-2.5 left-1/2 -translate-x-1/2 shadow-sm"
-                >
-                  Most popular
-                </Badge>
-              )}
-
-              <p className="text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
-                {pack.label}
-              </p>
-              <p className="mt-2 text-3xl font-bold tracking-tight tabular-nums">
-                ₹{pack.amount.toLocaleString("en-IN")}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">one-time recharge</p>
-
-              <dl className="mt-5 space-y-1.5 border-t border-border pt-4 text-xs">
-                <div className="flex justify-between">
-                  <dt className="text-muted-foreground">Credits</dt>
-                  <dd className="font-semibold tabular-nums">{pack.breakdown.baseCredits}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-muted-foreground">Bonus</dt>
-                  <dd className="font-semibold text-success-ink tabular-nums">
-                    +{pack.breakdown.bonusCredits} ({pack.breakdown.bonusPercent}%)
-                  </dd>
-                </div>
-                <div className="flex justify-between border-t border-border pt-1.5">
-                  <dt className="font-semibold">Total</dt>
-                  <dd className="font-bold tabular-nums">{pack.breakdown.totalCredits}</dd>
-                </div>
-              </dl>
-
-              <p className="mt-4 rounded-lg bg-muted px-3 py-2 text-center text-xs font-semibold">
-                ≈ {returns} return{returns === 1 ? "" : "s"}
-              </p>
-            </Card>
-          );
-        })}
+        {featured.map((pack) => (
+          <PackCard key={pack.id} pack={pack} generationCost={generationCost} />
+        ))}
       </div>
+
+      <TrustStrip />
 
       {/* Free trial + CA plan, side by side */}
       <div className="grid gap-4 md:grid-cols-2">

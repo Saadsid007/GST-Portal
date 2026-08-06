@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useState, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Menu, Sun, Moon, X, Zap } from "lucide-react";
+import { Menu, Sun, Moon, X, Zap, LayoutDashboard } from "lucide-react";
 import { useTheme } from "next-themes";
-import { Button } from "@/components/ui";
+import { Button, Skeleton } from "@/components/ui";
+import { authClient } from "@/lib/auth-client";
 
 const NAV_LINKS = [
   { label: "Features", href: "/features" },
@@ -53,21 +54,7 @@ export function MarketingNav() {
 
       <div className="flex flex-shrink-0 items-center gap-1.5 sm:gap-2">
         <ThemeToggle />
-
-        <Link
-          href="/login"
-          className="hidden px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground sm:inline-flex"
-        >
-          Sign in
-        </Link>
-
-        <Button asChild variant="brand" size="sm">
-          <Link href="/convert">
-            <Zap />
-            <span className="hidden sm:inline">Start free conversion</span>
-            <span className="sm:hidden">Convert</span>
-          </Link>
-        </Button>
+        <AuthActions />
 
         <Button
           variant="outline"
@@ -104,16 +91,99 @@ export function MarketingNav() {
               </Link>
             );
           })}
-          <Link
-            href="/login"
-            onClick={() => setMenuOpen(false)}
-            className="mt-1 block border-t border-border px-3 pt-3 pb-2 text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Sign in
-          </Link>
+          <MobileAuthLinks onNavigate={() => setMenuOpen(false)} />
         </nav>
       )}
     </>
+  );
+}
+
+/**
+ * Auth state is resolved on the client on purpose. Marketing pages are
+ * statically prerendered; reading the session in the layout would make every
+ * one of them render per-request and give up that caching. The header is the
+ * only personalised thing on the page, so it is the only thing that waits.
+ *
+ * A fixed-width skeleton holds the slot while the session resolves, so the bar
+ * neither shifts nor flashes "Sign in" at someone who is already signed in.
+ */
+function AuthActions() {
+  const { data: session, isPending } = authClient.useSession();
+
+  if (isPending) {
+    return (
+      <div className="flex items-center gap-2" aria-hidden>
+        <Skeleton className="h-8 w-16 rounded-md max-sm:hidden" />
+        <Skeleton className="h-8 w-28 rounded-md" />
+      </div>
+    );
+  }
+
+  if (session) {
+    return (
+      <>
+        <Button asChild variant="ghost" size="sm" className="max-sm:hidden">
+          <Link href="/billing">Wallet</Link>
+        </Button>
+        <Button asChild variant="brand" size="sm">
+          <Link href="/dashboard">
+            <LayoutDashboard />
+            <span className="hidden sm:inline">Go to dashboard</span>
+            <span className="sm:hidden">Dashboard</span>
+          </Link>
+        </Button>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Link
+        href="/login"
+        className="hidden px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground sm:inline-flex"
+      >
+        Sign in
+      </Link>
+      <Button asChild variant="brand" size="sm">
+        <Link href="/convert">
+          <Zap />
+          <span className="hidden sm:inline">Start free conversion</span>
+          <span className="sm:hidden">Convert</span>
+        </Link>
+      </Button>
+    </>
+  );
+}
+
+function MobileAuthLinks({ onNavigate }: { onNavigate: () => void }) {
+  const { data: session, isPending } = authClient.useSession();
+  if (isPending) return <Skeleton className="mt-2 h-9 w-full rounded-md" />;
+
+  return session ? (
+    <>
+      <Link
+        href="/dashboard"
+        onClick={onNavigate}
+        className="mt-1 block border-t border-border px-3 pt-3 pb-2 text-primary-ink transition-colors hover:text-foreground"
+      >
+        Go to dashboard
+      </Link>
+      <Link
+        href="/billing"
+        onClick={onNavigate}
+        className="block px-3 pb-2 text-muted-foreground transition-colors hover:text-foreground"
+      >
+        Wallet &amp; billing
+      </Link>
+    </>
+  ) : (
+    <Link
+      href="/login"
+      onClick={onNavigate}
+      className="mt-1 block border-t border-border px-3 pt-3 pb-2 text-muted-foreground transition-colors hover:text-foreground"
+    >
+      Sign in
+    </Link>
   );
 }
 

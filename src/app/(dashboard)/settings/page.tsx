@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { requireSession } from "@/features/auth";
 import { SettingsForm } from "@/features/settings/presentation/settings-form";
+import { PageHeader } from "@/components/ui";
 import prisma from "@/lib/prisma";
 
 export const metadata: Metadata = { title: "Settings" };
@@ -15,10 +16,11 @@ export default async function SettingsPage() {
   if (!user) return null;
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Settings</h1>
-        <p className="mt-0.5 text-sm text-muted-foreground">Manage your account preferences</p>
-      </div>
+      <PageHeader
+        eyebrow="Account"
+        title="Settings"
+        description="Your profile, password and account controls."
+      />
       <SettingsForm user={user} />
     </div>
   );

@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { FileSpreadsheet, Sparkles, ShieldCheck, Lock } from "lucide-react";
+import { FileSpreadsheet, ShieldCheck, Lock } from "lucide-react";
 import { MarketingNav } from "./_components/marketing-nav";
+import { OfferStrip } from "@/features/announcements/presentation/offer-strip";
+import { getActiveAnnouncements } from "@/features/announcements/services/announcement.service";
 
 const FOOTER_COLUMNS = [
   {
@@ -44,19 +46,13 @@ const FOOTER_COLUMNS = [
  * Server component. Only the header nav and theme toggle are client islands,
  * so marketing pages stream their content instead of blocking on hydration.
  */
-export default function MarketingLayout({ children }: { children: React.ReactNode }) {
+export default async function MarketingLayout({ children }: { children: React.ReactNode }) {
+  // Cached and tagged, so this costs no query until an admin edits the strip.
+  const announcements = await getActiveAnnouncements();
+
   return (
     <div className="flex min-h-screen flex-col bg-background font-sans text-foreground">
-      {/* Announcement bar */}
-      <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 brand-gradient px-4 py-2 text-center text-2xs font-semibold text-primary-foreground sm:text-xs">
-        <Sparkles className="size-3.5 flex-shrink-0" aria-hidden />
-        <span>
-          GSTPilot v2.5 — full support for Amazon MTR v3, Meesho returns &amp; TCS reconciliation
-        </span>
-        <Link href="/changelog" className="font-bold underline underline-offset-2 hover:opacity-90">
-          What&rsquo;s new →
-        </Link>
-      </div>
+      <OfferStrip announcements={announcements} />
 
       <header className="sticky top-0 z-50 border-b border-border/70 bg-background/80 backdrop-blur-xl">
         <div className="relative mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6">

@@ -51,9 +51,15 @@ export function AppShell({ children, user, isAdmin = false, credits }: AppShellP
   return (
     <div className="flex min-h-screen bg-background">
       {/* Desktop sidebar */}
+      {/* Sticky, full-height, and its own scroll container: the page scrolls
+          under it rather than taking the nav with it. `h-dvh` keeps it exactly
+          one viewport tall so a long nav scrolls internally instead of pushing
+          the rail past the bottom of the screen. */}
       <aside
         className={cn(
-          "hidden flex-shrink-0 flex-col border-r border-sidebar-border bg-sidebar-background transition-[width] duration-300 ease-[var(--ease-standard)] lg:flex",
+          // overflow-hidden, not auto: SidebarContent's <nav> is the scroller,
+          // which keeps the logo pinned and avoids a nested scrollbar.
+          "sticky top-0 hidden h-dvh flex-shrink-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar-background transition-[width] duration-300 ease-[var(--ease-standard)] lg:flex",
           collapsed ? "w-[68px]" : "w-64"
         )}
       >

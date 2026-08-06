@@ -12,6 +12,8 @@ import {
   Megaphone,
   ShieldCheck,
   Coins,
+  Gift,
+  Megaphone as MegaphoneIcon,
 } from "lucide-react";
 
 export interface NavItem {
@@ -69,6 +71,12 @@ export const NAV_GROUPS: NavGroup[] = [
         description: "Credits, recharges and referrals",
       },
       {
+        label: "Refer & earn",
+        href: "/refer",
+        icon: Gift,
+        description: "Free credits for you and whoever you invite",
+      },
+      {
         label: "Settings",
         href: "/settings",
         icon: Settings,
@@ -110,6 +118,12 @@ export const NAV_GROUPS: NavGroup[] = [
         href: "/admin/credit-codes",
         icon: Ticket,
         description: "Issue and revoke promotional codes",
+      },
+      {
+        label: "Announcements",
+        href: "/admin/announcements",
+        icon: MegaphoneIcon,
+        description: "The scrolling offer strip on the public site",
       },
       {
         label: "Campaigns",

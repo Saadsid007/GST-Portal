@@ -1,8 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Trash2, Star, Building2, MapPin, Loader2, CheckCircle } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  Star,
+  Building2,
+  MapPin,
+  Loader2,
+  CheckCircle,
+  Search,
+  X,
+} from "lucide-react";
+import { filterGstinProfiles } from "@/features/profile/domain/gstin-search";
+import { Button, EmptyState, Input } from "@/components/ui";
 import type { GstinProfile } from "@/generated/prisma/client";
 import {
   addGstinProfileAction,
@@ -16,6 +28,7 @@ interface Props {
 
 export function GstinProfileManager({ initialProfiles }: Props) {
   const [profiles, setProfiles] = useState(initialProfiles);
+  const [query, setQuery] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
@@ -60,6 +73,11 @@ export function GstinProfileManager({ initialProfiles }: Props) {
     setProfiles((prev) => prev.map((p) => ({ ...p, isDefault: p.id === id })));
     toast.success("Default GSTIN updated");
   }
+
+  // Search appears only once the list stops being scannable at a glance.
+  // From two profiles up. At one, a search field is noise.
+  const showSearch = profiles.length >= 2;
+  const visible = useMemo(() => filterGstinProfiles(profiles, query), [profiles, query]);
 
   return (
     <div className="space-y-4">
@@ -153,6 +171,33 @@ export function GstinProfileManager({ initialProfiles }: Props) {
         </form>
       )}
 
+      {showSearch && (
+        <div className="space-y-2">
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by GSTIN, business name or state…"
+            aria-label="Search GST profiles"
+            prefixNode={<Search />}
+            suffixNode={
+              query ? (
+                <button
+                  type="button"
+                  onClick={() => setQuery("")}
+                  aria-label="Clear search"
+                  className="rounded p-0.5 hover:text-foreground"
+                >
+                  <X className="size-3.5" />
+                </button>
+              ) : undefined
+            }
+          />
+          <p className="text-2xs text-muted-foreground">
+            Showing {visible.length} of {profiles.length} profiles
+          </p>
+        </div>
+      )}
+
       {/* Profiles List */}
       {profiles.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border p-10 text-center">
@@ -162,9 +207,20 @@ export function GstinProfileManager({ initialProfiles }: Props) {
             Add your first GSTIN to start generating GSTR-1
           </p>
         </div>
+      ) : visible.length === 0 ? (
+        <EmptyState
+          icon={Search}
+          title="No matching GST profile"
+          description={`Nothing matches “${query}”. Try the GSTIN, the business name, or the state.`}
+          action={
+            <Button variant="outline" size="sm" onClick={() => setQuery("")}>
+              Clear search
+            </Button>
+          }
+        />
       ) : (
         <div className="space-y-3">
-          {profiles.map((profile) => (
+          {visible.map((profile) => (
             <div
               key={profile.id}
               className={`flex flex-col gap-3 rounded-xl border p-5 transition sm:flex-row sm:items-start sm:justify-between ${profile.isDefault ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}
