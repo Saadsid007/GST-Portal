@@ -5,6 +5,8 @@ export interface SearchableProfile {
   stateCode: string;
   stateName: string;
   isDefault?: boolean;
+  /** Optional so callers that never load it still type-check. */
+  businessType?: string;
 }
 
 /**
@@ -29,6 +31,8 @@ export function matchesGstinQuery(profile: SearchableProfile, query: string): bo
     (profile.tradeName ?? "").toLowerCase(),
     profile.stateName.toLowerCase(),
     profile.stateCode.toLowerCase(),
+    // Typing "ecommerce" or "trader" should narrow the list too.
+    (profile.businessType ?? "").toLowerCase().replace(/_/g, " "),
   ];
 
   return terms.every((term) => {

@@ -59,6 +59,9 @@ const STATIC_ROUTES: ReadonlyArray<Omit<RouteEntry, "lastModified" | "isPublic" 
   { path: "/privacy-policy", changeFrequency: "yearly", priority: 0.3 },
   { path: "/terms", changeFrequency: "yearly", priority: 0.3 },
   { path: "/refund-policy", changeFrequency: "yearly", priority: 0.3 },
+  // Razorpay requires a published delivery policy even for digital goods.
+  { path: "/shipping-policy", changeFrequency: "yearly", priority: 0.3 },
+  { path: "/disclaimer", changeFrequency: "yearly", priority: 0.3 },
 ];
 
 /**

@@ -5,6 +5,11 @@ import Link from "next/link";
 import type { GstinProfile } from "@/generated/prisma/client";
 import type { MultiConvertState } from "@/features/convert/presentation/convert-workbench";
 import { filterGstinProfiles } from "@/features/profile/domain/gstin-search";
+import {
+  businessTypeFacets,
+  businessTypeMeta,
+  type BusinessType,
+} from "@/features/profile/domain/business-type";
 import { Badge, Button, EmptyState, Input } from "@/components/ui";
 import { Building2, ArrowRight, Check, Plus, Search, Star, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -23,9 +28,22 @@ const SEARCH_THRESHOLD = 2;
 export function Step1Gstin({ state, profiles, onChange, onNext }: Props) {
   const [query, setQuery] = useState("");
   const [cursor, setCursor] = useState(0);
+  const [category, setCategory] = useState<BusinessType | "ALL">("ALL");
 
   const showSearch = profiles.length >= SEARCH_THRESHOLD;
-  const filtered = useMemo(() => filterGstinProfiles(profiles, query), [profiles, query]);
+
+  // Facets come from the profiles themselves, so a category nobody uses never
+  // occupies a chip and the counts tell you what a click will do beforehand.
+  const facets = useMemo(() => businessTypeFacets(profiles), [profiles]);
+  const showCategories = facets.length > 1;
+
+  const filtered = useMemo(() => {
+    const byCategory =
+      category === "ALL"
+        ? profiles
+        : profiles.filter((p) => businessTypeMeta(p.businessType).value === category);
+    return filterGstinProfiles(byCategory, query);
+  }, [profiles, query, category]);
 
   const selected = profiles.find((p) => p.gstinNumber === state.gstinNumber);
   // A filtered-out selection must still be visible, or it looks like nothing is
@@ -100,6 +118,33 @@ export function Step1Gstin({ state, profiles, onChange, onNext }: Props) {
               ) : undefined
             }
           />
+          {showCategories && (
+            <div className="-mx-1 scrollbar-none flex gap-1.5 overflow-x-auto px-1 pb-0.5">
+              <CategoryChip
+                label="All"
+                count={profiles.length}
+                active={category === "ALL"}
+                onClick={() => {
+                  setCategory("ALL");
+                  setCursor(0);
+                }}
+              />
+              {facets.map(({ meta, count }) => (
+                <CategoryChip
+                  key={meta.value}
+                  label={meta.label}
+                  count={count}
+                  icon={<meta.icon className="size-3" aria-hidden />}
+                  active={category === meta.value}
+                  onClick={() => {
+                    setCategory(meta.value);
+                    setCursor(0);
+                  }}
+                />
+              ))}
+            </div>
+          )}
+
           <div className="flex items-center justify-between text-2xs text-muted-foreground">
             <span>
               Showing {filtered.length} of {profiles.length} profiles
@@ -245,5 +290,37 @@ export function Step1Gstin({ state, profiles, onChange, onNext }: Props) {
         </Button>
       </div>
     </div>
+  );
+}
+
+function CategoryChip({
+  label,
+  count,
+  icon,
+  active,
+  onClick,
+}: {
+  label: string;
+  count: number;
+  icon?: React.ReactNode;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        "inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-2xs font-medium transition-colors",
+        active
+          ? "border-primary bg-primary/10 text-primary-ink"
+          : "border-border bg-card text-muted-foreground hover:text-foreground"
+      )}
+    >
+      {icon}
+      {label}
+      <span className={cn("tabular-nums", active ? "opacity-80" : "opacity-60")}>{count}</span>
+    </button>
   );
 }
