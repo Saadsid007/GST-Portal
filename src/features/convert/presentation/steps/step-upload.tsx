@@ -80,6 +80,7 @@ export function StepUpload({ state, onChange, onNext, onBack }: Props) {
         rows: res.data.rows,
         statement: res.data.statement,
         gstr1Json: res.data.gstr1Json,
+        importReports: res.data.importReports,
       });
 
       toast.success(

@@ -37,6 +37,7 @@ import {
   Scale,
   Upload,
 } from "lucide-react";
+import { ImportIntelligenceReports } from "@/features/convert/presentation/import-intelligence-report";
 
 interface Props {
   state: MultiConvertState;
@@ -802,6 +803,8 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
           </div>
         </div>
       )}
+
+      <ImportIntelligenceReports reports={state.importReports} />
 
       <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
         <button

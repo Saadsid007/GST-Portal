@@ -24,6 +24,16 @@ export interface ColumnMapping {
   originalInvoiceDate?: string;
 }
 
+/**
+ * NO LONGER IN THE CONVERSION PATH.
+ *
+ * Uploads are solved by `engine/universal` from the evidence in the file
+ * itself. These parsers are retained only because `getAllPlatforms()` supplies
+ * the platform names and icons the upload screen lists; nothing calls `parse()`
+ * during a conversion, and editing one will not change how a file is read.
+ *
+ * Supporting a new marketplace does not require a parser here.
+ */
 export abstract class BasePlatformParser {
   abstract info: PlatformInfo;
 

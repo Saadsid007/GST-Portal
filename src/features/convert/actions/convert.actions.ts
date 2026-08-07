@@ -1,9 +1,18 @@
 "use server";
 
-import * as XLSX from "xlsx";
 import { requireSession } from "@/features/auth";
 import { shouldWatermark } from "@/features/billing/services/entitlement.service";
-import { MappingEngine } from "@/features/convert/engine/mapping/mapping.engine";
+import {
+  readWorkbook,
+  solveTable,
+  toCanonicalRows,
+} from "@/features/convert/engine/universal/universal-import.engine";
+import { recoverRows } from "@/features/convert/engine/universal/recovery";
+import {
+  classifyDuplicates,
+  redundantRowIndexes,
+} from "@/features/convert/engine/universal/duplicates";
+import type { ImportIntelligenceReport } from "@/features/convert/engine/universal/types";
 import { transformMappedRows } from "@/features/convert/engine/transformation/transformation.engine";
 import { RuleEngine } from "@/features/convert/engine/rules/rule.engine";
 import { mergeTransactions, type ParsedFileBatch } from "@/features/convert/engine/merge.engine";
@@ -14,7 +23,6 @@ import { generateGstr1Json } from "@/features/convert/domain/gstr1-json.generato
 import { generateGstr1Excel } from "@/features/convert/domain/gstr1-excel.generator";
 import { generateCaReviewReport } from "@/features/convert/domain/ca-review-report.generator";
 import { getPlatformConfig } from "@/features/convert/config/platform.config";
-import { extractDataRows } from "@/features/convert/utils/workbook.utils";
 import { applyAutoFixers } from "@/features/convert/engine/error-center/auto-fixers";
 import {
   isConfidentSuggestion,
@@ -61,29 +69,33 @@ export async function parseMultiPlatformFilesAction(
   const fallbackEcoGstins = new Map(savedOperators.map((o) => [o.platformId, o.ecoGstin]));
 
   const batches: ParsedFileBatch[] = [];
+  const reports: ImportIntelligenceReport[] = [];
+  const supplierStateCode = gstinNumber.slice(0, 2);
 
   for (const fileItem of files) {
     const buffer = Buffer.from(await fileItem.file.arrayBuffer());
-    const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
-    const rawRows = extractDataRows(workbook);
 
-    if (rawRows.length === 0) continue;
+    // 1. Universal reader — rebuild the logical table before anything parses it.
+    const tables = readWorkbook(buffer);
+    const table = tables[0];
+    if (!table || table.rows.length === 0) continue;
 
     const platformConfig = getPlatformConfig(fileItem.platformId);
-    const headers = Object.keys(rawRows[0] || {});
 
-    // 1. Universal Mapping Engine
+    // 2. Understand, discover, reason. The platform id is carried only as
+    // provenance for the report — no parser or template is selected from it.
     const userCustomMapping = customMappings?.find(
       (m) => m.platformId === fileItem.platformId && m.fileTypeId === fileItem.fileTypeId
     )?.mapping;
 
-    const mapping =
-      userCustomMapping ||
-      MappingEngine.autoDetectMapping(headers, fileItem.platformId, rawRows.slice(0, 10));
-    const mappedRows = MappingEngine.mapRawRows(rawRows, mapping);
+    const solved = solveTable(table, {
+      fileName: fileItem.fileName,
+      overrides: userCustomMapping,
+    });
 
-    // 2. Transformation Engine
-    const transformedRows = transformMappedRows(mappedRows, {
+    // 3. Canonical transformation. Nothing downstream sees the spreadsheet again.
+    const canonicalRows = toCanonicalRows(table, solved.mapping);
+    const transformedRows = transformMappedRows(canonicalRows, {
       platformId: fileItem.platformId,
       platformName: platformConfig.name,
       fileName: fileItem.fileName,
@@ -92,8 +104,23 @@ export async function parseMultiPlatformFilesAction(
       fallbackEcoGstin: fallbackEcoGstins.get(fileItem.platformId),
     });
 
-    // 3. Rule Engine
-    const ruleCheckedRows = RuleEngine.applyRowRules(transformedRows, fileItem.platformId);
+    // 4. Recovery — derive what the file left out, and explain each derivation.
+    const { rows: recoveredRows, recoveries } = recoverRows(
+      transformedRows,
+      solved.report.understanding,
+      supplierStateCode
+    );
+
+    // 5. Duplicate intelligence. Only exact copies are dropped; line items and
+    // sale/return pairs are reported and kept.
+    const duplicates = classifyDuplicates(recoveredRows);
+    const redundant = redundantRowIndexes(duplicates);
+    const deduped = recoveredRows.filter((_, index) => !redundant.has(index));
+
+    // 6. Rule Engine
+    const ruleCheckedRows = RuleEngine.applyRowRules(deduped, fileItem.platformId);
+
+    reports.push({ ...solved.report, recoveries, duplicates });
 
     batches.push({
       platformId: fileItem.platformId,
@@ -163,6 +190,12 @@ export async function parseMultiPlatformFilesAction(
       gstr1Json,
       totalFilesProcessed: batches.length,
       processingTimeMs,
+      /**
+       * How each workbook was understood, mapped and recovered. Surfaced so the
+       * user can see why the engine trusted the file rather than taking the
+       * output on faith.
+       */
+      importReports: reports,
       /** Operator GSTINs learned from this upload, so the UI can say what it picked up. */
       detectedEcoGstins: Object.fromEntries(learned),
     },
