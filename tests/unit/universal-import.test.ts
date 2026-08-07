@@ -132,6 +132,46 @@ describe("Layer 1 — universal file reader", () => {
   });
 });
 
+describe("Delimited text is solved the same way as a workbook", () => {
+  /** The reader is format-agnostic: the same layers run over CSV and TSV. */
+  function delimited(delimiter: string): string {
+    return [
+      "Bharat Traders — Outward Register",
+      "",
+      [
+        "Doc Ref",
+        "Doc Dt",
+        "Party GST",
+        "Delivery State",
+        "Commodity",
+        "Assessable Value",
+        "Tax Charged",
+      ].join(delimiter),
+      ["BILL/1", "04-07-2026", "27AAACR5055K1Z5", "Maharashtra", "852990", "5000", "900"].join(
+        delimiter
+      ),
+      ["BILL/2", "05-07-2026", "", "Kerala", "852990", "6000", "1080"].join(delimiter),
+      ["BILL/3", "06-07-2026", "", "Goa", "852990", "7000", "1260"].join(delimiter),
+    ].join("\n");
+  }
+
+  it.each([
+    ["CSV", ","],
+    ["TSV", "\t"],
+  ])("reads %s, skips the preamble and maps by evidence", (_label, delimiter) => {
+    const tables = readWorkbook(Buffer.from(delimited(delimiter), "utf8"));
+    const table = tables[0];
+    expect(table).toBeDefined();
+    if (!table) return;
+
+    expect(table.rows).toHaveLength(3);
+    const { mapping } = solveTable(table, { fileName: `register.${_label.toLowerCase()}` });
+    expect(mapping.taxableValue).toBe("Assessable Value");
+    expect(mapping.placeOfSupply).toBe("Delivery State");
+    expect(mapping.invoiceDate).toBe("Doc Dt");
+  });
+});
+
 describe("Layer 3 — field discovery from values, not headers", () => {
   it("maps a file whose headers carry no meaning at all", () => {
     const rows = Array.from({ length: 12 }, (_, i) => [
