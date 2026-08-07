@@ -54,3 +54,5 @@ src/generated/
 
 # SEO indexing manifest (restored from CI cache, never committed)
 .seo-cache/
+
+sample
