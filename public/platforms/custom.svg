@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 40" fill="none">
+  <rect x="4" y="4" width="32" height="32" rx="8" fill="#16A34A"/>
+  <path d="M12 10h16v20H12z" fill="#FFFFFF"/>
+  <path d="M15 14h10v2H15zm0 4h10v2H15zm0 4h10v2H15z" fill="#16A34A"/>
+  <text x="42" y="26" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="16" fill="#15803D">Custom Excel</text>
+</svg>

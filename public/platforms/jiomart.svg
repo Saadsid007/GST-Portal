@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 40" fill="none">
+  <circle cx="20" cy="20" r="16" fill="#0078AD"/>
+  <path d="M14 13h12v3h-4.5v10H17V16H14v-3z" fill="#FFFFFF"/>
+  <text x="42" y="26" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="18" fill="#0078AD">JioMart</text>
+</svg>

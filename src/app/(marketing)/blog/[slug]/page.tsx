@@ -1,98 +1,116 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { BLOG_POSTS_DATA } from "@/lib/seo/blog-data";
-import { ArrowLeft, ArrowRight, Calendar, User, Clock } from "lucide-react";
+import { BlogService } from "@/features/blog/services/blog.service";
+import { BlogPostView } from "@/features/blog/presentation/blog-post-view";
+import type { BlogPostItem } from "@/features/blog/types/blog.types";
 
 interface Props {
   params: Promise<{ slug: string }>;
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { slug } = await params;
-  const post = BLOG_POSTS_DATA[slug];
-  if (!post) return {};
+async function resolvePost(slug: string): Promise<BlogPostItem | null> {
+  const dbPost = await BlogService.getPostBySlug(slug);
+  if (dbPost) return dbPost;
+
+  // Fallback to static data if DB query returns null
+  const staticPost = BLOG_POSTS_DATA[slug];
+  if (!staticPost) return null;
 
   return {
-    // absolute: these metaTitles already carry their own brand suffix,
-    // so the root template must not append a second one.
-    title: { absolute: post.metaTitle },
-    description: post.metaDescription,
+    id: slug,
+    slug: staticPost.slug,
+    title: staticPost.title,
+    excerpt: staticPost.excerpt,
+    content: staticPost.content,
+    category: staticPost.category ?? "Compliance",
+    tags: ["GST", "E-Commerce", staticPost.category],
+    author: staticPost.author ?? "GSTPilot Team",
+    authorRole: "GST Compliance Specialist",
+    readTime: staticPost.readTime ?? "5 min read",
+    status: "PUBLISHED",
+    isFeatured: false,
+    metaTitle: staticPost.metaTitle,
+    metaDescription: staticPost.metaDescription,
+    publishedAt: staticPost.publishedDate ? new Date(staticPost.publishedDate) : new Date(),
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  const post = await resolvePost(slug);
+  if (!post) return {};
+
+  const titleStr = post.metaTitle || `${post.title} | GSTPilot`;
+  const descStr = post.metaDescription || post.excerpt;
+
+  return {
+    title: { absolute: titleStr },
+    description: descStr,
+    alternates: {
+      canonical: post.canonicalUrl || `/blog/${post.slug}`,
+    },
     openGraph: {
-      title: post.metaTitle,
-      description: post.metaDescription,
+      title: titleStr,
+      description: descStr,
       type: "article",
-      publishedTime: post.publishedDate,
+      publishedTime: post.publishedAt ? new Date(post.publishedAt).toISOString() : undefined,
       authors: [post.author],
+      images: post.coverImage ? [{ url: post.coverImage }] : undefined,
     },
   };
 }
 
 export async function generateStaticParams() {
+  const { posts } = await BlogService.getPublishedPosts();
+  if (posts.length > 0) {
+    return posts.map((p) => ({ slug: p.slug }));
+  }
   return Object.keys(BLOG_POSTS_DATA).map((slug) => ({ slug }));
 }
 
 export default async function BlogPostPage({ params }: Props) {
   const { slug } = await params;
-  const post = BLOG_POSTS_DATA[slug];
+  const post = await resolvePost(slug);
   if (!post) notFound();
+
+  const { posts: allPosts } = await BlogService.getPublishedPosts();
+  const relatedPosts = allPosts.filter((p) => p.slug !== slug);
 
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "Article",
+    "@type": "BlogPosting",
     headline: post.title,
     description: post.excerpt,
-    author: { "@type": "Organization", name: post.author },
-    datePublished: post.publishedDate,
-    publisher: { "@type": "Organization", name: "GSTPilot" },
+    image: post.coverImage ? [post.coverImage] : undefined,
+    author: {
+      "@type": "Person",
+      name: post.author,
+      jobTitle: post.authorRole ?? "Compliance Specialist",
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "GSTPilot",
+      url: "https://gstpilot.com",
+    },
+    datePublished: post.publishedAt
+      ? new Date(post.publishedAt).toISOString()
+      : new Date().toISOString(),
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": `https://gstpilot.com/blog/${post.slug}`,
+    },
   };
 
   return (
-    <div className="mx-auto max-w-4xl space-y-12 px-6 py-16">
+    <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-
-      <div className="space-y-4 border-b border-border pb-8 text-center">
-        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary-ink">
-          {post.category}
-        </span>
-        <h1 className="text-3xl leading-tight font-extrabold tracking-tight sm:text-5xl">
-          {post.title}
-        </h1>
-        <div className="flex items-center justify-center gap-4 pt-2 font-mono text-xs text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <User className="size-3" /> {post.author}
-          </span>
-          <span className="flex items-center gap-1">
-            <Calendar className="size-3" /> {post.publishedDate}
-          </span>
-          <span className="flex items-center gap-1">
-            <Clock className="size-3" /> {post.readTime}
-          </span>
-        </div>
-      </div>
-
-      <article className="prose dark:prose-invert max-w-none space-y-6 text-sm leading-relaxed sm:text-base">
-        <div className="whitespace-pre-line text-foreground/90">{post.content}</div>
-      </article>
-
-      <div className="flex items-center justify-between border-t border-border pt-8">
-        <Link
-          href="/blog"
-          className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" /> Back to Blog Index
-        </Link>
-        <Link
-          href="/convert"
-          className="flex items-center gap-1.5 text-xs font-bold text-primary-ink hover:underline"
-        >
-          <span>Start Free Conversion</span>
-          <ArrowRight className="size-4" />
-        </Link>
-      </div>
-    </div>
+      <BlogPostView post={post} relatedPosts={relatedPosts} />
+    </>
   );
 }

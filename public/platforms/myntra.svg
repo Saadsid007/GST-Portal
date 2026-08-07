@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 40" fill="none">
+  <defs>
+    <linearGradient id="mGrad1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FF3F6C"/>
+      <stop offset="100%" stop-color="#FF905A"/>
+    </linearGradient>
+  </defs>
+  <path d="M8 27L14 13L20 23L26 13L32 27H26.5L23 21.5L20 26.5L17 21.5L13.5 27H8Z" fill="url(#mGrad1)"/>
+  <text x="38" y="26" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="20" fill="#282C3F">Myntra</text>
+</svg>

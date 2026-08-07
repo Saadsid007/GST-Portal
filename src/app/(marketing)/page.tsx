@@ -4,6 +4,8 @@ import { ArrowRight, Check, Play, ShieldCheck, Sparkles, Zap } from "lucide-reac
 import { Badge, Button } from "@/components/ui";
 import { SITE } from "@/config/site";
 import { DemoGenerator } from "@/features/demo/presentation/demo-generator";
+import { PlatformLogo } from "@/features/convert/presentation/platform-logo";
+import { PLATFORMS_CONFIG } from "@/features/convert/config/platform.config";
 import {
   ClosingCta,
   ComparisonSection,
@@ -35,16 +37,36 @@ export const metadata: Metadata = {
 };
 
 const MARKETPLACES = [
-  { name: "Amazon MTR", slug: "amazon-gst-report-generator", note: "v3 supported" },
-  { name: "Meesho", slug: "meesho-gst-report-generator", note: "Sales + returns" },
-  { name: "Flipkart", slug: "flipkart-gst-report-generator", note: "Seller export" },
-  { name: "Myntra", slug: "myntra-gst-report-generator", note: "Tax invoices" },
-  { name: "JioMart", slug: "jiomart-gst-report-generator", note: "Orders export" },
-  { name: "Shopdeck", slug: "shopdeck-gst-report-generator", note: "D2C stores" },
-  { name: "GlowRoad", slug: "glowroad-gst-report-generator", note: "Reseller sales" },
-  { name: "Snapdeal", slug: "snapdeal-gst-report-generator", note: "Seller orders" },
-  { name: "Roposo Clout", slug: "custom-excel-gst-generator", note: "Clout reports" },
-  { name: "Custom Excel", slug: "custom-excel-gst-generator", note: "Universal mapper" },
+  { id: "amazon", name: "Amazon MTR", slug: "amazon-gst-report-generator", note: "v3 supported" },
+  { id: "meesho", name: "Meesho", slug: "meesho-gst-report-generator", note: "Sales + returns" },
+  {
+    id: "flipkart",
+    name: "Flipkart",
+    slug: "flipkart-gst-report-generator",
+    note: "Seller export",
+  },
+  { id: "myntra", name: "Myntra", slug: "myntra-gst-report-generator", note: "Tax invoices" },
+  { id: "jiomart", name: "JioMart", slug: "jiomart-gst-report-generator", note: "Orders export" },
+  { id: "shopdeck", name: "Shopdeck", slug: "shopdeck-gst-report-generator", note: "D2C stores" },
+  {
+    id: "glowroad",
+    name: "GlowRoad",
+    slug: "glowroad-gst-report-generator",
+    note: "Reseller sales",
+  },
+  {
+    id: "snapdeal",
+    name: "Snapdeal",
+    slug: "snapdeal-gst-report-generator",
+    note: "Seller orders",
+  },
+  { id: "roposo", name: "Roposo Clout", slug: "custom-excel-gst-generator", note: "Clout reports" },
+  {
+    id: "custom",
+    name: "Custom Excel",
+    slug: "custom-excel-gst-generator",
+    note: "Universal mapper",
+  },
 ];
 
 const HERO_STATS = [
@@ -255,8 +277,13 @@ export default function LandingPage() {
             <Link
               key={m.name}
               href={`/platforms/${m.slug}`}
-              className="group card-lift rounded-xl border border-border bg-card p-4 text-center shadow-sm hover:border-primary/40"
+              className="group flex card-lift flex-col items-center gap-2 rounded-xl border border-border bg-card p-4 text-center shadow-sm hover:border-primary/40"
             >
+              <PlatformLogo
+                id={m.id}
+                name={m.name}
+                accentColor={PLATFORMS_CONFIG.find((c) => c.id === m.id)?.accentColor}
+              />
               <p className="text-sm font-semibold transition-colors group-hover:text-primary-ink">
                 {m.name}
               </p>

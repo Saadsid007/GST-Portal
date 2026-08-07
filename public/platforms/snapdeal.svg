@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 40" fill="none">
+  <rect x="4" y="4" width="32" height="32" rx="8" fill="#E11D48"/>
+  <path d="M12 12h16v16H12z" fill="#FFFFFF"/>
+  <path d="M15 15h10v3H15zM15 21h10v3H15z" fill="#E11D48"/>
+  <text x="42" y="26" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="18" fill="#BE123C">Snapdeal</text>
+</svg>

@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PLATFORMS_SEO_DATA } from "@/lib/seo/platforms-data";
-import { FileSpreadsheet, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { PlatformLogo } from "@/features/convert/presentation/platform-logo";
+import { PLATFORMS_CONFIG } from "@/features/convert/config/platform.config";
 
 export const metadata: Metadata = {
   title: "Supported Marketplaces Directory",
@@ -11,6 +13,9 @@ export const metadata: Metadata = {
 
 export default function PlatformsPage() {
   const items = Object.values(PLATFORMS_SEO_DATA);
+  // The SEO slug is "<id>-gst-report-generator", so its first segment is the
+  // platform id the logo and accent gradient are keyed on.
+  const configById = new Map(PLATFORMS_CONFIG.map((c) => [c.id, c]));
 
   return (
     <div className="mx-auto max-w-7xl space-y-12 px-6 py-16">
@@ -35,9 +40,22 @@ export default function PlatformsPage() {
           >
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <div className="flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary-ink transition-transform group-hover:scale-110">
-                  <FileSpreadsheet className="size-5" />
-                </div>
+                <PlatformLogo
+                  id={
+                    plat.slug === "custom-excel-gst-generator"
+                      ? "custom"
+                      : (plat.slug.split("-")[0] ?? "")
+                  }
+                  name={plat.name}
+                  size="lg"
+                  accentColor={
+                    configById.get(
+                      plat.slug === "custom-excel-gst-generator"
+                        ? "custom"
+                        : (plat.slug.split("-")[0] ?? "")
+                    )?.accentColor
+                  }
+                />
                 <span className="rounded-full bg-muted px-2.5 py-1 text-[10px] font-bold text-muted-foreground">
                   {plat.badge}
                 </span>

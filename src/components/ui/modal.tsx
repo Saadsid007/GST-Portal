@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { X } from "lucide-react";
+import { Portal } from "@/components/ui/portal";
 import { cn } from "@/lib/utils";
 
 const SIZES = {
@@ -105,63 +106,65 @@ export function Modal({
   if (!open) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-foreground/40 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      {/* min-h-full + items-center centres on tall screens but lets the panel
+    <Portal>
+      <div
+        className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-foreground/40 backdrop-blur-sm"
+        onClick={onClose}
+      >
+        {/* min-h-full + items-center centres on tall screens but lets the panel
           scroll from the top once it outgrows the window. */}
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div
-          ref={panelRef}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={title ? titleId : undefined}
-          aria-describedby={description ? descId : undefined}
-          onClick={(e) => e.stopPropagation()}
-          className={cn(
-            "flex max-h-[calc(100dvh-2rem)] w-full animate-scale-in flex-col overflow-hidden rounded-2xl border border-border bg-popover shadow-xl",
-            SIZES[size],
-            className
-          )}
-        >
-          {(title || !hideClose) && (
-            <div className="flex flex-shrink-0 items-start justify-between gap-3 border-b border-border px-5 py-3.5">
-              <div className="min-w-0">
-                {title && (
-                  <p id={titleId} className="flex items-center gap-2 text-sm font-semibold">
-                    {icon}
-                    {title}
-                  </p>
-                )}
-                {description && (
-                  <p id={descId} className="mt-0.5 text-xs text-muted-foreground">
-                    {description}
-                  </p>
+        <div className="flex min-h-full items-center justify-center p-4">
+          <div
+            ref={panelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={title ? titleId : undefined}
+            aria-describedby={description ? descId : undefined}
+            onClick={(e) => e.stopPropagation()}
+            className={cn(
+              "flex max-h-[calc(100dvh-2rem)] w-full animate-scale-in flex-col overflow-hidden rounded-2xl border border-border bg-popover shadow-xl",
+              SIZES[size],
+              className
+            )}
+          >
+            {(title || !hideClose) && (
+              <div className="flex flex-shrink-0 items-start justify-between gap-3 border-b border-border px-5 py-3.5">
+                <div className="min-w-0">
+                  {title && (
+                    <p id={titleId} className="flex items-center gap-2 text-sm font-semibold">
+                      {icon}
+                      {title}
+                    </p>
+                  )}
+                  {description && (
+                    <p id={descId} className="mt-0.5 text-xs text-muted-foreground">
+                      {description}
+                    </p>
+                  )}
+                </div>
+                {!hideClose && (
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    aria-label="Close"
+                    className="-mr-1.5 flex-shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  >
+                    <X className="size-4" />
+                  </button>
                 )}
               </div>
-              {!hideClose && (
-                <button
-                  type="button"
-                  onClick={onClose}
-                  aria-label="Close"
-                  className="-mr-1.5 flex-shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                >
-                  <X className="size-4" />
-                </button>
-              )}
-            </div>
-          )}
+            )}
 
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{children}</div>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{children}</div>
 
-          {footer && (
-            <div className="flex flex-shrink-0 items-center justify-end gap-2 border-t border-border bg-subtle px-5 py-3">
-              {footer}
-            </div>
-          )}
+            {footer && (
+              <div className="flex flex-shrink-0 items-center justify-end gap-2 border-t border-border bg-subtle px-5 py-3">
+                {footer}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </Portal>
   );
 }
