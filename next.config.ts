@@ -16,6 +16,17 @@ const nextConfig: NextConfig = {
     // Server Action body default.
     serverActions: { bodySizeLimit: "25mb" },
   },
+  // IndexNow wants its ownership key as plaintext at /<key>.txt. The rewrite is
+  // constrained to a hex filename so it cannot shadow real routes or the 404 page;
+  // the handler still verifies the key against env before answering.
+  async rewrites() {
+    return [
+      {
+        source: "/:key([a-f0-9]{8,128}).txt",
+        destination: "/api/indexnow/:key",
+      },
+    ];
+  },
 };
 
 export default nextConfig;

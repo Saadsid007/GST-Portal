@@ -6,6 +6,9 @@ export interface DocItem {
   metaTitle: string;
   metaDescription: string;
   readTime: string;
+  /** Optional content dates; when absent the data module's commit time is used. */
+  publishedAt?: string;
+  updatedAt?: string;
   content: string; // Markdown / HTML content string
 }
 

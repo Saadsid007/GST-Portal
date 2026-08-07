@@ -1,66 +1,43 @@
 import type { MetadataRoute } from "next";
-import { env } from "@/lib/env";
-import { PLATFORMS_SEO_DATA } from "@/lib/seo/platforms-data";
-import { DOCS_DATA } from "@/lib/seo/docs-data";
-import { BLOG_POSTS_DATA } from "@/lib/seo/blog-data";
 import { BlogService } from "@/features/blog/services/blog.service";
+import { getPublicRoutes, isPrivatePath, toAbsoluteUrl } from "@/lib/seo/routes";
 
+/**
+ * Generated entirely from the route registry, so adding or deleting a page updates
+ * this on the next build with no hand-editing. `lastModified` comes from real commit
+ * and content dates — see scripts/generate-page-dates.mjs for why that matters.
+ *
+ * /login and /register are deliberately absent: see getUnlistedPublicPaths().
+ */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = env.NEXT_PUBLIC_APP_URL;
+  const routes = getPublicRoutes();
+  const seen = new Set(routes.map((route) => route.path));
 
-  const staticPages = [
-    "",
-    "/features",
-    "/platforms",
-    "/pricing",
-    "/docs",
-    "/blog",
-    "/about",
-    "/contact",
-    "/privacy-policy",
-    "/terms",
-    "/refund-policy",
-    "/security",
-    "/changelog",
-    "/login",
-    "/register",
-  ].map((route) => ({
-    url: `${baseUrl}${route}`,
-    lastModified: new Date(),
-    changeFrequency: "weekly" as const,
-    priority: route === "" ? 1.0 : 0.8,
+  const entries: MetadataRoute.Sitemap = routes.map((route) => ({
+    url: toAbsoluteUrl(route.path),
+    lastModified: new Date(route.lastModified),
+    changeFrequency: route.changeFrequency,
+    priority: route.priority,
   }));
 
-  const platformPages = Object.keys(PLATFORMS_SEO_DATA).map((slug) => ({
-    url: `${baseUrl}/platforms/${slug}`,
-    lastModified: new Date(),
-    changeFrequency: "weekly" as const,
-    priority: 0.9,
-  }));
-
-  const docPages = Object.keys(DOCS_DATA).map((slug) => ({
-    url: `${baseUrl}/docs/${slug}`,
-    lastModified: new Date(),
-    changeFrequency: "monthly" as const,
-    priority: 0.7,
-  }));
-
-  let blogSlugs = Object.keys(BLOG_POSTS_DATA);
+  // Database-authored posts live outside the static data file. A failure here must not
+  // take down the whole sitemap — the registry-derived entries are still valid.
   try {
     const { posts } = await BlogService.getPublishedPosts();
-    if (posts.length > 0) {
-      blogSlugs = Array.from(new Set([...blogSlugs, ...posts.map((p) => p.slug)]));
+    for (const post of posts) {
+      const path = `/blog/${post.slug}`;
+      if (seen.has(path) || isPrivatePath(path)) continue;
+      seen.add(path);
+      entries.push({
+        url: toAbsoluteUrl(path),
+        lastModified: new Date(post.updatedAt),
+        changeFrequency: "monthly",
+        priority: 0.8,
+      });
     }
-  } catch (_err) {
-    // Fallback to static blog data on error
+  } catch {
+    // Static blog data already covers the common case.
   }
 
-  const blogPages = blogSlugs.map((slug) => ({
-    url: `${baseUrl}/blog/${slug}`,
-    lastModified: new Date(),
-    changeFrequency: "weekly" as const,
-    priority: 0.8,
-  }));
-
-  return [...staticPages, ...platformPages, ...docPages, ...blogPages];
+  return entries;
 }

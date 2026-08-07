@@ -6,6 +6,8 @@ import { calculateBonus } from "@/features/billing/domain/bonus-calculator";
 import { getPricingConfig } from "@/features/billing/services/config.service";
 import { CA_PLANS, FREE_TRIAL_LIMITS } from "@/features/billing/constants/billing.constants";
 import { SITE } from "@/config/site";
+import { JsonLd } from "@/components/json-ld";
+import { faqPageSchema, productSchema } from "@/lib/seo/structured-data";
 import { PageHero } from "@/app/(marketing)/_components/page-hero";
 import {
   PackCard,
@@ -14,13 +16,14 @@ import {
   type ComparisonRow,
 } from "@/app/(marketing)/_components/pricing-blocks";
 import { cn } from "@/lib/utils";
+import { buildPageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "Pricing — pay per return, no subscription",
   description:
     "Recharge your GSTPilot wallet and pay only for the returns you file. 1 credit = ₹1, one GSTR-1 costs 6 credits. Bigger recharges earn bonus credits, and credits never expire.",
-  alternates: { canonical: "/pricing" },
-};
+  path: "/pricing",
+});
 
 const CA_FEATURES: Record<string, string[]> = {
   CA_PRO: [
@@ -99,22 +102,20 @@ export default async function PricingPage() {
   const caPlans = CA_PLANS.filter((plan) => plan.id !== "FREE");
   const minBonusAmount = slabs.find((slab) => slab.bonusPercent > 0)?.minAmount ?? 99;
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: FAQS.map((f) => ({
-      "@type": "Question",
-      name: f.q,
-      acceptedAnswer: { "@type": "Answer", text: f.a },
-    })),
-  };
+  const jsonLd = [
+    faqPageSchema(FAQS.map((f) => ({ question: f.q, answer: f.a }))),
+    productSchema(
+      caPlans.map((plan) => ({
+        name: plan.name,
+        price: plan.monthlyPrice,
+        description: `${plan.name} subscription, billed monthly.`,
+      }))
+    ),
+  ];
 
   return (
     <div className="pb-24">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      <JsonLd schema={jsonLd} />
 
       <PageHero
         eyebrow="Pricing"

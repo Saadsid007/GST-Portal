@@ -2,10 +2,17 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Check, Play, ShieldCheck, Sparkles, Zap } from "lucide-react";
 import { Badge, Button } from "@/components/ui";
-import { SITE } from "@/config/site";
+import { JsonLd } from "@/components/json-ld";
 import { DemoGenerator } from "@/features/demo/presentation/demo-generator";
 import { PlatformLogo } from "@/features/convert/presentation/platform-logo";
 import { PLATFORMS_CONFIG } from "@/features/convert/config/platform.config";
+import { buildPageMetadata } from "@/lib/seo/metadata";
+import {
+  faqPageSchema,
+  organizationSchema,
+  softwareApplicationSchema,
+  webSiteSchema,
+} from "@/lib/seo/structured-data";
 import {
   ClosingCta,
   ComparisonSection,
@@ -22,17 +29,20 @@ import { PricingPreview } from "./_components/pricing-preview";
 // has to refresh — otherwise a slab edit never reaches the homepage.
 export const revalidate = 300;
 
-export const metadata: Metadata = {
+const baseMetadata = buildPageMetadata({
   title: "GSTPilot — Convert Amazon, Meesho & Flipkart reports to GSTR-1",
   description:
     "Turn marketplace seller reports into government-ready GSTR-1 JSON and Excel in seconds. Automatic net sales after returns, multi-marketplace merge, TCS reconciliation and one-click auto-fixers.",
-  alternates: { canonical: "/" },
+  path: "/",
+});
+
+export const metadata: Metadata = {
+  ...baseMetadata,
   openGraph: {
+    ...baseMetadata.openGraph,
     title: "GSTPilot — Marketplace reports to GSTR-1 in seconds",
     description:
       "Automatic net sales, multi-marketplace merge and GSTN v3.0 JSON. Try the interactive demo — no signup.",
-    url: SITE.url,
-    type: "website",
   },
 };
 
@@ -86,51 +96,16 @@ export default function LandingPage() {
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
-      {
-        "@type": "Organization",
-        "@id": `${SITE.url}/#organization`,
-        name: SITE.name,
-        url: SITE.url,
-        description: SITE.description,
-      },
-      {
-        "@type": "WebSite",
-        "@id": `${SITE.url}/#website`,
-        url: SITE.url,
-        name: SITE.name,
-        publisher: { "@id": `${SITE.url}/#organization` },
-        inLanguage: "en-IN",
-      },
-      {
-        "@type": "SoftwareApplication",
-        name: SITE.name,
-        applicationCategory: "BusinessApplication",
-        operatingSystem: "Web",
-        description: SITE.description,
-        offers: {
-          "@type": "Offer",
-          price: "0",
-          priceCurrency: "INR",
-          description: "Two free GSTR-1 returns, then pay per return from wallet credits.",
-        },
-      },
-      {
-        "@type": "FAQPage",
-        mainEntity: FAQS.map((faq) => ({
-          "@type": "Question",
-          name: faq.q,
-          acceptedAnswer: { "@type": "Answer", text: faq.a },
-        })),
-      },
+      organizationSchema(),
+      webSiteSchema(),
+      softwareApplicationSchema(),
+      faqPageSchema(FAQS.map((faq) => ({ question: faq.q, answer: faq.a }))),
     ],
   };
 
   return (
     <div className="space-y-24 pb-24">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      <JsonLd schema={jsonLd} />
 
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden px-6 pt-14 pb-4 md:pt-20">

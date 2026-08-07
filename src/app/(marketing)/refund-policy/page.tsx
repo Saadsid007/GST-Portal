@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { PageHero, ContentPanel } from "@/app/(marketing)/_components/page-hero";
+import { buildPageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "Refund Policy",
   description: "30-day money back guarantee and refund policy.",
-  alternates: { canonical: "/refund-policy" },
-};
+  path: "/refund-policy",
+});
 
 export default function RefundPolicyPage() {
   return (

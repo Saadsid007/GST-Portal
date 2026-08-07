@@ -24,6 +24,7 @@ import {
   Folder,
 } from "lucide-react";
 import { Button, Input, Textarea } from "@/components/ui";
+import { SITE } from "@/config/site";
 import { BLOG_CATEGORIES, type BlogPostItem } from "@/features/blog/types/blog.types";
 import { createBlogAction, updateBlogAction } from "@/features/blog/actions/blog.actions";
 import { calculateReadTime, generateSlug } from "@/features/blog/utils/blog.utils";
@@ -519,7 +520,7 @@ export function AdminBlogEditor({ initialPost }: AdminBlogEditorProps) {
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                       setCanonicalUrl(e.target.value)
                     }
-                    placeholder="https://gstpilot.com/blog/..."
+                    placeholder={`${SITE.url}/blog/...`}
                     className="rounded-xl text-xs"
                   />
                 </div>
@@ -530,7 +531,7 @@ export function AdminBlogEditor({ initialPost }: AdminBlogEditorProps) {
                     Google Search Result Mockup
                   </span>
                   <div className="font-mono text-2xs text-emerald-600 dark:text-emerald-400">
-                    https://gstpilot.com › blog › {slug || "your-post-slug"}
+                    {SITE.url.replace(/^https?:\/\//, "")} › blog › {slug || "your-post-slug"}
                   </div>
                   <div className="line-clamp-1 cursor-pointer text-sm font-semibold text-blue-600 hover:underline dark:text-blue-400">
                     {metaTitle || title || "Your Article Title Will Appear Here"}

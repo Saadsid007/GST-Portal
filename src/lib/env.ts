@@ -23,6 +23,20 @@ const envSchema = z.object({
   // credentials never live in the repository.
   ADMIN_SEED_EMAIL: z.string().optional(),
   ADMIN_SEED_PASSWORD: z.string().optional(),
+
+  // Search-engine indexing. All optional: with none of these set the notifier no-ops
+  // and the sitemap alone drives discovery.
+  INDEXNOW_KEY: z.string().optional(),
+  INDEXNOW_KEY_LOCATION: z.string().optional(),
+  GOOGLE_INDEXING_ENABLED: z
+    .enum(["true", "false"])
+    .optional()
+    .default("false")
+    .transform((value) => value === "true"),
+  GOOGLE_SERVICE_ACCOUNT_JSON: z.string().optional(),
+
+  /** Where the deploy-time URL manifest lives. Overridden in CI so it can be cached. */
+  SEO_MANIFEST_PATH: z.string().optional().default(".seo-cache/url-manifest.json"),
 });
 
 export const env = envSchema.parse({
@@ -38,6 +52,11 @@ export const env = envSchema.parse({
   NEXT_PUBLIC_RAZORPAY_KEY_ID: process.env["NEXT_PUBLIC_RAZORPAY_KEY_ID"],
   ADMIN_SEED_EMAIL: process.env["ADMIN_SEED_EMAIL"],
   ADMIN_SEED_PASSWORD: process.env["ADMIN_SEED_PASSWORD"],
+  INDEXNOW_KEY: process.env["INDEXNOW_KEY"],
+  INDEXNOW_KEY_LOCATION: process.env["INDEXNOW_KEY_LOCATION"],
+  GOOGLE_INDEXING_ENABLED: process.env["GOOGLE_INDEXING_ENABLED"],
+  GOOGLE_SERVICE_ACCOUNT_JSON: process.env["GOOGLE_SERVICE_ACCOUNT_JSON"],
+  SEO_MANIFEST_PATH: process.env["SEO_MANIFEST_PATH"],
 });
 
 /**

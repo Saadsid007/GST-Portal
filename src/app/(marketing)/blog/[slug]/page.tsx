@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { BLOG_POSTS_DATA } from "@/lib/seo/blog-data";
 import { BlogService } from "@/features/blog/services/blog.service";
 import { BlogPostView } from "@/features/blog/presentation/blog-post-view";
+import { JsonLd } from "@/components/json-ld";
+import { blogPostingSchema, breadcrumbSchema } from "@/lib/seo/structured-data";
 import type { BlogPostItem } from "@/features/blog/types/blog.types";
 
 interface Props {
@@ -79,37 +81,28 @@ export default async function BlogPostPage({ params }: Props) {
   const { posts: allPosts } = await BlogService.getPublishedPosts();
   const relatedPosts = allPosts.filter((p) => p.slug !== slug);
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "BlogPosting",
-    headline: post.title,
-    description: post.excerpt,
-    image: post.coverImage ? [post.coverImage] : undefined,
-    author: {
-      "@type": "Person",
-      name: post.author,
-      jobTitle: post.authorRole ?? "Compliance Specialist",
-    },
-    publisher: {
-      "@type": "Organization",
-      name: "GSTPilot",
-      url: "https://gstpilot.com",
-    },
-    datePublished: post.publishedAt
-      ? new Date(post.publishedAt).toISOString()
-      : new Date().toISOString(),
-    mainEntityOfPage: {
-      "@type": "WebPage",
-      "@id": `https://gstpilot.com/blog/${post.slug}`,
-    },
-  };
+  const jsonLd = [
+    blogPostingSchema({
+      slug: post.slug,
+      title: post.title,
+      excerpt: post.excerpt,
+      author: post.author,
+      publishedDate: (post.publishedAt
+        ? new Date(post.publishedAt)
+        : new Date(post.createdAt)
+      ).toISOString(),
+      updatedAt: new Date(post.updatedAt).toISOString(),
+    }),
+    breadcrumbSchema([
+      { name: "Home", path: "/" },
+      { name: "Blog", path: "/blog" },
+      { name: post.title, path: `/blog/${post.slug}` },
+    ]),
+  ];
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      <JsonLd schema={jsonLd} />
       <BlogPostView post={post} relatedPosts={relatedPosts} />
     </>
   );

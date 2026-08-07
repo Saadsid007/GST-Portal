@@ -1,0 +1,74 @@
+name: SEO Indexing
+
+# Notifies search engines about changed URLs after a production deploy.
+# Separate from ci.yml so a ping failure can never block the quality gate.
+
+on:
+  push:
+    branches: [main]
+
+# One run at a time: two concurrent runs would race on the manifest cache and
+# double-submit the same URLs.
+concurrency:
+  group: seo-indexing
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    # Best-effort by design. A failed submission must not show the repo as broken.
+    continue-on-error: true
+
+    env:
+      NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
+      INDEXNOW_KEY: ${{ secrets.INDEXNOW_KEY }}
+      GOOGLE_INDEXING_ENABLED: ${{ vars.GOOGLE_INDEXING_ENABLED }}
+      GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+      SEO_MANIFEST_PATH: .seo-cache/url-manifest.json
+      LOG_LEVEL: info
+      # The script only imports the SEO modules, but env.ts validates the whole
+      # schema at import time, so the server-only vars need placeholder values.
+      DATABASE_URL: postgresql://unused:unused@localhost:5432/unused
+      BETTER_AUTH_SECRET: workflow-placeholder-secret-not-used-at-all
+
+    steps:
+      - name: Checkout
+        # Full history: page dates come from git commit times.
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate page dates
+        run: pnpm seo:dates
+
+      # Restored from the previous run and saved again below. A miss just means one
+      # deploy re-submits everything.
+      - name: Restore URL manifest
+        id: manifest
+        uses: actions/cache/restore@v4
+        with:
+          path: .seo-cache
+          key: seo-url-manifest-${{ github.run_id }}
+          restore-keys: seo-url-manifest-
+
+      - name: Notify search engines
+        run: pnpm seo:notify
+
+      - name: Save URL manifest
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .seo-cache
+          key: seo-url-manifest-${{ github.run_id }}

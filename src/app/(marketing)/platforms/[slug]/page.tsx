@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { PLATFORMS_SEO_DATA } from "@/lib/seo/platforms-data";
+import { JsonLd } from "@/components/json-ld";
+import { breadcrumbSchema, faqPageSchema } from "@/lib/seo/structured-data";
 import { Zap, CheckCircle, ShieldCheck, FileCheck } from "lucide-react";
 
 interface Props {
@@ -18,7 +20,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     // so the root template must not append a second one.
     title: { absolute: plat.metaTitle },
     description: plat.metaDescription,
+    alternates: { canonical: `/platforms/${plat.slug}` },
     openGraph: {
+      type: "website",
+      title: plat.metaTitle,
+      description: plat.metaDescription,
+      url: `/platforms/${plat.slug}`,
+    },
+    twitter: {
+      card: "summary_large_image",
       title: plat.metaTitle,
       description: plat.metaDescription,
     },
@@ -34,37 +44,18 @@ export default async function PlatformDetailPage({ params }: Props) {
   const plat = PLATFORMS_SEO_DATA[slug];
   if (!plat) notFound();
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "SoftwareApplication",
-    name: plat.name,
-    applicationCategory: "BusinessApplication",
-    description: plat.description,
-  };
-
-  const faqJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: plat.faqs.map((f) => ({
-      "@type": "Question",
-      name: f.question,
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: f.answer,
-      },
-    })),
-  };
+  const jsonLd = [
+    faqPageSchema(plat.faqs),
+    breadcrumbSchema([
+      { name: "Home", path: "/" },
+      { name: "Platforms", path: "/platforms" },
+      { name: plat.name, path: `/platforms/${plat.slug}` },
+    ]),
+  ];
 
   return (
     <div className="mx-auto max-w-5xl space-y-16 px-6 py-16">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
-      />
+      <JsonLd schema={jsonLd} />
 
       {/* Hero Header */}
       <div className="mx-auto max-w-3xl space-y-4 text-center">

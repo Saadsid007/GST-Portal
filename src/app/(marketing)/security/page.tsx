@@ -3,13 +3,14 @@ import Link from "next/link";
 import { Lock, Server, KeyRound, Trash2, FileCheck2, EyeOff, ArrowRight } from "lucide-react";
 import { Button, Card } from "@/components/ui";
 import { PageHero } from "@/app/(marketing)/_components/page-hero";
+import { buildPageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "Security Model & Infrastructure",
   description:
     "How GSTPilot protects your tax data: TLS 1.3 in transit, isolated processing, least-privilege access and no third-party data sharing.",
-  alternates: { canonical: "/security" },
-};
+  path: "/security",
+});
 
 const CONTROLS = [
   {

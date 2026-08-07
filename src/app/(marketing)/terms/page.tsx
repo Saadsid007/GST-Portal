@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { PageHero, ContentPanel } from "@/app/(marketing)/_components/page-hero";
+import { buildPageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "Terms of Service",
   description: "Terms and conditions governing the use of the GSTPilot platform.",
-  alternates: { canonical: "/terms" },
-};
+  path: "/terms",
+});
 
 export default function TermsPage() {
   return (

@@ -6,6 +6,8 @@ export interface BlogPost {
   metaTitle: string;
   metaDescription: string;
   publishedDate: string;
+  /** Set only when a post is revised after publication; drives sitemap lastModified. */
+  updatedAt?: string;
   readTime: string;
   author: string;
   content: string;

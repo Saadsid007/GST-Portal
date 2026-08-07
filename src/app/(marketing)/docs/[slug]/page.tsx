@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { DOCS_DATA } from "@/lib/seo/docs-data";
+import { JsonLd } from "@/components/json-ld";
+import { articleSchema, breadcrumbSchema } from "@/lib/seo/structured-data";
 import { ChevronRight, BookOpen, Clock, ArrowLeft, ArrowRight } from "lucide-react";
 
 interface Props {
@@ -18,6 +20,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     // so the root template must not append a second one.
     title: { absolute: doc.metaTitle },
     description: doc.metaDescription,
+    alternates: { canonical: `/docs/${doc.slug}` },
+    openGraph: {
+      type: "article",
+      title: doc.metaTitle,
+      description: doc.metaDescription,
+      url: `/docs/${doc.slug}`,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: doc.metaTitle,
+      description: doc.metaDescription,
+    },
   };
 }
 
@@ -32,27 +46,24 @@ export default async function DocDetailPage({ params }: Props) {
 
   const allDocs = Object.values(DOCS_DATA);
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: "https://gstpilot.in" },
-      { "@type": "ListItem", position: 2, name: "Docs", item: "https://gstpilot.in/docs" },
-      {
-        "@type": "ListItem",
-        position: 3,
-        name: doc.title,
-        item: `https://gstpilot.in/docs/${doc.slug}`,
-      },
-    ],
-  };
+  const jsonLd = [
+    articleSchema({
+      slug: doc.slug,
+      title: doc.title,
+      description: doc.description,
+      publishedAt: doc.publishedAt,
+      updatedAt: doc.updatedAt,
+    }),
+    breadcrumbSchema([
+      { name: "Home", path: "/" },
+      { name: "Docs", path: "/docs" },
+      { name: doc.title, path: `/docs/${doc.slug}` },
+    ]),
+  ];
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-12">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      <JsonLd schema={jsonLd} />
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-4">
         {/* Sidebar Navigation */}

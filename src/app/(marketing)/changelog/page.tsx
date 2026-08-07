@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { Sparkles, CheckCircle } from "lucide-react";
+import { buildPageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "Changelog & Product Updates",
   description:
     "Recent updates, engine improvements, and new marketplace parser releases in GSTPilot.",
-};
+  path: "/changelog",
+});
 
 export default function ChangelogPage() {
   const updates = [

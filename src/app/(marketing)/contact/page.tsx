@@ -4,19 +4,21 @@ import { BookOpen, Clock, LifeBuoy, Mail, MessageSquare, ShieldCheck } from "luc
 import { Card } from "@/components/ui";
 import { PageHero } from "@/app/(marketing)/_components/page-hero";
 import { ContactForm } from "@/features/support/presentation/contact-form";
+import { SITE } from "@/config/site";
+import { buildPageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "Contact Sales & Support",
   description:
     "Talk to the GSTPilot team about CA firm plans, bulk GSTR-1 generation, custom marketplace mappings or anything else. Most messages answered within one business day.",
-  alternates: { canonical: "/contact" },
-};
+  path: "/contact",
+});
 
 const CHANNELS = [
   {
     icon: Mail,
     title: "Email",
-    body: "support@gstpilot.in",
+    body: SITE.supportEmail,
     hint: "Best for anything with a file or screenshot attached.",
   },
   {

@@ -11,12 +11,14 @@ import {
   RefreshCw,
   TrendingUp,
 } from "lucide-react";
+import { buildPageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "Features Directory — Multi-Marketplace GSTR-1 Engine",
   description:
     "Explore all features of GSTPilot: Multi-marketplace upload, auto platform detection, transformation engine, validation rules, TCS reconciliation, and GSTR-1 JSON export.",
-};
+  path: "/features",
+});
 
 export default function FeaturesPage() {
   const features = [

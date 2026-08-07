@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import { PageHero, ContentPanel } from "@/app/(marketing)/_components/page-hero";
+import { buildPageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "Privacy Policy",
   description:
     "Learn how GSTPilot protects your GSTIN profile data, sales files, and personal information.",
-  alternates: { canonical: "/privacy-policy" },
-};
+  path: "/privacy-policy",
+});
 
 export default function PrivacyPolicyPage() {
   return (

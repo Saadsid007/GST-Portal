@@ -9,8 +9,10 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && prisma migrate deploy && next build",
+    "build": "node scripts/generate-page-dates.mjs && prisma generate && prisma migrate deploy && next build",
     "start": "next start",
+    "seo:dates": "node scripts/generate-page-dates.mjs",
+    "seo:notify": "tsx scripts/notify-indexing.ts",
     "typecheck": "tsc --noEmit",
     "lint": "node --import ./scripts/eslint-ts6-loader.mjs ./node_modules/eslint/bin/eslint.js .",
     "lint:fix": "node --import ./scripts/eslint-ts6-loader.mjs ./node_modules/eslint/bin/eslint.js . --fix",

@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "About GSTPilot — E-Commerce GST Engine",
   description:
     "Learn about GSTPilot's mission to simplify e-commerce GST compliance for Indian sellers and CAs.",
-};
+  path: "/about",
+});
 
 export default function AboutPage() {
   return (

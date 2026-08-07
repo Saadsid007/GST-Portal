@@ -6,6 +6,8 @@ export interface PlatformSeoItem {
   description: string;
   metaTitle: string;
   metaDescription: string;
+  /** Optional; when absent the data module's commit time is used. */
+  updatedAt?: string;
   supportedReports: string[];
   requiredFiles: { name: string; required: boolean; description: string }[];
   keyFeatures: string[];

@@ -2,12 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { DOCS_DATA } from "@/lib/seo/docs-data";
 import { ArrowRight } from "lucide-react";
+import { buildPageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "Documentation Portal & Guides",
   description:
     "Comprehensive guides for uploading Amazon, Meesho, and Flipkart reports, fixing GSTIN errors, and reconciling TCS.",
-};
+  path: "/docs",
+});
 
 export default function DocsPage() {
   const docs = Object.values(DOCS_DATA);
