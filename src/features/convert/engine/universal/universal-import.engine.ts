@@ -2,7 +2,7 @@ import * as XLSX from "xlsx";
 import {
   CANONICAL_FIELDS,
   type ColumnMappingDict,
-} from "@/features/convert/engine/mapping/mapping.templates";
+} from "@/features/convert/engine/universal/canonical-fields";
 import { assignFields } from "./assignment";
 import { discoverFields } from "./field-discovery";
 import { buildQuestions } from "./questions";

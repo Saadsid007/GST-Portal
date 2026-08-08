@@ -9,13 +9,16 @@ import type {
   NetSalesStatement,
   MultiUploadFileInput,
 } from "@/features/convert/types/convert.types";
-import type { ImportIntelligenceReport } from "@/features/convert/engine/universal/types";
+import type {
+  ImportIntelligenceReport,
+  QuestionAnswer,
+} from "@/features/convert/engine/universal/types";
 import { Step1Gstin } from "./steps/step-1-gstin";
 import { Step2Period } from "./steps/step-2-period";
 import { Step3Platforms } from "./steps/step-3-platforms";
 import { Step4RulesCheck } from "./steps/step-4-rules-check";
 import { Step5Upload } from "./steps/step-5-upload";
-import { Step6Mapping } from "./steps/step-6-mapping";
+import { Step6Intelligence } from "./steps/step-6-intelligence";
 import { Step7Processing } from "./steps/step-7-processing";
 import { Step8ErrorCenter } from "./steps/step-8-error-center";
 import { Step9Generate } from "./steps/step-9-generate";
@@ -42,7 +45,12 @@ const STEPS = [
   { id: 3, label: "Marketplaces", icon: Store, hint: "Select every platform to combine" },
   { id: 4, label: "Rules Check", icon: ShieldCheck, hint: "Confirm the files each platform needs" },
   { id: 5, label: "Upload Reports", icon: UploadCloud, hint: "Attach the marketplace exports" },
-  { id: 6, label: "Mapping", icon: Columns3, hint: "Match report columns to GSTR-1 fields" },
+  {
+    id: 6,
+    label: "Intelligence",
+    icon: Columns3,
+    hint: "Review engine understanding and answer questions",
+  },
   { id: 7, label: "Pipeline", icon: Cpu, hint: "Normalize, merge and compute net sales" },
   { id: 8, label: "Error Center", icon: AlertTriangle, hint: "Resolve validation issues" },
   { id: 9, label: "Generate", icon: FileJson, hint: "Review totals and approve" },
@@ -66,6 +74,8 @@ export interface MultiConvertState {
   watermark: boolean;
   /** How the engine understood each uploaded workbook. One per file. */
   importReports: ImportIntelligenceReport[];
+  /** Answers to questions posed by the Human Assistance Engine */
+  answersByFile: Record<string, QuestionAnswer[]>;
 }
 
 const EMPTY_STATE: MultiConvertState = {
@@ -78,6 +88,7 @@ const EMPTY_STATE: MultiConvertState = {
   gstr1Json: "",
   watermark: false,
   importReports: [],
+  answersByFile: {},
 };
 
 /**
@@ -321,7 +332,7 @@ export function ConvertWorkbench({ profiles, platforms }: Props) {
               />
             )}
             {step === 6 && (
-              <Step6Mapping
+              <Step6Intelligence
                 state={state}
                 onChange={updateState}
                 onNext={() => goTo(7)}

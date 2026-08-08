@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { requireSession } from "@/features/auth";
 import prisma from "@/lib/prisma";
 import { ConvertWorkbench } from "@/features/convert/presentation/convert-workbench";
-import { getAllPlatforms } from "@/features/convert/parsers";
+import { PLATFORMS_CONFIG } from "@/features/convert/config/platform.config";
 
 export const metadata: Metadata = { title: "Convert — Marketplace to GSTR-1" };
 
@@ -14,7 +14,7 @@ export default async function ConvertPage() {
       where: { userId: session.user.id },
       orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
     }),
-    Promise.resolve(getAllPlatforms()),
+    Promise.resolve(PLATFORMS_CONFIG),
   ]);
 
   return (

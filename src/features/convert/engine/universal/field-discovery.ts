@@ -1,4 +1,4 @@
-import { CANONICAL_FIELDS } from "@/features/convert/engine/mapping/mapping.templates";
+import { CANONICAL_FIELDS } from "@/features/convert/engine/universal/canonical-fields";
 import type { ColumnProfile, Evidence, FieldHypothesis, ReconstructedTable } from "./types";
 import {
   GST_SLABS,

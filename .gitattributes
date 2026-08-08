@@ -1,0 +1,23 @@
+# Enforce LF line endings for all text files
+* text=auto eol=lf
+
+# Explicitly set common source file types
+*.ts text eol=lf
+*.tsx text eol=lf
+*.mjs text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.json text eol=lf
+*.css text eol=lf
+*.md text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.env text eol=lf
+*.sql text eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.webp binary
+*.ico binary
+*.woff2 binary

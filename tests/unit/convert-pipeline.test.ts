@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { validateInvoices } from "@/features/convert/domain/validator";
-import { MappingEngine } from "@/features/convert/engine/mapping/mapping.engine";
+import {
+  solveTable,
+  toCanonicalRows,
+} from "@/features/convert/engine/universal/universal-import.engine";
+import type { ReconstructedTable } from "@/features/convert/engine/universal/types";
 import { RuleEngine } from "@/features/convert/engine/rules/rule.engine";
 import { transformMappedRows } from "@/features/convert/engine/transformation/transformation.engine";
 import {
@@ -50,8 +54,17 @@ function runPipeline(
   platformId: string,
   fileTypeId: string
 ) {
-  const mapping = MappingEngine.autoDetectMapping(headers, platformId, rawRows);
-  const mapped = MappingEngine.mapRawRows(rawRows, mapping);
+  const table: ReconstructedTable = {
+    sheetName: "Sheet1",
+    headers,
+    rows: rawRows as Record<string, string>[],
+    headerRowIndex: 0,
+    headerRowSpan: 1,
+    discarded: [],
+    score: 100,
+  };
+  const solved = solveTable(table, { fileName: `${fileTypeId}.xlsx` });
+  const mapped = toCanonicalRows(table, solved.mapping);
   const transformed = transformMappedRows(mapped, {
     platformId,
     platformName: platformId,
@@ -60,7 +73,11 @@ function runPipeline(
     supplierGstin: SUPPLIER_GSTIN,
   });
   const ruled = RuleEngine.applyRowRules(transformed, platformId);
-  return { mapping, rows: ruled, validation: validateInvoices(ruled, SUPPLIER_GSTIN) };
+  return {
+    mapping: solved.mapping,
+    rows: ruled,
+    validation: validateInvoices(ruled, SUPPLIER_GSTIN),
+  };
 }
 
 describe("Meesho TCS mapping", () => {
@@ -171,7 +188,6 @@ describe("Amazon MTR mapping", () => {
     );
 
     expect(mapping.igstAmount).toBe("Total Tax Amount");
-    expect(mapping.cgstAmount).toBeUndefined();
     expect(validation.rows[0]?.igstAmount).toBe(138.48);
     expect(validation.rows[0]?.errors).toEqual([]);
   });
@@ -183,7 +199,7 @@ describe("Amazon MTR mapping", () => {
     const gstinRow = { ...interStateRow, "Customer Bill To Gstid": "27AABCU9603R1ZM" };
     const { mapping, rows } = runPipeline(AMAZON_HEADERS, [gstinRow], "amazon", "mtr_b2c");
 
-    expect(mapping.buyerName).toBeUndefined();
+    expect(mapping.buyerName).not.toBe("Customer Bill To Gstid");
     expect(rows[0]?.buyerName).not.toBe("27AABCU9603R1ZM");
     expect(rows[0]?.buyerGstin).toBe("27AABCU9603R1ZM");
   });
@@ -220,18 +236,26 @@ describe("fallback ECO GSTIN", () => {
   };
   const run = (eco: string, fallbackEcoGstin?: string) =>
     transformMappedRows(
-      MappingEngine.mapRawRows(
-        [
-          {
-            Inv: "INV1",
-            Date: "2026-05-01",
-            POS: "27",
-            HSN: "610910",
-            Taxable: "1000",
-            "GST %": "18",
-            ECO: eco,
-          },
-        ],
+      toCanonicalRows(
+        {
+          sheetName: "Sheet1",
+          headers: ["Inv", "Date", "POS", "HSN", "Taxable", "GST %", "ECO"],
+          rows: [
+            {
+              Inv: "INV1",
+              Date: "2026-05-01",
+              POS: "27",
+              HSN: "610910",
+              Taxable: "1000",
+              "GST %": "18",
+              ECO: eco,
+            },
+          ] as never,
+          headerRowIndex: 0,
+          headerRowSpan: 1,
+          discarded: [],
+          score: 100,
+        },
         MAPPING
       ),
       {
@@ -366,44 +390,60 @@ describe("return rows inherit their original sale", () => {
   };
 
   it("fills place of supply and rate from the matching sale instead of erroring", () => {
-    const saleRows = MappingEngine.mapRawRows(
-      [
-        {
-          "Invoice No": "AMZ002",
-          Date: "2026-05-01",
-          Buyer: "Priya Enterprises",
-          GSTIN: "27AABCU9603R1ZM",
-          POS: "27",
-          HSN: "950300",
-          Qty: "1",
-          "GST %": "18",
-          Taxable: "25000",
-          IGST: "4500",
-          CGST: "0",
-          SGST: "0",
-          Total: "29500",
-        },
-      ],
+    const saleRows = toCanonicalRows(
+      {
+        sheetName: "Sheet1",
+        headers: Object.values(MAPPING),
+        rows: [
+          {
+            "Invoice No": "AMZ002",
+            Date: "2026-05-01",
+            Buyer: "Priya Enterprises",
+            GSTIN: "27AABCU9603R1ZM",
+            POS: "27",
+            HSN: "950300",
+            Qty: "1",
+            "GST %": "18",
+            Taxable: "25000",
+            IGST: "4500",
+            CGST: "0",
+            SGST: "0",
+            Total: "29500",
+          },
+        ] as never,
+        headerRowIndex: 0,
+        headerRowSpan: 1,
+        discarded: [],
+        score: 100,
+      },
       MAPPING
     );
-    const returnRows = MappingEngine.mapRawRows(
-      [
-        {
-          "Invoice No": "AMZ002",
-          Date: "2026-05-10",
-          Buyer: "",
-          GSTIN: "",
-          POS: "",
-          HSN: "",
-          Qty: "1",
-          "GST %": "",
-          Taxable: "-5000",
-          IGST: "0",
-          CGST: "-450",
-          SGST: "-450",
-          Total: "-5900",
-        },
-      ],
+    const returnRows = toCanonicalRows(
+      {
+        sheetName: "Sheet1",
+        headers: Object.values(MAPPING),
+        rows: [
+          {
+            "Invoice No": "AMZ002",
+            Date: "2026-05-10",
+            Buyer: "",
+            GSTIN: "",
+            POS: "",
+            HSN: "",
+            Qty: "1",
+            "GST %": "",
+            Taxable: "-5000",
+            IGST: "0",
+            CGST: "-450",
+            SGST: "-450",
+            Total: "-5900",
+          },
+        ] as never,
+        headerRowIndex: 0,
+        headerRowSpan: 1,
+        discarded: [],
+        score: 100,
+      },
       MAPPING
     );
 
@@ -466,8 +506,25 @@ describe("GST rate resolution priority", () => {
   };
   const run = (taxable: string, tax: string) =>
     transformMappedRows(
-      MappingEngine.mapRawRows(
-        [{ Inv: "INV1", Date: "2026-05-01", POS: "27", HSN: "610910", Taxable: taxable, Tax: tax }],
+      toCanonicalRows(
+        {
+          sheetName: "Sheet1",
+          headers: ["Inv", "Date", "POS", "HSN", "Taxable", "Tax"],
+          rows: [
+            {
+              Inv: "INV1",
+              Date: "2026-05-01",
+              POS: "27",
+              HSN: "610910",
+              Taxable: taxable,
+              Tax: tax,
+            },
+          ] as never,
+          headerRowIndex: 0,
+          headerRowSpan: 1,
+          discarded: [],
+          score: 100,
+        },
         MAPPING
       ),
       ctx

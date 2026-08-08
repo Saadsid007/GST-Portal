@@ -19,6 +19,12 @@ const envSchema = z.object({
   RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
   NEXT_PUBLIC_RAZORPAY_KEY_ID: z.string().optional(),
 
+  // AI Mapping Configuration
+  GEMINI_API_KEY: z.string().optional(),
+  GEMINI_MODEL: z.string().default("gemini-2.5-flash"),
+  GROK_API_KEY: z.string().optional(),
+  GROK_MODEL: z.string().default("openai/gpt-oss-120b"),
+
   // Bootstrap admin, read by `prisma/seed.ts` only. Kept out of the code so the
   // credentials never live in the repository.
   ADMIN_SEED_EMAIL: z.string().optional(),
@@ -56,6 +62,10 @@ export const env = envSchema.parse({
   INDEXNOW_KEY_LOCATION: process.env["INDEXNOW_KEY_LOCATION"],
   GOOGLE_INDEXING_ENABLED: process.env["GOOGLE_INDEXING_ENABLED"],
   GOOGLE_SERVICE_ACCOUNT_JSON: process.env["GOOGLE_SERVICE_ACCOUNT_JSON"],
+  GEMINI_API_KEY: process.env["GEMINI_API_KEY"],
+  GEMINI_MODEL: process.env["GEMINI_MODEL"],
+  GROK_API_KEY: process.env["GROK_API_KEY"],
+  GROK_MODEL: process.env["GROK_MODEL"],
   SEO_MANIFEST_PATH: process.env["SEO_MANIFEST_PATH"],
 });
 

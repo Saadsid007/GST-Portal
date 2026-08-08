@@ -2,7 +2,7 @@
 
 import { requireSession } from "@/features/auth";
 import prisma from "@/lib/prisma";
-import type { ColumnMappingDict } from "@/features/convert/engine/mapping/mapping.templates";
+import type { ColumnMappingDict } from "@/features/convert/engine/universal/canonical-fields";
 
 // Save or update custom mapping profile in DB
 export async function saveMappingProfileAction(input: {

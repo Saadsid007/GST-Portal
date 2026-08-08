@@ -12,7 +12,13 @@ import {
   classifyDuplicates,
   redundantRowIndexes,
 } from "@/features/convert/engine/universal/duplicates";
-import type { ImportIntelligenceReport } from "@/features/convert/engine/universal/types";
+import type {
+  ImportIntelligenceReport,
+  QuestionAnswer,
+  ReconstructedTable,
+} from "@/features/convert/engine/universal/types";
+import { evaluateDualAiMapping } from "@/features/convert/engine/ai/dual-engine.service";
+import { ImportSessionManager } from "@/features/convert/engine/pipeline/import-session.manager";
 import { transformMappedRows } from "@/features/convert/engine/transformation/transformation.engine";
 import { RuleEngine } from "@/features/convert/engine/rules/rule.engine";
 import { mergeTransactions, type ParsedFileBatch } from "@/features/convert/engine/merge.engine";
@@ -36,12 +42,69 @@ import type {
   MultiUploadFileInput,
   NetSalesStatement,
 } from "@/features/convert/types/convert.types";
-import type { ColumnMappingDict } from "@/features/convert/engine/mapping/mapping.templates";
+import type { ColumnMappingDict } from "@/features/convert/engine/universal/canonical-fields";
 
 export interface FileCustomMapping {
   platformId: string;
   fileTypeId: string;
   mapping: ColumnMappingDict;
+}
+
+/**
+ * Runs just the semantic understanding and field discovery passes,
+ * returning the intelligence report (and questions) before processing begins.
+ */
+export async function evaluateWorkbooksAction(files: MultiUploadFileInput[]) {
+  await requireSession();
+  const reports: ImportIntelligenceReport[] = [];
+
+  const rawTables: { fileId: string; fileName: string; table: ReconstructedTable }[] = [];
+  for (const fileItem of files) {
+    const buffer = Buffer.from(await fileItem.file.arrayBuffer());
+    const tables = readWorkbook(buffer);
+    const table = tables[0];
+    if (table && table.rows.length > 0) {
+      rawTables.push({ fileId: fileItem.fileName, fileName: fileItem.fileName, table });
+    }
+  }
+
+  const sessionResult = await ImportSessionManager.processBatch(rawTables);
+
+  // For unmapped files (Unknown Platforms), run Dual-AI and solve universally
+  for (const table of sessionResult.unmappedFiles) {
+    const fileItem = files.find(
+      (f) =>
+        f.fileName === table.sheetName ||
+        rawTables.find((r) => r.table === table)?.fileName === f.fileName
+    );
+    const fileName = fileItem ? fileItem.fileName : "Unknown File";
+    const aiResult = await evaluateDualAiMapping(table.headers, table.rows);
+
+    if (aiResult) {
+      const solved = solveTable(table, {
+        fileName,
+        overrides: aiResult.mapping,
+      });
+      solved.report.aiResult = {
+        activeModels: aiResult.activeModels,
+        synthesisUsed: aiResult.synthesisUsed,
+        headerToKeyMap: aiResult.headerToKeyMap,
+        explanations: aiResult.explanations,
+      };
+      reports.push(solved.report);
+    } else {
+      const solved = solveTable(table, {
+        fileName,
+      });
+      reports.push(solved.report);
+    }
+  }
+
+  // We can also inject adapter reports into `reports` if we want to show them in UI,
+  // but for now UI expects Universal Reports. The prompt asked to bypass AI for known platforms.
+  // We'll return sessionResult alongside reports.
+
+  return { success: true as const, data: { reports, sessionResult } };
 }
 
 /**
@@ -51,7 +114,7 @@ export interface FileCustomMapping {
 export async function parseMultiPlatformFilesAction(
   files: MultiUploadFileInput[],
   gstinNumber: string,
-  customMappings?: FileCustomMapping[]
+  answersByFile?: Record<string, QuestionAnswer[]>
 ) {
   const session = await requireSession();
   const startTime = Date.now();
@@ -72,28 +135,45 @@ export async function parseMultiPlatformFilesAction(
   const reports: ImportIntelligenceReport[] = [];
   const supplierStateCode = gstinNumber.slice(0, 2);
 
+  const rawTables: { fileId: string; fileName: string; table: ReconstructedTable }[] = [];
   for (const fileItem of files) {
     const buffer = Buffer.from(await fileItem.file.arrayBuffer());
-
-    // 1. Universal reader — rebuild the logical table before anything parses it.
     const tables = readWorkbook(buffer);
     const table = tables[0];
-    if (!table || table.rows.length === 0) continue;
+    if (table && table.rows.length > 0) {
+      rawTables.push({ fileId: fileItem.fileName, fileName: fileItem.fileName, table });
+    }
+  }
+
+  const sessionResult = await ImportSessionManager.processBatch(rawTables);
+
+  // Add adapter results as batches
+  for (const [platformId, result] of Object.entries(sessionResult.resultsByPlatform)) {
+    const platformConfig = getPlatformConfig(platformId);
+    batches.push({
+      platformId: platformId,
+      platformName: platformConfig.name,
+      fileName: result.sourceContext.fileName,
+      fileTypeId: result.sourceContext.reportType,
+      rows: result.transactions,
+    });
+  }
+
+  // Process unknown files through universal engine
+  for (const table of sessionResult.unmappedFiles) {
+    const fileItem = files.find(
+      (f) => rawTables.find((r) => r.table === table)?.fileName === f.fileName
+    );
+    if (!fileItem) continue;
 
     const platformConfig = getPlatformConfig(fileItem.platformId);
-
-    // 2. Understand, discover, reason. The platform id is carried only as
-    // provenance for the report — no parser or template is selected from it.
-    const userCustomMapping = customMappings?.find(
-      (m) => m.platformId === fileItem.platformId && m.fileTypeId === fileItem.fileTypeId
-    )?.mapping;
+    const fileAnswers = answersByFile?.[fileItem.fileName] ?? [];
 
     const solved = solveTable(table, {
       fileName: fileItem.fileName,
-      overrides: userCustomMapping,
+      answers: fileAnswers,
     });
 
-    // 3. Canonical transformation. Nothing downstream sees the spreadsheet again.
     const canonicalRows = toCanonicalRows(table, solved.mapping);
     const transformedRows = transformMappedRows(canonicalRows, {
       platformId: fileItem.platformId,
@@ -104,31 +184,50 @@ export async function parseMultiPlatformFilesAction(
       fallbackEcoGstin: fallbackEcoGstins.get(fileItem.platformId),
     });
 
-    // 4. Recovery — derive what the file left out, and explain each derivation.
-    const { rows: recoveredRows, recoveries } = recoverRows(
-      transformedRows,
-      solved.report.understanding,
-      supplierStateCode
-    );
-
-    // 5. Duplicate intelligence. Only exact copies are dropped; line items and
-    // sale/return pairs are reported and kept.
-    const duplicates = classifyDuplicates(recoveredRows);
-    const redundant = redundantRowIndexes(duplicates);
-    const deduped = recoveredRows.filter((_, index) => !redundant.has(index));
-
-    // 6. Rule Engine
-    const ruleCheckedRows = RuleEngine.applyRowRules(deduped, fileItem.platformId);
-
-    reports.push({ ...solved.report, recoveries, duplicates });
-
     batches.push({
       platformId: fileItem.platformId,
       platformName: platformConfig.name,
       fileName: fileItem.fileName,
       fileTypeId: fileItem.fileTypeId,
-      rows: ruleCheckedRows,
+      rows: transformedRows,
     });
+
+    reports.push(solved.report);
+  }
+
+  // Flatten for recovery pass
+  const allTransformedRows = batches.flatMap((b) => b.rows);
+
+  const { rows: recoveredRows } = recoverRows(
+    allTransformedRows,
+    reports[0]?.understanding || {
+      documentType: "MIXED",
+      documentTypeConfidence: 100,
+      documentEvidence: [],
+      marketplaceHint: null,
+      period: null,
+      periodConfidence: 0,
+      b2bShare: 0,
+      supplyMix: "MIXED",
+      rowCount: allTransformedRows.length,
+      columnCount: 10,
+    },
+    supplierStateCode
+  );
+
+  // Update batches with recovered rows, deduplicate, and apply rules
+  let offset = 0;
+  for (const batch of batches) {
+    batch.rows = recoveredRows.slice(offset, offset + batch.rows.length);
+    offset += batch.rows.length;
+
+    // Duplicate Checks within the source batch
+    const duplicates = classifyDuplicates(batch.rows);
+    const redundant = redundantRowIndexes(duplicates);
+    const deduped = batch.rows.filter((_, index) => !redundant.has(index));
+
+    // Rule Engine
+    batch.rows = RuleEngine.applyRowRules(deduped, batch.platformId);
   }
 
   if (batches.length === 0) {

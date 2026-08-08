@@ -109,12 +109,12 @@ export function businessTypeMeta(value: string): BusinessTypeMeta {
  * count. Drives the filter chips — a category nobody uses should not occupy a
  * chip, and the counts tell the user what filtering will do before they click.
  */
-export function businessTypeFacets<T extends { businessType: string }>(
+export function businessTypeFacets<T extends { businessType?: string }>(
   profiles: T[]
 ): { meta: BusinessTypeMeta; count: number }[] {
   const counts = new Map<BusinessType, number>();
   for (const p of profiles) {
-    const key = businessTypeMeta(p.businessType).value;
+    const key = businessTypeMeta(p.businessType || "").value;
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
   return BUSINESS_TYPES.filter((t) => counts.has(t)).map((t) => ({

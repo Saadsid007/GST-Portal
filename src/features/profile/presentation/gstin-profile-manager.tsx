@@ -280,7 +280,11 @@ export function GstinProfileManager({ initialProfiles }: Props) {
                     <p className="text-xs text-muted-foreground">{profile.tradeName}</p>
                   )}
                   <p className="mt-1 inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-2xs font-medium text-muted-foreground">
-                    {businessTypeMeta(profile.businessType).label}
+                    {
+                      businessTypeMeta(
+                        (profile as unknown as { businessType?: string }).businessType || ""
+                      ).label
+                    }
                   </p>
                   <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                     <MapPin className="size-3" />

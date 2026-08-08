@@ -1,4 +1,4 @@
-import type { ColumnMappingDict } from "@/features/convert/engine/mapping/mapping.templates";
+import type { ColumnMappingDict } from "@/features/convert/engine/universal/canonical-fields";
 
 /**
  * Contracts for the universal import engine.
@@ -171,6 +171,13 @@ export interface ImportIntelligenceReport {
     validation: number;
     reasoning: number;
     overall: number;
+  };
+  /** Dual-AI Consensus Mapping result */
+  aiResult?: {
+    activeModels: string[];
+    synthesisUsed: boolean;
+    headerToKeyMap: Record<string, string | null>;
+    explanations: Record<string, string>;
   };
 }
 

@@ -1,7 +1,7 @@
 import {
   CANONICAL_FIELDS,
   type ColumnMappingDict,
-} from "@/features/convert/engine/mapping/mapping.templates";
+} from "@/features/convert/engine/universal/canonical-fields";
 import type { ColumnProfile, FieldResolution } from "./types";
 
 /**

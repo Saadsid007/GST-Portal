@@ -34,14 +34,21 @@ export function Step1Gstin({ state, profiles, onChange, onNext }: Props) {
 
   // Facets come from the profiles themselves, so a category nobody uses never
   // occupies a chip and the counts tell you what a click will do beforehand.
-  const facets = useMemo(() => businessTypeFacets(profiles), [profiles]);
+  const facets = useMemo(
+    () => businessTypeFacets(profiles as unknown as { businessType?: string }[]),
+    [profiles]
+  );
   const showCategories = facets.length > 1;
 
   const filtered = useMemo(() => {
     const byCategory =
       category === "ALL"
         ? profiles
-        : profiles.filter((p) => businessTypeMeta(p.businessType).value === category);
+        : profiles.filter(
+            (p) =>
+              businessTypeMeta((p as unknown as { businessType?: string }).businessType || "")
+                .value === category
+          );
     return filterGstinProfiles(byCategory, query);
   }, [profiles, query, category]);
 

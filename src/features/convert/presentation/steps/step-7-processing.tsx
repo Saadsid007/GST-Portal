@@ -40,7 +40,11 @@ export function Step7Processing({ state, onChange, onNext, onBack }: Props) {
           await new Promise((r) => setTimeout(r, 150));
         }
 
-        const res = await parseMultiPlatformFilesAction(state.uploadedFiles, state.gstinNumber);
+        const res = await parseMultiPlatformFilesAction(
+          state.uploadedFiles,
+          state.gstinNumber,
+          state.answersByFile
+        );
 
         if (!mounted) return;
 

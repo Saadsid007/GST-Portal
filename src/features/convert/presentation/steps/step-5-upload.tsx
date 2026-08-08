@@ -6,7 +6,6 @@ import { PlatformLogo } from "@/features/convert/presentation/platform-logo";
 import type { MultiConvertState } from "@/features/convert/presentation/convert-workbench";
 import type { MultiUploadFileInput } from "@/features/convert/types/convert.types";
 import { CompletenessChecker } from "@/features/convert/engine/rules/completeness.checker";
-import { PlatformDetector } from "@/features/convert/engine/detection/platform.detector";
 import { cn } from "@/lib/utils";
 import {
   UploadCloud,
@@ -15,7 +14,6 @@ import {
   ArrowRight,
   Trash2,
   AlertTriangle,
-  Sparkles,
 } from "lucide-react";
 
 interface Props {
@@ -168,14 +166,6 @@ export function Step5Upload({ state, onChange, onNext, onBack }: Props) {
                     (f) => f.platformId === plat.id && f.fileTypeId === fileSlot.id
                   );
 
-                  const detection = existing
-                    ? PlatformDetector.detect(
-                        [fileSlot.name, "invoice_number", "taxable_value"],
-                        fileSlot.name,
-                        existing.fileName
-                      )
-                    : null;
-
                   return (
                     <FileDropSlot
                       key={fileSlot.id}
@@ -183,7 +173,6 @@ export function Step5Upload({ state, onChange, onNext, onBack }: Props) {
                       slotDescription={fileSlot.description}
                       required={fileSlot.required}
                       existing={existing}
-                      detection={detection}
                       onAdd={(file) => handleFileAdd(plat.id, fileSlot.id, file)}
                       onRemove={() => handleFileRemove(plat.id, fileSlot.id)}
                     />
@@ -223,7 +212,6 @@ interface SlotProps {
   slotDescription: string;
   required: boolean;
   existing: MultiUploadFileInput | undefined;
-  detection: { platformName: string; parserVersion: string; confidence: number } | null;
   onAdd: (file: File) => void;
   onRemove: () => void;
 }
@@ -233,7 +221,6 @@ function FileDropSlot({
   slotDescription,
   required,
   existing,
-  detection,
   onAdd,
   onRemove,
 }: SlotProps) {
@@ -313,16 +300,6 @@ function FileDropSlot({
               </p>
             </div>
           </div>
-
-          {detection && (
-            <div className="flex items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1 text-[10px] font-semibold text-primary-ink">
-              <Sparkles className="size-3 flex-shrink-0" />
-              <span>
-                Detected: {detection.platformName} ({detection.parserVersion}) —{" "}
-                {detection.confidence}% Confidence
-              </span>
-            </div>
-          )}
         </div>
       ) : (
         <label
