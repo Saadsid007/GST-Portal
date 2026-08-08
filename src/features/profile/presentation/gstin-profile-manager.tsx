@@ -16,6 +16,7 @@ import {
 import { filterGstinProfiles } from "@/features/profile/domain/gstin-search";
 import { Button, EmptyState, Input } from "@/components/ui";
 import type { GstinProfile } from "@/generated/prisma/client";
+import { BUSINESS_TYPE_OPTIONS, businessTypeMeta } from "@/features/profile/domain/business-type";
 import {
   addGstinProfileAction,
   deleteGstinProfileAction,
@@ -35,6 +36,7 @@ export function GstinProfileManager({ initialProfiles }: Props) {
     gstinNumber: "",
     legalName: "",
     tradeName: "",
+    businessType: "ECOMMERCE_SELLER",
     isDefault: false,
   });
 
@@ -48,7 +50,13 @@ export function GstinProfileManager({ initialProfiles }: Props) {
           const updated = form.isDefault ? prev.map((p) => ({ ...p, isDefault: false })) : prev;
           return [res.data!, ...updated];
         });
-        setForm({ gstinNumber: "", legalName: "", tradeName: "", isDefault: false });
+        setForm({
+          gstinNumber: "",
+          legalName: "",
+          tradeName: "",
+          businessType: "ECOMMERCE_SELLER",
+          isDefault: false,
+        });
         setShowForm(false);
         toast.success("GSTIN profile added");
       } else {
@@ -138,6 +146,29 @@ export function GstinProfileManager({ initialProfiles }: Props) {
                 placeholder="Optional"
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/50 focus:outline-none"
               />
+            </div>
+            <div className="space-y-1.5">
+              <label
+                htmlFor="gstin-business-type"
+                className="text-xs font-medium tracking-wide text-muted-foreground uppercase"
+              >
+                Nature of Business
+              </label>
+              <select
+                id="gstin-business-type"
+                value={form.businessType}
+                onChange={(e) => setForm({ ...form, businessType: e.target.value })}
+                className="w-full cursor-pointer rounded-lg border border-border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary/50 focus:outline-none"
+              >
+                {BUSINESS_TYPE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              <p className="text-2xs text-muted-foreground">
+                {BUSINESS_TYPE_OPTIONS.find((o) => o.value === form.businessType)?.hint}
+              </p>
             </div>
             <div className="flex items-end pb-1">
               <label className="flex cursor-pointer items-center gap-2">
@@ -248,6 +279,9 @@ export function GstinProfileManager({ initialProfiles }: Props) {
                   {profile.tradeName && (
                     <p className="text-xs text-muted-foreground">{profile.tradeName}</p>
                   )}
+                  <p className="mt-1 inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-2xs font-medium text-muted-foreground">
+                    {businessTypeMeta(profile.businessType).label}
+                  </p>
                   <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                     <MapPin className="size-3" />
                     <span>

@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import { LEGAL_DOCUMENTS } from "@/lib/seo/legal-data";
 import { LegalPage, legalMetadata } from "@/app/(marketing)/_components/legal-page";
 
-const doc = LEGAL_DOCUMENTS["refund-policy"]!;
+const doc = LEGAL_DOCUMENTS["disclaimer"]!;
 
 export const metadata: Metadata = legalMetadata(doc);
 
-export default function RefundPolicyPage() {
+export default function DisclaimerPage() {
   return <LegalPage doc={doc} />;
 }

@@ -8,11 +8,13 @@ import { z } from "zod";
 
 const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 import { getStateName } from "@/features/convert/domain/state-codes";
+import { BUSINESS_TYPES } from "@/features/profile/domain/business-type";
 
 const addSchema = z.object({
   gstinNumber: z.string().regex(GSTIN_REGEX, "Invalid GSTIN format"),
   legalName: z.string().min(2, "Legal name is required"),
   tradeName: z.string().optional(),
+  businessType: z.enum(BUSINESS_TYPES).default("OTHER"),
   isDefault: z.boolean().default(false),
 });
 
@@ -20,6 +22,7 @@ export async function addGstinProfileAction(input: {
   gstinNumber: string;
   legalName: string;
   tradeName?: string;
+  businessType?: string;
   isDefault?: boolean;
 }) {
   const session = await requireSession();
@@ -29,7 +32,7 @@ export async function addGstinProfileAction(input: {
   const gate = await canAddGstin(session.user.id);
   if (!gate.allowed) return { success: false, error: gate.reason };
 
-  const { gstinNumber, legalName, tradeName, isDefault } = parsed.data;
+  const { gstinNumber, legalName, tradeName, businessType, isDefault } = parsed.data;
   const stateCode = gstinNumber.substring(0, 2);
   const stateName = getStateName(stateCode);
 
@@ -46,6 +49,7 @@ export async function addGstinProfileAction(input: {
       gstinNumber: gstinNumber.toUpperCase(),
       legalName,
       tradeName: tradeName || null,
+      businessType,
       stateCode,
       stateName,
       isDefault: isDefault ?? false,

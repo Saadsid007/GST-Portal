@@ -9,6 +9,7 @@ import type {
   NetSalesStatement,
   MultiUploadFileInput,
 } from "@/features/convert/types/convert.types";
+import type { ImportIntelligenceReport } from "@/features/convert/engine/universal/types";
 import { Step1Gstin } from "./steps/step-1-gstin";
 import { Step2Period } from "./steps/step-2-period";
 import { Step3Platforms } from "./steps/step-3-platforms";
@@ -63,6 +64,8 @@ export interface MultiConvertState {
   gstr1Json: string;
   /** Set by the step-9 credit gate; free-trial generations are watermarked. */
   watermark: boolean;
+  /** How the engine understood each uploaded workbook. One per file. */
+  importReports: ImportIntelligenceReport[];
 }
 
 const EMPTY_STATE: MultiConvertState = {
@@ -74,6 +77,7 @@ const EMPTY_STATE: MultiConvertState = {
   statement: null,
   gstr1Json: "",
   watermark: false,
+  importReports: [],
 };
 
 /**
