@@ -7,6 +7,7 @@ import type {
 import {
   transformStateCode,
   transformDate,
+  transformHsn,
 } from "@/features/convert/engine/transformation/transformers";
 
 function round2(num: number): number {
@@ -17,8 +18,8 @@ export class AmazonAdapter {
   static adapt(rows: Record<string, string>[], context: SourceContext): AdapterResult {
     const transactions: NormalizedInvoiceRow[] = [];
     const unmappedColumns = new Set<string>();
-    let validRows = 0;
-    let errorRows = 0;
+    let _validRows = 0;
+    let _errorRows = 0;
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i]!;
@@ -74,21 +75,27 @@ export class AmazonAdapter {
       const principalBasis = parseFloat(row["Principal Amount Basis"] || "0");
       const shippingBasis = parseFloat(row["Shipping Amount Basis"] || "0");
       const giftWrapBasis = parseFloat(row["Gift Wrap Amount Basis"] || "0");
-      const promoBasis =
-        parseFloat(row["Item Promo Discount Basis"] || "0") +
-        parseFloat(row["Shipping Promo Discount Basis"] || "0");
 
-      let taxableValue = parseFloat(row["Tax Exclusive Gross"] || "0");
-      if (!taxableValue && (principalBasis || shippingBasis)) {
-        taxableValue = principalBasis + shippingBasis + giftWrapBasis + promoBasis;
+      // Taxable value = PRE-PROMO basis (Principal + Shipping + GiftWrap).
+      // Amazon collects GST on the full pre-discount selling price. The promo discount
+      // is a seller-funded marketing expense — it does NOT reduce the GST-liable amount.
+      // Using Tax Exclusive Gross (which is post-promo) causes a tax mismatch because
+      // tax columns in the MTR always reflect the pre-promo basis.
+      let taxableValue: number;
+      if (principalBasis || shippingBasis) {
+        taxableValue = principalBasis + shippingBasis + giftWrapBasis;
+      } else {
+        // Older report format: Tax Exclusive Gross is all we have
+        taxableValue = parseFloat(row["Tax Exclusive Gross"] || "0");
       }
       taxableValue = round2(taxableValue);
 
       // Stated Tax Components
+      // NOTE: Item Promo Tax is a discount tax adjustment — do NOT add to IGST.
+      // It is already factored into Total Tax Amount and Tax Exclusive Gross.
       const rawIgstTax =
         parseFloat(row["Igst Tax"] || row["IGST Tax"] || "0") +
-        parseFloat(row["Shipping Igst Tax"] || "0") +
-        parseFloat(row["Item Promo Tax"] || "0");
+        parseFloat(row["Shipping Igst Tax"] || "0");
       const rawCgstTax =
         parseFloat(row["Cgst Tax"] || row["CGST Tax"] || "0") +
         parseFloat(row["Shipping Cgst Tax"] || "0");
@@ -97,6 +104,8 @@ export class AmazonAdapter {
         parseFloat(row["Shipping Sgst Tax"] || "0");
       const cessAmount = parseFloat(row["Cess Tax"] || "0");
 
+      // Component sum is the most reliable figure — it is always row-specific.
+      // "Total Tax Amount" can encode the original order tax on return rows (misleading).
       let totalTax = rawIgstTax + rawCgstTax + rawSgstTax + cessAmount;
       if (totalTax === 0 && row["Total Tax Amount"]) {
         totalTax = parseFloat(row["Total Tax Amount"] || "0");
@@ -129,9 +138,16 @@ export class AmazonAdapter {
         );
       }
 
-      // Check Inter-State vs Intra-State
+      // Check Inter-State vs Intra-State.
+      // Priority: explicit rates from the file (most reliable) → tax components → fallback.
       const isInterState =
-        Math.abs(rawIgstTax) > 0 || rawIgstRate > 0 || (rawCgstTax === 0 && rawSgstTax === 0);
+        rawIgstRate > 0 || rawCgstRate > 0
+          ? rawIgstRate > 0 // File stated a rate — trust it
+          : Math.abs(rawIgstTax) > 0 // No rate stated — use tax component presence
+            ? true
+            : Math.abs(rawCgstTax) > 0 || Math.abs(rawSgstTax) > 0
+              ? false // CGST/SGST present → intra-state
+              : true; // No tax components at all → default to inter-state
 
       let igstRate = 0;
       let cgstRate = 0;
@@ -188,7 +204,7 @@ export class AmazonAdapter {
         placeOfSupply: pos,
 
         itemDescription: row["Item Description"] || "",
-        hsnCode: row["Hsn/sac"] || row["HSN/SAC"] || "",
+        hsnCode: transformHsn(row["Hsn/sac"] || row["HSN/SAC"]),
         uqc: "NOS",
         quantity: parseInt(row["Quantity"] || "1", 10) || 1,
 
@@ -212,21 +228,54 @@ export class AmazonAdapter {
       };
 
       if (errors.length > 0) {
-        errorRows++;
+        _errorRows++;
       } else {
-        validRows++;
+        _validRows++;
       }
 
       transactions.push(tx);
     }
 
+    // POST-PROCESSING: Consolidate multi-item invoices.
+    // Amazon MTR exports one row per line item. GSTR-1 requires one row per invoice.
+    // Merge rows sharing the same invoiceNumber + transactionType.
+    const invoiceMap = new Map<string, NormalizedInvoiceRow>();
+    for (const tx of transactions) {
+      const key = `${tx.transactionType}::${tx.invoiceNumber}`;
+      const existing = invoiceMap.get(key);
+      if (!existing) {
+        invoiceMap.set(key, tx);
+      } else {
+        // Sum numeric fields
+        existing.taxableValue = round2(existing.taxableValue + tx.taxableValue);
+        existing.igstAmount = round2(existing.igstAmount + tx.igstAmount);
+        existing.cgstAmount = round2(existing.cgstAmount + tx.cgstAmount);
+        existing.sgstAmount = round2(existing.sgstAmount + tx.sgstAmount);
+        existing.cessAmount = round2(existing.cessAmount + tx.cessAmount);
+        existing.totalValue = round2(existing.totalValue + tx.totalValue);
+        existing.quantity = (existing.quantity || 1) + (tx.quantity || 1);
+        // Merge item descriptions
+        if (tx.itemDescription && existing.itemDescription !== tx.itemDescription) {
+          existing.itemDescription = `${existing.itemDescription}; ${tx.itemDescription}`;
+        }
+      }
+    }
+
+    const consolidated = Array.from(invoiceMap.values());
+    let finalValidRows = 0;
+    let finalErrorRows = 0;
+    for (const tx of consolidated) {
+      if (tx.errors.length > 0) finalErrorRows++;
+      else finalValidRows++;
+    }
+
     return {
       sourceContext: context,
-      transactions,
+      transactions: consolidated,
       unmappedColumns: Array.from(unmappedColumns),
       totalRows: rows.length,
-      validRows,
-      errorRows,
+      validRows: finalValidRows,
+      errorRows: finalErrorRows,
     };
   }
 }

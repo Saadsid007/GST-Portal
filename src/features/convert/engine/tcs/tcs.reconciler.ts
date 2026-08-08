@@ -1,4 +1,5 @@
 import type { NormalizedInvoiceRow } from "@/features/convert/types/convert.types";
+import { STATE_CODES } from "@/features/convert/domain/state-codes";
 
 export interface TcsStateComparison {
   stateCode: string;
@@ -29,6 +30,10 @@ function r2(n: number) {
  * TCS Reconciliation Engine — Compares GSTR-1 Net Sales against official GST Portal TCS exports state-wise.
  */
 export class TcsReconciler {
+  /**
+   * Legacy overload: accepts raw rows from a generic workbook reader.
+   * Kept for backward compatibility; prefer reconcilePortal() for GSTR-1 portal exports.
+   */
   static reconcile(
     gstr1Rows: NormalizedInvoiceRow[],
     portalTcsRows: Record<string, unknown>[]
@@ -60,6 +65,45 @@ export class TcsReconciler {
       portalStateMap.set(pos, cur);
     }
 
+    return TcsReconciler._buildResult(gstr1Rows, gstr1StateMap, portalStateMap);
+  }
+
+  /**
+   * Reconcile against the strongly-typed PortalTcsRow[] produced by parsePortalGstr1().
+   * Prefer this over reconcile() for GSTR-1 portal exports.
+   */
+  static reconcilePortal(
+    gstr1Rows: NormalizedInvoiceRow[],
+    portalRows: import("./portal-gstr1.parser").PortalTcsRow[]
+  ): TcsReconciliationResult {
+    const gstr1StateMap = new Map<string, { taxable: number; tax: number }>();
+
+    for (const r of gstr1Rows) {
+      if (r.errors.length > 0) continue;
+      const pos = r.placeOfSupply || "99";
+      const sign = r.transactionType === "Return" ? -1 : 1;
+      const cur = gstr1StateMap.get(pos) || { taxable: 0, tax: 0 };
+      cur.taxable = r2(cur.taxable + sign * r.taxableValue);
+      cur.tax = r2(cur.tax + sign * (r.cgstAmount + r.sgstAmount + r.igstAmount));
+      gstr1StateMap.set(pos, cur);
+    }
+
+    const portalStateMap = new Map<string, { taxable: number; tax: number }>();
+    for (const pRow of portalRows) {
+      const cur = portalStateMap.get(pRow.stateCode) || { taxable: 0, tax: 0 };
+      cur.taxable = r2(cur.taxable + pRow.taxableValue);
+      cur.tax = r2(cur.tax + pRow.taxAmount);
+      portalStateMap.set(pRow.stateCode, cur);
+    }
+
+    return TcsReconciler._buildResult(gstr1Rows, gstr1StateMap, portalStateMap);
+  }
+
+  private static _buildResult(
+    gstr1Rows: NormalizedInvoiceRow[],
+    gstr1StateMap: Map<string, { taxable: number; tax: number }>,
+    portalStateMap: Map<string, { taxable: number; tax: number }>
+  ): TcsReconciliationResult {
     const allStates = new Set([...gstr1StateMap.keys(), ...portalStateMap.keys()]);
     const stateComparisons: TcsStateComparison[] = [];
     let isReconciled = true;
@@ -77,14 +121,20 @@ export class TcsReconciler {
       const diffTax = r2(g.tax - p.tax);
 
       let status: TcsStateComparison["status"] = "MATCHED";
-      if (Math.abs(diffTaxable) > 5) {
+      if (p.taxable === 0 && g.taxable !== 0) {
+        status = "ONLY_IN_GSTR1";
+        isReconciled = false;
+      } else if (g.taxable === 0 && p.taxable !== 0) {
+        status = "ONLY_IN_PORTAL";
+        isReconciled = false;
+      } else if (Math.abs(diffTaxable) > 5) {
         status = "MISMATCH";
         isReconciled = false;
       }
 
       stateComparisons.push({
         stateCode,
-        stateName: `State ${stateCode}`,
+        stateName: STATE_CODES[stateCode] ?? `State ${stateCode}`,
         gstr1Taxable: g.taxable,
         gstr1Tax: g.tax,
         portalTaxable: p.taxable,

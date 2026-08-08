@@ -71,8 +71,59 @@ export function normalizeStateCode(input: unknown): string {
     if (STATE_CODES[prefix]) return prefix;
   }
 
-  // Match by state name
   const lower = str.toLowerCase();
+
+  // Marketplace alias table — spellings that don't fuzzy-match the canonical name
+  // (e.g. AND vs &, single-t Chattisgarh, UT abbreviations, etc.)
+  const ALIASES: Record<string, string> = {
+    // J&K variants
+    "jammu and kashmir": "01",
+    "jammu & kashmir": "01",
+    "j&k": "01",
+    jk: "01",
+    // Chhattisgarh common misspelling
+    chattisgarh: "22",
+    chhattisgarh: "22",
+    chhatisgarh: "22",
+    // Andaman
+    "andaman and nicobar islands": "35",
+    "andaman & nicobar islands": "35",
+    "andaman nicobar islands": "35",
+    // Puducherry / Pondicherry
+    pondicherry: "34",
+    puducherry: "34",
+    // Odisha / Orissa
+    odisha: "21",
+    orissa: "21",
+    // Uttarakhand
+    uttarakhand: "05",
+    uttaranchal: "05",
+    // Delhi
+    delhi: "07",
+    "new delhi": "07",
+    // Daman & Diu
+    "daman and diu": "25",
+    "daman & diu": "25",
+    // Dadra & Nagar Haveli
+    "dadra and nagar haveli": "26",
+    "dadra & nagar haveli": "26",
+    "dadra nagar haveli": "26",
+    // Ladakh
+    ladakh: "38",
+    // Andhra Pradesh
+    "andhra pradesh": "37",
+    ap: "37",
+    // Telangana
+    telangana: "36",
+    // Other
+    "other territory": "97",
+    "foreign country": "96",
+    export: "96",
+  };
+
+  if (ALIASES[lower]) return ALIASES[lower];
+
+  // Match by state name
   for (const [code, name] of Object.entries(STATE_CODES)) {
     if (
       name.toLowerCase() === lower ||

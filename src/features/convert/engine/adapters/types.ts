@@ -8,6 +8,7 @@ export interface SourceContext {
   sheetName: string;
   sourceRow: number;
   reportType: string; // e.g. "MTR_B2B", "GST_REPORT"
+  supplierGstin?: string; // seller's own GSTIN — used to derive inter-state flag
 }
 
 export interface AdapterResult {
