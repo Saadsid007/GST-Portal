@@ -284,13 +284,13 @@ export function generateGstr1Json(
       num: idx + 1,
       hsn_sc: val.hsn,
       uqc: val.uqc,
-      qty: val.qty,
+      qty: Math.max(0, val.qty),
       rt: val.rt,
-      txval: val.txval,
-      iamt: val.iamt,
-      samt: val.samt,
-      camt: val.camt,
-      csamt: val.csamt,
+      txval: Math.max(0, val.txval),
+      iamt: Math.max(0, val.iamt),
+      samt: Math.max(0, val.samt),
+      camt: Math.max(0, val.camt),
+      csamt: Math.max(0, val.csamt),
     }));
   const hsn = {
     ...(hsnB2bMap.size > 0 ? { hsn_b2b: mapToHsnArr(hsnB2bMap) } : {}),
@@ -330,6 +330,7 @@ export function generateGstr1Json(
   };
 
   // --- Table 14(a): supplies made through an e-commerce operator ---
+  // Credit notes net against sales here, since the table reports the net value supplied through ECO.
   const ecoMap = new Map<
     string,
     { ecoName: string; txval: number; iamt: number; camt: number; samt: number; csamt: number }
@@ -346,12 +347,13 @@ export function generateGstr1Json(
         csamt: 0,
       });
     }
+    const sign = row.invoiceType === "CDNR" || row.invoiceType === "CDNCS" ? -1 : 1;
     const b = ecoMap.get(row.ecoGstin)!;
-    b.txval = r2(b.txval + row.taxableValue);
-    b.iamt = r2(b.iamt + row.igstAmount);
-    b.camt = r2(b.camt + row.cgstAmount);
-    b.samt = r2(b.samt + row.sgstAmount);
-    b.csamt = r2(b.csamt + row.cessAmount);
+    b.txval = r2(b.txval + Math.abs(row.taxableValue) * sign);
+    b.iamt = r2(b.iamt + Math.abs(row.igstAmount) * sign);
+    b.camt = r2(b.camt + Math.abs(row.cgstAmount) * sign);
+    b.samt = r2(b.samt + Math.abs(row.sgstAmount) * sign);
+    b.csamt = r2(b.csamt + Math.abs(row.cessAmount) * sign);
   }
   const supeco = Array.from(ecoMap.entries()).map(([etin, val]) => ({
     etin,
