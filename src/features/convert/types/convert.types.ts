@@ -1,4 +1,4 @@
-export type InvoiceCategory = "B2B" | "B2CL" | "B2CS" | "CDNR" | "EXP";
+export type InvoiceCategory = "B2B" | "B2CL" | "B2CS" | "CDNR" | "CDNCS" | "EXP";
 export type TransactionType = "Sales" | "Return" | "Adjustment";
 
 export interface NormalizedInvoiceRow {

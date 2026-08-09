@@ -119,28 +119,48 @@ export function generateGstr1Excel(
   }));
   addSheet("B2CS", b2csData.length > 0 ? b2csData : [{ Type: "" }]);
 
-  // --- CDNR Sheet ---
+  // --- CDNR Sheet (B2B Credit Notes) ---
   const cdnrData = validRows
     .filter((r) => r.invoiceType === "CDNR")
     .map((r) => ({
-      "GSTIN of Recipient": r.buyerGstin || "",
+      "GSTIN/UIN of Recipient": r.buyerGstin || "",
       "Receiver Name": r.buyerName,
       "Note Number": r.invoiceNumber,
       "Note Date": r.invoiceDate,
-      "Note Type": "Credit Note",
+      "Note Type": "C",
       "Place Of Supply": `${r.placeOfSupply}-${getStateName(r.placeOfSupply)}`,
       "Reverse Charge": "N",
-      "Note Supply Type": "Regular",
-      "Note Value": Math.abs(r.totalValue),
+      "Note Supply Type": "Regular B2B",
+      "Note Value": r.totalValue,
       "Applicable % of Tax Rate": "",
       Rate: r2(r.igstRate > 0 ? r.igstRate : r.cgstRate + r.sgstRate),
-      "Taxable Value": Math.abs(r.taxableValue),
-      "Integrated Tax Amount": Math.abs(r.igstAmount) || "",
-      "Central Tax Amount": Math.abs(r.cgstAmount) || "",
-      "State/UT Tax Amount": Math.abs(r.sgstAmount) || "",
+      "Taxable Value": r.taxableValue,
+      "Integrated Tax Amount": r.igstAmount || "",
+      "Central Tax Amount": r.cgstAmount || "",
+      "State/UT Tax Amount": r.sgstAmount || "",
       "Cess Amount": "",
     }));
-  addSheet("CDNR", cdnrData.length > 0 ? cdnrData : [{ "GSTIN of Recipient": "" }]);
+  addSheet("CDNR", cdnrData.length > 0 ? cdnrData : [{ "GSTIN/UIN of Recipient": "" }]);
+
+  // --- CDNCS Sheet (B2C Credit Notes → CDNUR in official template) ---
+  const cdncsData = validRows
+    .filter((r) => r.invoiceType === "CDNCS")
+    .map((r) => ({
+      "UR Type": "B2CL",
+      "Note Number": r.invoiceNumber,
+      "Note Date": r.invoiceDate,
+      "Note Type": "C",
+      "Place Of Supply": `${r.placeOfSupply}-${getStateName(r.placeOfSupply)}`,
+      "Note Value": r.totalValue,
+      "Applicable % of Tax Rate": "",
+      Rate: r2(r.igstRate > 0 ? r.igstRate : r.cgstRate + r.sgstRate),
+      "Taxable Value": r.taxableValue,
+      "Integrated Tax Amount": r.igstAmount || "",
+      "Central Tax Amount": r.cgstAmount || "",
+      "State/UT Tax Amount": r.sgstAmount || "",
+      "Cess Amount": "",
+    }));
+  addSheet("CDNCS", cdncsData.length > 0 ? cdncsData : [{ "UR Type": "" }]);
 
   // --- HSN Sheet ---
   // Credit notes carry negative amounts and must reduce the HSN totals. Taking absolute values
@@ -254,10 +274,11 @@ export function generateGstr1Excel(
   addSheet("DOCS", docsData);
 
   // --- Summary Sheet ---
-  // Credit notes are separate documents from sales invoices, so counting them together under
-  // "Total Invoices" reads as an inflated invoice count to anyone reviewing the return.
-  const creditNotes = validRows.filter((r) => r.invoiceType === "CDNR");
-  const salesRows = validRows.filter((r) => r.invoiceType !== "CDNR");
+  // Credit notes: both CDNR (B2B) and CDNCS (B2C) are separate from sales invoices.
+  const creditNotes = validRows.filter(
+    (r) => r.invoiceType === "CDNR" || r.invoiceType === "CDNCS"
+  );
+  const salesRows = validRows.filter((r) => r.invoiceType !== "CDNR" && r.invoiceType !== "CDNCS");
   const sum = (list: NormalizedInvoiceRow[], pick: (r: NormalizedInvoiceRow) => number) =>
     r2(list.reduce((s, r) => s + Math.abs(pick(r)), 0));
   const tax = (r: NormalizedInvoiceRow) => r.cgstAmount + r.sgstAmount + r.igstAmount;

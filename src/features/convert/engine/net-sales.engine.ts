@@ -52,8 +52,17 @@ export interface NetSalesResult {
 }
 
 /**
- * Net Sales Engine — calculates Sales - Sales Returns = Net Sales,
- * classifies credit notes, and builds per-platform contribution metrics.
+ * Net Sales Engine
+ *
+ * Step 2 (Gross Reporting): Each row is passed through as-is.
+ * - Sales rows (Shipment) → B2B / B2CS / B2CL / EXP (unchanged)
+ * - Return rows (Refund)  → CDNR if buyer has a GSTIN (B2B return)
+ *                         → CDNCS if buyer has no GSTIN (B2C return, credit note for B2C)
+ *
+ * We do NOT net returns against sales anymore.
+ * GST law requires: report gross invoices in the supply period; credit notes in the refund period.
+ * Netting causes under-reporting of B2B/B2CS values and produces incorrect period data
+ * when the original sale and return fall in different months.
  */
 export function processNetSales(rows: NormalizedInvoiceRow[]): NetSalesResult {
   const processedRows: NormalizedInvoiceRow[] = [];
@@ -81,19 +90,27 @@ export function processNetSales(rows: NormalizedInvoiceRow[]): NetSalesResult {
 
     let updatedType = row.invoiceType;
     if (isReturn) {
-      // If return has buyer GSTIN or original invoice number -> CDNR (Credit Note)
+      // B2B return (has buyer GSTIN) → CDNR
+      // B2C return (no buyer GSTIN) → CDNCS (B2C Credit Note, goes in CDNUR in GSTR-1)
       if (row.buyerGstin && row.buyerGstin.trim().length === 15) {
         updatedType = "CDNR";
-      } else if (row.originalInvoiceNumber) {
-        updatedType = "CDNR";
       } else {
-        // B2CS return adjustment
-        updatedType = "B2CS";
+        // B2C return — treat as CDNCS so it flows into CDNUR sheet in Excel output.
+        // We do NOT reduce B2CS aggregate — credit notes are reported separately.
+        updatedType = "CDNCS";
       }
     }
 
     const updatedRow: NormalizedInvoiceRow = {
       ...row,
+      // Make all tax amounts positive for credit note rows — negative amounts in CDNR
+      // cause double-subtraction in the generator (it already handles them as reductions).
+      taxableValue: isReturn ? absTaxable : row.taxableValue,
+      igstAmount: isReturn ? absIgst : row.igstAmount,
+      cgstAmount: isReturn ? absCgst : row.cgstAmount,
+      sgstAmount: isReturn ? absSgst : row.sgstAmount,
+      cessAmount: isReturn ? absCess : row.cessAmount,
+      totalValue: isReturn ? Math.abs(row.totalValue) : row.totalValue,
       invoiceType: updatedType,
       transactionType: isReturn ? "Return" : "Sales",
     };
