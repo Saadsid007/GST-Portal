@@ -8,7 +8,6 @@ import type {
   NormalizedInvoiceRow,
   ConversionSummary,
 } from "@/features/convert/types/convert.types";
-import { WATERMARK_TEXT } from "@/features/billing/constants/billing.constants";
 
 type HsnBucket = {
   hsn: string;
@@ -63,7 +62,7 @@ export function generateGstr1Json(
   gstin: string,
   period: string,
   _summary: ConversionSummary,
-  watermark = false
+  _watermark = false
 ): string {
   const validRows = rows.filter((r) => r.errors.length === 0);
   const fp = deriveFilingPeriod(validRows, period);
@@ -194,17 +193,18 @@ export function generateGstr1Json(
       ntty: "C",
       nt_num: r.invoiceNumber,
       nt_dt: toGstnDate(r.invoiceDate),
-      val: -Math.abs(r.totalValue),
+      val: Math.abs(r.totalValue),
       rsn: "01",
+      p_gst: "N",
       itms: [
         {
           num: 501,
           itm_det: {
-            txval: -Math.abs(r.taxableValue),
+            txval: Math.abs(r.taxableValue),
             rt: r.igstRate > 0 ? r.igstRate : r.cgstRate + r.sgstRate,
-            iamt: r.igstAmount !== 0 ? -Math.abs(r.igstAmount) : undefined,
-            camt: r.cgstAmount !== 0 ? -Math.abs(r.cgstAmount) : undefined,
-            samt: r.sgstAmount !== 0 ? -Math.abs(r.sgstAmount) : undefined,
+            iamt: Math.abs(r.igstAmount) > 0 ? Math.abs(r.igstAmount) : undefined,
+            camt: Math.abs(r.cgstAmount) > 0 ? Math.abs(r.cgstAmount) : undefined,
+            samt: Math.abs(r.sgstAmount) > 0 ? Math.abs(r.sgstAmount) : undefined,
             csamt: 0,
           },
         },
@@ -219,50 +219,36 @@ export function generateGstr1Json(
     ntty: "C",
     nt_num: r.invoiceNumber,
     nt_dt: toGstnDate(r.invoiceDate),
-    val: -Math.abs(r.totalValue),
+    val: Math.abs(r.totalValue),
     pos: r.placeOfSupply,
     sply_ty: supplierState && r.placeOfSupply !== supplierState ? "INTER" : "INTRA",
     rsn: "01",
+    p_gst: "N",
     itms: [
       {
         num: 501,
         itm_det: {
-          txval: -Math.abs(r.taxableValue),
+          txval: Math.abs(r.taxableValue),
           rt: r.igstRate > 0 ? r.igstRate : r.cgstRate + r.sgstRate,
-          iamt: r.igstAmount !== 0 ? -Math.abs(r.igstAmount) : undefined,
-          camt: r.cgstAmount !== 0 ? -Math.abs(r.cgstAmount) : undefined,
-          samt: r.sgstAmount !== 0 ? -Math.abs(r.sgstAmount) : undefined,
+          iamt: Math.abs(r.igstAmount) > 0 ? Math.abs(r.igstAmount) : undefined,
+          camt: Math.abs(r.cgstAmount) > 0 ? Math.abs(r.cgstAmount) : undefined,
+          samt: Math.abs(r.sgstAmount) > 0 ? Math.abs(r.sgstAmount) : undefined,
           csamt: 0,
         },
       },
     ],
   }));
 
-  // --- HSN Summary (split into hsn_b2b, hsn_cdnr, and hsn_b2c) ---
+  // --- HSN Summary (hsn_b2b and hsn_b2c as per GSTN v3.1.6 spec) ---
   const hsnB2bMap = new Map<string, HsnBucket>();
-  const hsnCdnrMap = new Map<string, HsnBucket>();
   const hsnB2cMap = new Map<string, HsnBucket>();
 
   for (const row of validRows) {
-    let targetMap = hsnB2cMap;
-    let sign = 1;
-
-    if (row.invoiceType === "B2B") {
-      targetMap = hsnB2bMap;
-      sign = 1;
-    } else if (row.invoiceType === "CDNR") {
-      targetMap = hsnCdnrMap;
-      sign = -1;
-    } else if (row.invoiceType === "CDNCS") {
-      targetMap = hsnB2cMap;
-      sign = -1;
-    } else {
-      targetMap = hsnB2cMap;
-      sign = 1;
-    }
+    const isB2bRow = row.invoiceType === "B2B" || row.invoiceType === "CDNR";
+    const targetMap = isB2bRow ? hsnB2bMap : hsnB2cMap;
 
     const rt = r2(row.igstRate > 0 ? row.igstRate : row.cgstRate + row.sgstRate);
-    const uqc = row.uqc ?? "NOS";
+    const uqc = row.uqc ?? "PCS";
     const key = `${row.hsnCode}|${rt}|${uqc}`;
 
     if (!targetMap.has(key)) {
@@ -280,6 +266,7 @@ export function generateGstr1Json(
       });
     }
 
+    const sign = row.invoiceType === "CDNR" || row.invoiceType === "CDNCS" ? -1 : 1;
     const b = targetMap.get(key)!;
     if (!b.desc && row.itemDescription) b.desc = row.itemDescription;
     b.txval = r2(b.txval + Math.abs(row.taxableValue) * sign);
@@ -295,18 +282,17 @@ export function generateGstr1Json(
       num: idx + 1,
       hsn_sc: val.hsn,
       uqc: val.uqc,
-      qty: Math.abs(val.qty),
+      qty: Math.max(0, val.qty),
       rt: val.rt,
-      txval: val.txval,
-      iamt: val.iamt,
-      samt: val.samt,
-      camt: val.camt,
-      csamt: val.csamt,
+      txval: Math.max(0, val.txval),
+      iamt: Math.max(0, val.iamt),
+      samt: Math.max(0, val.samt),
+      camt: Math.max(0, val.camt),
+      csamt: Math.max(0, val.csamt),
     }));
 
   const hsn = {
     ...(hsnB2bMap.size > 0 ? { hsn_b2b: mapToHsnArr(hsnB2bMap) } : {}),
-    ...(hsnCdnrMap.size > 0 ? { hsn_cdnr: mapToHsnArr(hsnCdnrMap) } : {}),
     ...(hsnB2cMap.size > 0 ? { hsn_b2c: mapToHsnArr(hsnB2cMap) } : {}),
   };
 
@@ -365,7 +351,7 @@ export function generateGstr1Json(
   };
 
   // --- Table 14(a): supplies made through an e-commerce operator ---
-  // Reports B2C supplies made through ECO u/s 52. B2B supplies are declared separately in Table 4A/9.
+  // Reports B2C supplies made through ECO u/s 52.
   const ecoMap = new Map<
     string,
     { ecoName: string; txval: number; iamt: number; camt: number; samt: number; csamt: number }
@@ -414,7 +400,6 @@ export function generateGstr1Json(
     supeco: supeco.length > 0 ? { clttx: supeco } : undefined,
     hsn,
     doc_issue: docIssue,
-    _generatedBy: watermark ? WATERMARK_TEXT : undefined,
   };
 
   return JSON.stringify(gstr1, null, 2);
