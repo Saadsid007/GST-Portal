@@ -28,6 +28,12 @@ import { generateStatement } from "@/features/convert/engine/statement.engine";
 import { generateGstr1Json } from "@/features/convert/domain/gstr1-json.generator";
 import { generateGstr1Excel } from "@/features/convert/domain/gstr1-excel.generator";
 import { generateCaReviewReport } from "@/features/convert/domain/ca-review-report.generator";
+import { parseGstr1File } from "@/features/convert/engine/comparison/gstr1-template.parser";
+import {
+  Gstr1Comparator,
+  type Gstr1ComparisonResult,
+} from "@/features/convert/engine/comparison/gstr1.comparator";
+import * as XLSX from "xlsx";
 import { getPlatformConfig } from "@/features/convert/config/platform.config";
 import { applyAutoFixers } from "@/features/convert/engine/error-center/auto-fixers";
 import {
@@ -281,6 +287,31 @@ export async function parseMultiPlatformFilesAction(
   const gstr1Json = generateGstr1Json(validationResult.rows, gstinNumber, "", statement as never);
   const processingTimeMs = Date.now() - startTime;
 
+  // 9. Auto-run GSTR-1 comparison if a reference GSTR-1 file was uploaded in step 5
+  let gstr1CmpResult: Gstr1ComparisonResult | null = null;
+  let gstr1CmpLabel: string | undefined = undefined;
+
+  const refFileItem = files.find((f) => {
+    const fn = f.fileName.toLowerCase();
+    return (
+      fn.startsWith("gstr1") ||
+      fn.includes("gstr1_excel_workbook") ||
+      f.fileTypeId === "amazon_gstr1_ref"
+    );
+  });
+
+  if (refFileItem) {
+    try {
+      const buffer = Buffer.from(await refFileItem.file.arrayBuffer());
+      const wb = XLSX.read(buffer, { type: "buffer" });
+      const parsedRef = parseGstr1File(wb);
+      gstr1CmpResult = Gstr1Comparator.compare(validationResult.rows, parsedRef);
+      gstr1CmpLabel = refFileItem.fileName;
+    } catch {
+      // Silent fallback
+    }
+  }
+
   return {
     success: true as const,
     data: {
@@ -297,6 +328,8 @@ export async function parseMultiPlatformFilesAction(
       importReports: reports,
       /** Operator GSTINs learned from this upload, so the UI can say what it picked up. */
       detectedEcoGstins: Object.fromEntries(learned),
+      gstr1CmpResult,
+      gstr1CmpLabel,
     },
   };
 }

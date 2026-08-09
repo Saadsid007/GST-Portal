@@ -13,6 +13,7 @@ import type {
   ImportIntelligenceReport,
   QuestionAnswer,
 } from "@/features/convert/engine/universal/types";
+import type { Gstr1ComparisonResult } from "@/features/convert/engine/comparison/gstr1.comparator";
 import { Step1Gstin } from "./steps/step-1-gstin";
 import { Step2Period } from "./steps/step-2-period";
 import { Step3Platforms } from "./steps/step-3-platforms";
@@ -76,6 +77,9 @@ export interface MultiConvertState {
   importReports: ImportIntelligenceReport[];
   /** Answers to questions posed by the Human Assistance Engine */
   answersByFile: Record<string, QuestionAnswer[]>;
+  /** Auto-computed comparison result if a reference GSTR-1 was uploaded in step 5 */
+  gstr1CmpResult?: Gstr1ComparisonResult | null;
+  gstr1CmpLabel?: string;
 }
 
 const EMPTY_STATE: MultiConvertState = {

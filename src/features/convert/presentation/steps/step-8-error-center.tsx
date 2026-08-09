@@ -101,8 +101,10 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
   const [reconciling, setReconciling] = useState(false);
 
   // GSTR-1 Comparison State
-  const [gstr1CmpResult, setGstr1CmpResult] = useState<Gstr1ComparisonResult | null>(null);
-  const [gstr1CmpLabel, setGstr1CmpLabel] = useState<string>("");
+  const [gstr1CmpResult, setGstr1CmpResult] = useState<Gstr1ComparisonResult | null>(
+    state.gstr1CmpResult ?? null
+  );
+  const [gstr1CmpLabel, setGstr1CmpLabel] = useState<string>(state.gstr1CmpLabel ?? "");
   const [gstr1Comparing, setGstr1Comparing] = useState(false);
   const [gstr1CmpSection, setGstr1CmpSection] = useState<"b2b" | "b2cs" | "b2cl" | "cdnr">("b2b");
 

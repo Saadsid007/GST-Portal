@@ -60,6 +60,8 @@ export function Step7Processing({ state, onChange, onNext, onBack }: Props) {
           statement: res.data.statement,
           gstr1Json: res.data.gstr1Json,
           importReports: res.data.importReports,
+          gstr1CmpResult: res.data.gstr1CmpResult,
+          gstr1CmpLabel: res.data.gstr1CmpLabel,
         });
 
         toast.success("Pipeline processing complete!");
