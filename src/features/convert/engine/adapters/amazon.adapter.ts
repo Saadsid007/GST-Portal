@@ -8,6 +8,7 @@ import {
   transformStateCode,
   transformDate,
   transformHsn,
+  FALLBACK_HSN,
 } from "@/features/convert/engine/transformation/transformers";
 
 function round2(num: number): number {
@@ -20,6 +21,20 @@ export class AmazonAdapter {
     const unmappedColumns = new Set<string>();
     let _validRows = 0;
     let _errorRows = 0;
+
+    // ── Step 5: Build ASIN → HSN lookup from rows that DO have HSN populated ──
+    // Amazon sometimes leaves the HSN/SAC column blank for certain ASINs.
+    // We do a quick pre-scan of ALL rows (before GSTIN filter) to collect any
+    // ASIN that appears with a valid HSN, then use that mapping to fill blanks.
+    const asinHsnMap = new Map<string, string>();
+    for (const r of rows) {
+      const asin = (r["ASIN"] || "").trim();
+      const rawHsn = (r["Hsn/sac"] || r["HSN/SAC"] || "").trim();
+      if (asin && rawHsn && /\d{4,8}/.test(rawHsn)) {
+        const digits = rawHsn.replace(/\D/g, "");
+        if (digits) asinHsnMap.set(asin, digits);
+      }
+    }
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i]!;
@@ -302,7 +317,18 @@ export class AmazonAdapter {
         placeOfSupply: pos,
 
         itemDescription: row["Item Description"] || "",
-        hsnCode: transformHsn(row["Hsn/sac"] || row["HSN/SAC"]),
+        hsnCode: (() => {
+          // Step 5: Use ASIN→HSN map to fill blank HSN before falling back to generic
+          const rawHsn = row["Hsn/sac"] || row["HSN/SAC"] || "";
+          const asin = (row["ASIN"] || "").trim();
+          if (rawHsn.trim()) return transformHsn(rawHsn); // has its own HSN
+          if (asin && asinHsnMap.has(asin)) return asinHsnMap.get(asin)!; // filled from map
+          // No HSN known — flag as review, use generic fallback
+          rowReviews.push(
+            `HSN/SAC missing for ASIN ${asin || "unknown"} — using fallback code ${FALLBACK_HSN}. Please verify.`
+          );
+          return FALLBACK_HSN;
+        })(),
         uqc: "NOS",
         quantity: parseInt(row["Quantity"] || "1", 10) || 1,
 
