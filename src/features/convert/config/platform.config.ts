@@ -56,6 +56,29 @@ export const PLATFORMS_CONFIG: PlatformConfig[] = [
         ],
       },
       {
+        id: "stock_transfer",
+        name: "Stock Transfer Report (Optional)",
+        description: "Amazon MTR Stock Transfer between Fulfillment Centers",
+        required: false,
+        fileTypes: [".xlsx", ".xls", ".csv"],
+        headerKeywords: [
+          "gstin_of_receiver",
+          "ship_from_fc",
+          "ship_to_fc",
+          "irn_number",
+          "gstin_of_supplier",
+        ],
+      },
+      {
+        id: "amazon_gstr1_ref",
+        name: "Amazon GSTR-1 Reference (Comparison Only)",
+        description:
+          "Amazon's auto-generated GSTR-1 Excel — used for validation/comparison only, NOT as a data source when MTR is present",
+        required: false,
+        fileTypes: [".xlsx", ".xls"],
+        headerKeywords: [],
+      },
+      {
         id: "credit_notes",
         name: "Credit Notes Report",
         description: "Returns & Refund Credit Notes report",
@@ -65,6 +88,32 @@ export const PLATFORMS_CONFIG: PlatformConfig[] = [
       },
     ],
   },
+  {
+    id: "amazon_stock_transfer",
+    name: "Amazon FC Stock Transfer",
+    description: "Amazon inter-Fulfillment Center stock transfer (MTR_STOCK_TRANSFER)",
+    iconName: "ArrowLeftRight",
+    badge: "FC Transfer",
+    accentColor: "from-amber-400 to-yellow-500",
+    files: [
+      {
+        id: "stock_transfer",
+        name: "Stock Transfer Report",
+        description: "MTR_STOCK_TRANSFER CSV from Amazon Seller Central",
+        required: true,
+        fileTypes: [".xlsx", ".xls", ".csv"],
+        headerKeywords: [
+          // These keywords are unique to the stock transfer file and won't match regular MTR
+          "gstinofrecceiver",
+          "shipfromfc",
+          "shiptofc",
+          "irnnumber",
+          "gstinsupplier",
+        ],
+      },
+    ],
+  },
+
   {
     id: "meesho",
     name: "Meesho Supplier Panel",

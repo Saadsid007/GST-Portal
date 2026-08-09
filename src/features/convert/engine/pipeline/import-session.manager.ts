@@ -3,6 +3,7 @@ import { PlatformDetector } from "@/features/convert/engine/detection/platform.d
 import { AmazonAdapter } from "@/features/convert/engine/adapters/amazon.adapter";
 import { MeeshoAdapter } from "@/features/convert/engine/adapters/meesho.adapter";
 import { FlipkartAdapter } from "@/features/convert/engine/adapters/flipkart.adapter";
+import { StockTransferAdapter } from "@/features/convert/engine/adapters/stock-transfer.adapter";
 import type { AdapterResult } from "@/features/convert/engine/adapters/types";
 import type { NormalizedInvoiceRow } from "@/features/convert/types/convert.types";
 
@@ -46,6 +47,8 @@ export class ImportSessionManager {
 
       if (detection.platformId === "amazon" && detection.confidence > 50) {
         result = AmazonAdapter.adapt(table.rows, sourceContext);
+      } else if (detection.platformId === "amazon_stock_transfer" && detection.confidence > 50) {
+        result = StockTransferAdapter.adapt(table.rows, sourceContext);
       } else if (detection.platformId === "meesho" && detection.confidence > 50) {
         result = MeeshoAdapter.adapt(table.rows, sourceContext);
       } else if (detection.platformId === "flipkart" && detection.confidence > 50) {

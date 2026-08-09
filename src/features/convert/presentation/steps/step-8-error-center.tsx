@@ -20,7 +20,9 @@ import {
 } from "@/features/convert/engine/error-center/rate-suggester";
 import { RowEditDialog } from "@/features/convert/presentation/steps/row-edit-dialog";
 import { reconcileTcsAction } from "@/features/convert/actions/tcs.actions";
+import { compareGstr1Action } from "@/features/convert/actions/gstr1-compare.actions";
 import type { TcsReconciliationResult } from "@/features/convert/engine/tcs/tcs.reconciler";
+import type { Gstr1ComparisonResult } from "@/features/convert/engine/comparison/gstr1.comparator";
 import { formatCurrency, cn } from "@/lib/utils";
 import {
   Wand2,
@@ -36,6 +38,7 @@ import {
   Sparkles,
   Scale,
   Upload,
+  GitCompare,
 } from "lucide-react";
 import { ImportIntelligenceReports } from "@/features/convert/presentation/import-intelligence-report";
 
@@ -82,7 +85,9 @@ function applicableSuggestion(row: NormalizedInvoiceRow, rows: NormalizedInvoice
 }
 
 export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
-  const [activeTab, setActiveTab] = useState<"summary" | "invoices" | "tcs">("summary");
+  const [activeTab, setActiveTab] = useState<"summary" | "invoices" | "tcs" | "gstr1cmp">(
+    "summary"
+  );
   const [filter, setFilter] = useState<RowFilter>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
@@ -94,6 +99,12 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
   // TCS Reconciliation State
   const [tcsResult, setTcsResult] = useState<TcsReconciliationResult | null>(null);
   const [reconciling, setReconciling] = useState(false);
+
+  // GSTR-1 Comparison State
+  const [gstr1CmpResult, setGstr1CmpResult] = useState<Gstr1ComparisonResult | null>(null);
+  const [gstr1CmpLabel, setGstr1CmpLabel] = useState<string>("");
+  const [gstr1Comparing, setGstr1Comparing] = useState(false);
+  const [gstr1CmpSection, setGstr1CmpSection] = useState<"b2b" | "b2cs" | "b2cl" | "cdnr">("b2b");
 
   const statement = state.statement;
   if (!statement) return null;
@@ -235,6 +246,26 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
       toast.error("Failed to process TCS report");
     } finally {
       setReconciling(false);
+    }
+  }
+
+  async function handleGstr1Compare(file: File) {
+    setGstr1Comparing(true);
+    try {
+      const res = await compareGstr1Action(rows, file);
+      if (!res.success) {
+        toast.error(res.error);
+        return;
+      }
+      setGstr1CmpResult(res.data);
+      setGstr1CmpLabel(res.data.sourceLabel);
+      toast.success(
+        `GSTR-1 Comparison complete — ${res.data.matchedCount} matched, ${res.data.mismatchCount} mismatched`
+      );
+    } catch {
+      toast.error("Failed to process GSTR-1 comparison file");
+    } finally {
+      setGstr1Comparing(false);
     }
   }
 
@@ -387,6 +418,18 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
         >
           <Scale className="size-3.5 flex-shrink-0" />
           TCS Reconciliation {tcsResult ? "✓" : ""}
+        </button>
+        <button
+          onClick={() => setActiveTab("gstr1cmp")}
+          className={cn(
+            "flex flex-shrink-0 items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-bold whitespace-nowrap transition",
+            activeTab === "gstr1cmp"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "bg-muted text-muted-foreground hover:bg-accent"
+          )}
+        >
+          <GitCompare className="size-3.5 flex-shrink-0" />
+          GSTR-1 Comparison {gstr1CmpResult ? "✓" : ""}
         </button>
       </div>
 
@@ -596,6 +639,432 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {activeTab === "gstr1cmp" && (
+        <div className="space-y-5 rounded-2xl border border-border bg-card p-5 shadow-sm">
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+            <div>
+              <h3 className="flex items-center gap-2 text-base font-bold">
+                <GitCompare className="size-5 text-primary-ink" /> GSTR-1 Comparison
+              </h3>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Upload Amazon&apos;s auto-generated GSTR-1 or the Government GSTR-1 Template V2.1 to
+                compare against our output. Reference data is <strong>never merged</strong> —
+                it&apos;s validation-only.
+              </p>
+            </div>
+            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90">
+              {gstr1Comparing ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Upload className="size-4" />
+              )}
+              <span>Upload GSTR-1 for Comparison</span>
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleGstr1Compare(f);
+                }}
+              />
+            </label>
+          </div>
+
+          {gstr1CmpResult && (
+            <div className="space-y-5 border-t border-border pt-4">
+              {/* Source label */}
+              <p className="text-xs text-muted-foreground">
+                Comparing against: <strong className="text-foreground">{gstr1CmpLabel}</strong>
+              </p>
+
+              {/* KPI summary */}
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {[
+                  {
+                    label: "Matched",
+                    value: gstr1CmpResult.matchedCount,
+                    color: "text-success",
+                    bg: "bg-success/10 border-success/30",
+                  },
+                  {
+                    label: "Mismatch",
+                    value: gstr1CmpResult.mismatchCount,
+                    color: "text-destructive",
+                    bg: "bg-destructive/10 border-destructive/30",
+                  },
+                  {
+                    label: "Only in Ours",
+                    value: gstr1CmpResult.onlyInOursCount,
+                    color: "text-warning",
+                    bg: "bg-warning/10 border-warning/30",
+                  },
+                  {
+                    label: "Only in Reference",
+                    value: gstr1CmpResult.onlyInRefCount,
+                    color: "text-muted-foreground",
+                    bg: "bg-muted border-border",
+                  },
+                ].map((k) => (
+                  <div key={k.label} className={`rounded-xl border p-3 text-center ${k.bg}`}>
+                    <p className="text-xs text-muted-foreground">{k.label}</p>
+                    <p className={`mt-1 text-xl font-bold ${k.color}`}>{k.value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Section tabs */}
+              <div className="flex items-center gap-2 overflow-x-auto border-b border-border pb-2">
+                {(["b2b", "b2cs", "b2cl", "cdnr"] as const).map((sec) => (
+                  <button
+                    key={sec}
+                    onClick={() => setGstr1CmpSection(sec)}
+                    className={cn(
+                      "flex-shrink-0 rounded-lg px-3 py-1.5 text-xs font-bold uppercase transition",
+                      gstr1CmpSection === sec
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground hover:bg-accent"
+                    )}
+                  >
+                    {sec === "b2cs"
+                      ? `B2CS (${gstr1CmpResult.b2csSummary.length})`
+                      : sec === "b2b"
+                        ? `B2B (${gstr1CmpResult.b2bRows.length})`
+                        : sec === "b2cl"
+                          ? `B2CL (${gstr1CmpResult.b2clRows.length})`
+                          : `CDNR (${gstr1CmpResult.cdnrRows.length + gstr1CmpResult.cdnurRows.length})`}
+                  </button>
+                ))}
+              </div>
+
+              {/* B2B table */}
+              {gstr1CmpSection === "b2b" && (
+                <div className="max-h-[420px] overflow-auto rounded-xl border border-border">
+                  <table className="w-full min-w-[760px] text-xs">
+                    <thead className="sticky top-0 border-b border-border bg-muted/90 backdrop-blur">
+                      <tr className="text-left font-semibold text-muted-foreground">
+                        <th className="px-3 py-2.5">Status</th>
+                        <th className="px-3 py-2.5">Invoice #</th>
+                        <th className="px-3 py-2.5">Buyer GSTIN</th>
+                        <th className="px-3 py-2.5 text-right">Our Taxable</th>
+                        <th className="px-3 py-2.5 text-right">Ref Taxable</th>
+                        <th className="px-3 py-2.5 text-right">Diff</th>
+                        <th className="px-3 py-2.5">Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {gstr1CmpResult.b2bRows.map((r, i) => (
+                        <tr
+                          key={`${r.invoiceNumber}-${i}`}
+                          className={cn(
+                            "border-b border-border last:border-0 hover:bg-accent/30",
+                            r.status === "mismatch" && "bg-destructive/5",
+                            r.status === "only_in_ours" && "bg-warning/5",
+                            r.status === "only_in_ref" && "bg-muted/40"
+                          )}
+                        >
+                          <td className="px-3 py-2">
+                            <span
+                              className={cn(
+                                "rounded px-1.5 py-0.5 text-[10px] font-bold",
+                                r.status === "matched" && "bg-success/10 text-success",
+                                r.status === "mismatch" && "bg-destructive/10 text-destructive",
+                                r.status === "only_in_ours" && "bg-warning/10 text-warning",
+                                r.status === "only_in_ref" && "bg-muted text-muted-foreground"
+                              )}
+                            >
+                              {r.status === "matched"
+                                ? "✓ Matched"
+                                : r.status === "mismatch"
+                                  ? "⚠ Mismatch"
+                                  : r.status === "only_in_ours"
+                                    ? "➕ Only Ours"
+                                    : "➖ Only Ref"}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 font-mono">{r.invoiceNumber}</td>
+                          <td className="px-3 py-2 font-mono text-[11px]">
+                            {r.ourBuyerGstin || r.refBuyerGstin || "—"}
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            {r.ourTaxableValue != null ? formatCurrency(r.ourTaxableValue) : "—"}
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            {r.refTaxableValue != null ? formatCurrency(r.refTaxableValue) : "—"}
+                          </td>
+                          <td
+                            className={cn(
+                              "px-3 py-2 text-right font-bold",
+                              r.diffTaxable && Math.abs(r.diffTaxable) > 2
+                                ? "text-destructive"
+                                : "text-success"
+                            )}
+                          >
+                            {r.diffTaxable != null ? formatCurrency(r.diffTaxable) : "—"}
+                          </td>
+                          <td className="px-3 py-2 text-muted-foreground">
+                            {r.notes.join("; ") || "—"}
+                          </td>
+                        </tr>
+                      ))}
+                      {gstr1CmpResult.b2bRows.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">
+                            No B2B entries found in comparison
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* B2CS table */}
+              {gstr1CmpSection === "b2cs" && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-2">
+                    <div className="rounded-xl border border-border bg-background p-3 text-center">
+                      <p className="text-xs text-muted-foreground">Our B2CS Total</p>
+                      <p className="mt-1 text-lg font-bold text-primary-ink">
+                        {formatCurrency(gstr1CmpResult.b2csTotalOur)}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-border bg-background p-3 text-center">
+                      <p className="text-xs text-muted-foreground">Reference B2CS Total</p>
+                      <p className="mt-1 text-lg font-bold">
+                        {formatCurrency(gstr1CmpResult.b2csTotalRef)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="max-h-[400px] overflow-auto rounded-xl border border-border">
+                    <table className="w-full min-w-[540px] text-xs">
+                      <thead className="sticky top-0 border-b border-border bg-muted/90 backdrop-blur">
+                        <tr className="text-left font-semibold text-muted-foreground">
+                          <th className="px-3 py-2.5">Status</th>
+                          <th className="px-3 py-2.5">State</th>
+                          <th className="px-3 py-2.5 text-right">Rate</th>
+                          <th className="px-3 py-2.5 text-right">Our Taxable</th>
+                          <th className="px-3 py-2.5 text-right">Ref Taxable</th>
+                          <th className="px-3 py-2.5 text-right">Diff</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {gstr1CmpResult.b2csSummary.map((r, i) => (
+                          <tr
+                            key={i}
+                            className={cn(
+                              "border-b border-border last:border-0 hover:bg-accent/30",
+                              r.status === "mismatch" && "bg-destructive/5"
+                            )}
+                          >
+                            <td className="px-3 py-2">
+                              <span
+                                className={cn(
+                                  "rounded px-1.5 py-0.5 text-[10px] font-bold",
+                                  r.status === "matched" && "bg-success/10 text-success",
+                                  r.status === "mismatch" && "bg-destructive/10 text-destructive",
+                                  r.status === "only_in_ours" && "bg-warning/10 text-warning",
+                                  r.status === "only_in_ref" && "bg-muted text-muted-foreground"
+                                )}
+                              >
+                                {r.status === "matched"
+                                  ? "✓"
+                                  : r.status === "mismatch"
+                                    ? "⚠"
+                                    : r.status === "only_in_ours"
+                                      ? "➕"
+                                      : "➖"}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 font-mono">{r.placeOfSupply}</td>
+                            <td className="px-3 py-2 text-right font-mono">{r.rate}%</td>
+                            <td className="px-3 py-2 text-right">
+                              {formatCurrency(r.ourTaxableValue)}
+                            </td>
+                            <td className="px-3 py-2 text-right">
+                              {formatCurrency(r.refTaxableValue)}
+                            </td>
+                            <td
+                              className={cn(
+                                "px-3 py-2 text-right font-bold",
+                                Math.abs(r.diffTaxable) > 2 ? "text-destructive" : "text-success"
+                              )}
+                            >
+                              {formatCurrency(r.diffTaxable)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* B2CL table */}
+              {gstr1CmpSection === "b2cl" && (
+                <div className="max-h-[420px] overflow-auto rounded-xl border border-border">
+                  <table className="w-full min-w-[640px] text-xs">
+                    <thead className="sticky top-0 border-b border-border bg-muted/90 backdrop-blur">
+                      <tr className="text-left font-semibold text-muted-foreground">
+                        <th className="px-3 py-2.5">Status</th>
+                        <th className="px-3 py-2.5">Invoice #</th>
+                        <th className="px-3 py-2.5">POS</th>
+                        <th className="px-3 py-2.5 text-right">Rate</th>
+                        <th className="px-3 py-2.5 text-right">Our Taxable</th>
+                        <th className="px-3 py-2.5 text-right">Ref Taxable</th>
+                        <th className="px-3 py-2.5 text-right">Diff</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {gstr1CmpResult.b2clRows.map((r, i) => (
+                        <tr
+                          key={`${r.invoiceNumber}-${i}`}
+                          className={cn(
+                            "border-b border-border last:border-0 hover:bg-accent/30",
+                            r.status === "mismatch" && "bg-destructive/5"
+                          )}
+                        >
+                          <td className="px-3 py-2">
+                            <span
+                              className={cn(
+                                "rounded px-1.5 py-0.5 text-[10px] font-bold",
+                                r.status === "matched" && "bg-success/10 text-success",
+                                r.status === "mismatch" && "bg-destructive/10 text-destructive",
+                                r.status === "only_in_ours" && "bg-warning/10 text-warning",
+                                r.status === "only_in_ref" && "bg-muted text-muted-foreground"
+                              )}
+                            >
+                              {r.status === "matched"
+                                ? "✓"
+                                : r.status === "mismatch"
+                                  ? "⚠"
+                                  : r.status === "only_in_ours"
+                                    ? "➕"
+                                    : "➖"}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 font-mono">{r.invoiceNumber}</td>
+                          <td className="px-3 py-2 font-mono">
+                            {r.ourPlaceOfSupply || r.refPlaceOfSupply || "—"}
+                          </td>
+                          <td className="px-3 py-2 text-right font-mono">
+                            {r.ourRate ?? r.refRate ?? 0}%
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            {r.ourTaxableValue != null ? formatCurrency(r.ourTaxableValue) : "—"}
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            {r.refTaxableValue != null ? formatCurrency(r.refTaxableValue) : "—"}
+                          </td>
+                          <td
+                            className={cn(
+                              "px-3 py-2 text-right font-bold",
+                              r.diffTaxable && Math.abs(r.diffTaxable) > 2
+                                ? "text-destructive"
+                                : "text-success"
+                            )}
+                          >
+                            {r.diffTaxable != null ? formatCurrency(r.diffTaxable) : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                      {gstr1CmpResult.b2clRows.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">
+                            No B2CL entries found
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* CDNR + CDNUR table */}
+              {gstr1CmpSection === "cdnr" && (
+                <div className="max-h-[420px] overflow-auto rounded-xl border border-border">
+                  <table className="w-full min-w-[700px] text-xs">
+                    <thead className="sticky top-0 border-b border-border bg-muted/90 backdrop-blur">
+                      <tr className="text-left font-semibold text-muted-foreground">
+                        <th className="px-3 py-2.5">Status</th>
+                        <th className="px-3 py-2.5">Section</th>
+                        <th className="px-3 py-2.5">Note #</th>
+                        <th className="px-3 py-2.5">Buyer GSTIN</th>
+                        <th className="px-3 py-2.5 text-right">Our Taxable</th>
+                        <th className="px-3 py-2.5 text-right">Ref Taxable</th>
+                        <th className="px-3 py-2.5 text-right">Diff</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[...gstr1CmpResult.cdnrRows, ...gstr1CmpResult.cdnurRows].map((r, i) => (
+                        <tr
+                          key={`${r.invoiceNumber}-${i}`}
+                          className={cn(
+                            "border-b border-border last:border-0 hover:bg-accent/30",
+                            r.status === "mismatch" && "bg-destructive/5"
+                          )}
+                        >
+                          <td className="px-3 py-2">
+                            <span
+                              className={cn(
+                                "rounded px-1.5 py-0.5 text-[10px] font-bold",
+                                r.status === "matched" && "bg-success/10 text-success",
+                                r.status === "mismatch" && "bg-destructive/10 text-destructive",
+                                r.status === "only_in_ours" && "bg-warning/10 text-warning",
+                                r.status === "only_in_ref" && "bg-muted text-muted-foreground"
+                              )}
+                            >
+                              {r.status === "matched"
+                                ? "✓"
+                                : r.status === "mismatch"
+                                  ? "⚠"
+                                  : r.status === "only_in_ours"
+                                    ? "➕"
+                                    : "➖"}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 text-[11px] font-bold text-muted-foreground">
+                            {r.section}
+                          </td>
+                          <td className="px-3 py-2 font-mono">{r.invoiceNumber}</td>
+                          <td className="px-3 py-2 font-mono text-[11px]">
+                            {r.ourBuyerGstin || r.refBuyerGstin || "—"}
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            {r.ourTaxableValue != null ? formatCurrency(r.ourTaxableValue) : "—"}
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            {r.refTaxableValue != null ? formatCurrency(r.refTaxableValue) : "—"}
+                          </td>
+                          <td
+                            className={cn(
+                              "px-3 py-2 text-right font-bold",
+                              r.diffTaxable && Math.abs(r.diffTaxable) > 2
+                                ? "text-destructive"
+                                : "text-success"
+                            )}
+                          >
+                            {r.diffTaxable != null ? formatCurrency(r.diffTaxable) : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                      {gstr1CmpResult.cdnrRows.length === 0 &&
+                        gstr1CmpResult.cdnurRows.length === 0 && (
+                          <tr>
+                            <td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">
+                              No credit/debit notes found in comparison
+                            </td>
+                          </tr>
+                        )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
