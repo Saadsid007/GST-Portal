@@ -14,10 +14,24 @@ function r2(n: number) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
-function formatPeriod(period: string): string {
-  // "072025" -> "07-2025"
-  if (period.length === 6) return `${period.slice(0, 2)}-${period.slice(2)}`;
-  return period;
+function deriveFilingPeriod(rows: NormalizedInvoiceRow[], period?: string): string {
+  if (period && /^\d{6}$/.test(period.trim())) {
+    return period.trim();
+  }
+  if (period && /^\d{2}-\d{4}$/.test(period.trim())) {
+    return period.trim().replace("-", "");
+  }
+  // Fallback: derive from invoice dates e.g. "2026-06-22" -> "062026"
+  for (const r of rows) {
+    if (r.invoiceDate && /^\d{4}-\d{2}-\d{2}$/.test(r.invoiceDate)) {
+      const [yyyy, mm] = r.invoiceDate.split("-");
+      if (yyyy && mm) return `${mm}${yyyy}`;
+    }
+  }
+  const now = new Date();
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const yyyy = now.getFullYear();
+  return `${mm}${yyyy}`;
 }
 
 export function generateGstr1Json(
@@ -28,7 +42,7 @@ export function generateGstr1Json(
   watermark = false
 ): string {
   const validRows = rows.filter((r) => r.errors.length === 0);
-  const fp = formatPeriod(period);
+  const fp = deriveFilingPeriod(validRows, period);
 
   // --- B2B ---
   const b2bRows = validRows.filter((r) => r.invoiceType === "B2B");
@@ -91,8 +105,6 @@ export function generateGstr1Json(
   }));
 
   // --- B2CS ---
-  // Grouped by operator as well as place of supply and rate: a supply routed through an
-  // e-commerce operator has to stay separable so Table 14(a) can be built from the same buckets.
   const supplierState = gstin ? gstin.substring(0, 2) : "";
   const b2csRows = validRows.filter((r) => r.invoiceType === "B2CS");
   const b2csMap = new Map<
@@ -132,8 +144,6 @@ export function generateGstr1Json(
     bucket.csamt = r2(bucket.csamt + row.cessAmount);
   }
   const b2cs = Array.from(b2csMap.values()).map((val) => ({
-    // Supply type follows the actual states involved; a fixed "INTRA" mislabels every
-    // inter-state consolidated row and the portal rejects the mismatched tax heads.
     sply_ty: supplierState && val.pos !== supplierState ? "INTER" : "INTRA",
     pos: val.pos,
     typ: "OE",
@@ -145,7 +155,7 @@ export function generateGstr1Json(
     csamt: val.csamt || 0,
   }));
 
-  // --- CDNR ---
+  // --- CDNR (B2B Credit Notes) ---
   const cdnrRows = validRows.filter((r) => r.invoiceType === "CDNR");
   const cdnrMap = new Map<string, typeof cdnrRows>();
   for (const row of cdnrRows) {
@@ -177,9 +187,33 @@ export function generateGstr1Json(
     })),
   }));
 
+  // --- CDNUR (B2C Credit Notes) ---
+  const cdnurRows = validRows.filter((r) => r.invoiceType === "CDNCS");
+  const cdnur = cdnurRows.map((r) => ({
+    typ: "B2CL",
+    ntty: "C",
+    nt_num: r.invoiceNumber,
+    nt_dt: r.invoiceDate,
+    val: Math.abs(r.totalValue),
+    pos: r.placeOfSupply,
+    sply_ty: supplierState && r.placeOfSupply !== supplierState ? "INTER" : "INTRA",
+    rsn: "01",
+    itms: [
+      {
+        num: 1,
+        itm_det: {
+          txval: Math.abs(r.taxableValue),
+          rt: r.igstRate > 0 ? r.igstRate : r.cgstRate + r.sgstRate,
+          iamt: Math.abs(r.igstAmount) || undefined,
+          camt: Math.abs(r.cgstAmount) || undefined,
+          samt: Math.abs(r.sgstAmount) || undefined,
+          csamt: Math.abs(r.cessAmount) || undefined,
+        },
+      },
+    ],
+  }));
+
   // --- HSN Summary ---
-  // Credit notes reduce the HSN totals; absolute values would add returns to sales and the
-  // table would no longer tie back to b2b + b2cs + cdnr.
   const hsnMap = new Map<
     string,
     {
@@ -197,7 +231,6 @@ export function generateGstr1Json(
   >();
   for (const row of validRows) {
     const rt = r2(row.igstRate > 0 ? row.igstRate : row.cgstRate + row.sgstRate);
-    // UQC is part of the key because GSTN expects one row per HSN, rate and unit.
     const uqc = row.uqc ?? "OTH";
     const key = `${row.hsnCode}|${rt}|${uqc}`;
     if (!hsnMap.has(key)) {
@@ -214,7 +247,8 @@ export function generateGstr1Json(
         rt,
       });
     }
-    const sign = row.taxableValue < 0 || row.invoiceType === "CDNR" ? -1 : 1;
+    const sign =
+      row.taxableValue < 0 || row.invoiceType === "CDNR" || row.invoiceType === "CDNCS" ? -1 : 1;
     const b = hsnMap.get(key)!;
     if (!b.desc && row.itemDescription) b.desc = row.itemDescription;
     b.txval = r2(b.txval + Math.abs(row.taxableValue) * sign);
@@ -241,10 +275,10 @@ export function generateGstr1Json(
   };
 
   // --- Document Summary ---
-  // Invoices and credit notes are separate natures of document, so they are reported as
-  // separate series rather than folded into one invoice count.
-  const invoiceDocs = validRows.filter((r) => r.invoiceType !== "CDNR");
-  const noteDocs = validRows.filter((r) => r.invoiceType === "CDNR");
+  const invoiceDocs = validRows.filter(
+    (r) => r.invoiceType !== "CDNR" && r.invoiceType !== "CDNCS"
+  );
+  const noteDocs = validRows.filter((r) => r.invoiceType === "CDNR" || r.invoiceType === "CDNCS");
   const docSeries = (docNum: number, list: NormalizedInvoiceRow[]) => {
     const numbers = list
       .map((r) => r.invoiceNumber)
@@ -269,8 +303,6 @@ export function generateGstr1Json(
   };
 
   // --- Table 14(a): supplies made through an e-commerce operator ---
-  // Keyed purely on the operator GSTIN so any new marketplace is picked up without a code change.
-  // Credit notes net against sales here, since the table reports the value actually supplied.
   const ecoMap = new Map<
     string,
     { ecoName: string; txval: number; iamt: number; camt: number; samt: number; csamt: number }
@@ -312,11 +344,10 @@ export function generateGstr1Json(
     b2cl: b2cl.length > 0 ? b2cl : undefined,
     b2cs: b2cs.length > 0 ? b2cs : undefined,
     cdnr: cdnr.length > 0 ? cdnr : undefined,
+    cdnur: cdnur.length > 0 ? cdnur : undefined,
     supeco: supeco.length > 0 ? { clttx: supeco } : undefined,
     hsn,
     doc_issue: docIssue,
-    // Non-schema annotation, present only on free-trial output. The GSTN offline
-    // tool ignores unknown top-level keys, so this does not affect filing.
     _generatedBy: watermark ? WATERMARK_TEXT : undefined,
   };
 
