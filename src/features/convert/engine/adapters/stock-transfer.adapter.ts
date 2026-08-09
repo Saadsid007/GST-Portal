@@ -111,6 +111,16 @@ export class StockTransferAdapter {
       const supplierGstin = (row["Gstin Of Supplier"] || "").trim();
       const receiverGstin = (row["Gstin Of Receiver"] || "").trim();
 
+      // Intra-state self transfer within the exact same GSTIN is not a supply under GST.
+      // Do not emit as a B2B invoice in GSTR-1.
+      if (
+        supplierGstin &&
+        receiverGstin &&
+        supplierGstin.toUpperCase() === receiverGstin.toUpperCase()
+      ) {
+        continue;
+      }
+
       // ── Place of Supply: derived from receiver GSTIN state prefix ────────
       // Per GST rules: POS for stock transfer = destination state
       const receiverStateFromGstin = receiverGstin.substring(0, 2);

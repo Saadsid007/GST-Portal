@@ -135,14 +135,21 @@ export class AmazonAdapter {
       const shippingBasis = parseFloat(row["Shipping Amount Basis"] || "0");
       const giftWrapBasis = parseFloat(row["Gift Wrap Amount Basis"] || "0");
 
-      // Taxable value = PRE-PROMO basis (Principal + Shipping + GiftWrap).
-      // Amazon collects GST on the full pre-discount selling price. The promo discount
-      // is a seller-funded marketing expense — it does NOT reduce the GST-liable amount.
-      // Using Tax Exclusive Gross (which is post-promo) causes a tax mismatch because
-      // tax columns in the MTR always reflect the pre-promo basis.
+      const itemPromo = Math.abs(parseFloat(row["Item Promo Discount"] || "0"));
+      const shippingPromo = Math.abs(parseFloat(row["Shipping Promo Discount"] || "0"));
+      const giftWrapPromo = Math.abs(parseFloat(row["Gift Wrap Promo Discount"] || "0"));
+
+      // Taxable value = Principal + Shipping + GiftWrap - Promo Discounts.
+      // Promo discounts funded by seller reduce the taxable base.
       let taxableValue: number;
       if (principalBasis || shippingBasis) {
-        taxableValue = principalBasis + shippingBasis + giftWrapBasis;
+        taxableValue =
+          principalBasis +
+          shippingBasis +
+          giftWrapBasis -
+          itemPromo -
+          shippingPromo -
+          giftWrapPromo;
       } else {
         // Older report format: Tax Exclusive Gross is all we have
         taxableValue = parseFloat(row["Tax Exclusive Gross"] || "0");
