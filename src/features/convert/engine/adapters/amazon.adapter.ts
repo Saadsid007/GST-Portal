@@ -37,13 +37,17 @@ export class AmazonAdapter {
       }
 
       // 2. Identities
-      const invoiceNumber = (
+      const rawInvoiceNumber = (
         row["Credit Note No"] ||
         row["Invoice Number"] ||
         row["Invoice number"] ||
         row["Order Id"] ||
         ""
       ).trim();
+      // Amazon Order IDs (like 407-9328146-3126765) are 19 chars and exceed GST's 16-char limit.
+      // Truncate to 16 characters; the row will carry a review note to alert the user.
+      const invoiceNumberTruncated = rawInvoiceNumber.length > 16;
+      const invoiceNumber = rawInvoiceNumber.substring(0, 16);
 
       const rawInvoiceDate = (
         row["Credit Note Date"] ||
@@ -139,15 +143,27 @@ export class AmazonAdapter {
       }
 
       // Check Inter-State vs Intra-State.
-      // Priority: explicit rates from the file (most reliable) → tax components → fallback.
+      // IMPORTANT: Always derive from actual supplier state vs POS.
+      // Do NOT use raw rate columns for this determination — Amazon MTR sometimes
+      // has IGST rate populated even for intra-state supplies (same state).
+      // The source-of-truth is: supplierGstin[0:2] vs placeOfSupply.
+      //
+      // If we don't have the supplier GSTIN here (context provides it), fall back
+      // to the raw rate columns as a secondary signal.
+      const supplierStateInAdapter = context.supplierGstin
+        ? context.supplierGstin.substring(0, 2)
+        : "";
+
       const isInterState =
-        rawIgstRate > 0 || rawCgstRate > 0
-          ? rawIgstRate > 0 // File stated a rate — trust it
-          : Math.abs(rawIgstTax) > 0 // No rate stated — use tax component presence
-            ? true
-            : Math.abs(rawCgstTax) > 0 || Math.abs(rawSgstTax) > 0
-              ? false // CGST/SGST present → intra-state
-              : true; // No tax components at all → default to inter-state
+        supplierStateInAdapter && pos
+          ? supplierStateInAdapter !== pos // Primary: actual state comparison
+          : rawIgstRate > 0 || rawCgstRate > 0
+            ? rawIgstRate > 0 // Secondary: rate column presence
+            : Math.abs(rawIgstTax) > 0
+              ? true
+              : Math.abs(rawCgstTax) > 0 || Math.abs(rawSgstTax) > 0
+                ? false
+                : true;
 
       let igstRate = 0;
       let cgstRate = 0;
@@ -159,12 +175,34 @@ export class AmazonAdapter {
 
       if (isInterState) {
         igstRate = gstRate;
-        igstAmount = totalTax;
+        // For IGST amount: use the raw IGST tax column if present;
+        // otherwise use totalTax (all tax for this row is IGST).
+        // Guard: if rawCgstTax or rawSgstTax are non-zero and rawIgstTax is zero,
+        // the raw amounts were in CGST/SGST columns — sum them as IGST.
+        igstAmount =
+          rawIgstTax !== 0
+            ? round2(rawIgstTax)
+            : rawCgstTax !== 0 || rawSgstTax !== 0
+              ? round2(rawCgstTax + rawSgstTax) // swap: was intra, now inter
+              : totalTax;
       } else {
         cgstRate = gstRate / 2;
         sgstRate = gstRate / 2;
-        cgstAmount = round2(totalTax / 2);
-        sgstAmount = round2(totalTax / 2);
+        // For CGST/SGST amount: use raw columns if present;
+        // otherwise split totalTax 50/50.
+        // Guard: if rawIgstTax is non-zero and cgst/sgst are zero,
+        // the raw amounts were in IGST column — split as CGST+SGST.
+        if (rawCgstTax !== 0 || rawSgstTax !== 0) {
+          cgstAmount = round2(rawCgstTax);
+          sgstAmount = round2(rawSgstTax);
+        } else if (rawIgstTax !== 0) {
+          // swap: was inter, now intra
+          cgstAmount = round2(rawIgstTax / 2);
+          sgstAmount = round2(rawIgstTax / 2);
+        } else {
+          cgstAmount = round2(totalTax / 2);
+          sgstAmount = round2(totalTax / 2);
+        }
       }
 
       const cessRate = 0;
@@ -173,6 +211,14 @@ export class AmazonAdapter {
       let originalInvoiceNumber = undefined;
       if (txType === "Return") {
         originalInvoiceNumber = row["Invoice Number"] || row["Order Id"] || undefined;
+      }
+
+      // Reviews (non-blocking flags)
+      const rowReviews: string[] = [];
+      if (invoiceNumberTruncated) {
+        rowReviews.push(
+          `Invoice number truncated from ${rawInvoiceNumber.length} to 16 chars (was: "${rawInvoiceNumber}")`
+        );
       }
 
       // Validation
@@ -225,6 +271,7 @@ export class AmazonAdapter {
 
         originalInvoiceNumber,
         errors,
+        reviews: rowReviews.length > 0 ? rowReviews : undefined,
       };
 
       if (errors.length > 0) {

@@ -45,6 +45,13 @@ export class ImportSessionManager {
       // 2. Route to Adapter
       let result: AdapterResult | null = null;
 
+      // Skip GSTR-1 reference files entirely — they are uploaded for the comparison
+      // tab in Step 8, not as data sources. Processing them as MTR data would cause
+      // double-counting and column-mapping errors.
+      if (detection.fileTypeId === "amazon_gstr1_ref") {
+        continue; // silently skip — comparison is handled client-side via compareGstr1Action
+      }
+
       if (detection.platformId === "amazon" && detection.confidence > 50) {
         result = AmazonAdapter.adapt(table.rows, sourceContext);
       } else if (detection.platformId === "amazon_stock_transfer" && detection.confidence > 50) {

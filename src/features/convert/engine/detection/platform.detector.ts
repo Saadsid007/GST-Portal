@@ -35,6 +35,37 @@ export class PlatformDetector {
       matchedKeywords: [],
     };
 
+    // ── Early exit: Amazon GSTR-1 reference file ─────────────────────────────
+    // Amazon's auto-generated GSTR-1 exports follow the pattern:
+    //   GSTR1-<MONTH>-<YEAR>-<ID>-<GSTIN>.xlsx
+    // These must NEVER be processed as MTR data — they are reference-only and
+    // should route to the amazon_gstr1_ref slot (comparison tab), not a data adapter.
+    if (normFile.startsWith("gstr1") && normFile.includes("amazon")) {
+      return {
+        platformId: "amazon",
+        platformName: "Amazon Seller MTR",
+        fileTypeId: "amazon_gstr1_ref",
+        parserVersion: "v1",
+        confidence: 95,
+        matchedKeywords: ["File: Amazon GSTR-1 (reference only)"],
+      };
+    }
+    // Also catch gov-format GSTR-1 uploads by sheet name presence
+    const sheetNamesLower = (sheetName || "").toLowerCase();
+    if (
+      sheetNamesLower.includes("b2b") &&
+      (normFile.startsWith("gstr1") || normFile.includes("gstr1"))
+    ) {
+      return {
+        platformId: "amazon",
+        platformName: "Amazon Seller MTR",
+        fileTypeId: "amazon_gstr1_ref",
+        parserVersion: "v1",
+        confidence: 90,
+        matchedKeywords: ["File: GSTR-1 reference workbook"],
+      };
+    }
+
     let highestScore = 0;
 
     for (const plat of PLATFORMS_CONFIG) {
