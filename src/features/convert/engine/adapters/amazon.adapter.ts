@@ -362,11 +362,12 @@ export class AmazonAdapter {
     }
 
     // POST-PROCESSING: Consolidate multi-item invoices.
-    // Amazon MTR exports one row per line item. GSTR-1 requires one row per invoice.
-    // Merge rows sharing the same invoiceNumber + transactionType.
+    // Amazon MTR exports one row per line item. GSTR-1 requires line items for the same invoice
+    // to be grouped by HSN code and tax rate.
     const invoiceMap = new Map<string, NormalizedInvoiceRow>();
     for (const tx of transactions) {
-      const key = `${tx.transactionType}::${tx.invoiceNumber}`;
+      const rate = tx.igstRate > 0 ? tx.igstRate : tx.cgstRate + tx.sgstRate;
+      const key = `${tx.transactionType}::${tx.invoiceNumber}::${tx.hsnCode}::${rate}`;
       const existing = invoiceMap.get(key);
       if (!existing) {
         invoiceMap.set(key, tx);

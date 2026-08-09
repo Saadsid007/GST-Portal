@@ -127,18 +127,23 @@ export function validateInvoices(
       }
     }
 
-    // VAL-008: Duplicate invoice detection — scoped per transaction type, since a sales return
-    // legitimately carries the same marketplace order number as the original sale.
-    const dupeKey = row.invoiceNumber?.trim().toLowerCase();
-    if (dupeKey) {
-      const scopedKey = `${row.transactionType ?? "Sales"}::${dupeKey}`;
-      if (seenInvoices.has(scopedKey)) {
-        const platformNote = row.sourcePlatformName ? ` in ${row.sourcePlatformName}` : "";
-        errors.push(
-          `Duplicate invoice number${platformNote} (also at row ${seenInvoices.get(scopedKey)})`
-        );
-      } else {
-        seenInvoices.set(scopedKey, row.rowIndex);
+    // VAL-008: Duplicate invoice detection
+    // Only check B2B and CDNR invoices. B2CS supplies are aggregated by POS + rate.
+    // Scoped by invoiceType + invoiceNumber + hsnCode + rate so distinct line items for the
+    // same invoice (e.g. product HSN 441900 vs freight HSN 998313) are recognized as valid.
+    if (row.invoiceType === "B2B" || row.invoiceType === "CDNR") {
+      const dupeKey = row.invoiceNumber?.trim().toLowerCase();
+      if (dupeKey) {
+        const rate = row.igstRate > 0 ? row.igstRate : row.cgstRate + row.sgstRate;
+        const scopedKey = `${row.invoiceType}::${dupeKey}::${row.hsnCode || "NOHSN"}::${rate}`;
+        if (seenInvoices.has(scopedKey)) {
+          const platformNote = row.sourcePlatformName ? ` in ${row.sourcePlatformName}` : "";
+          errors.push(
+            `Duplicate invoice number${platformNote} (also at row ${seenInvoices.get(scopedKey)})`
+          );
+        } else {
+          seenInvoices.set(scopedKey, row.rowIndex);
+        }
       }
     }
 

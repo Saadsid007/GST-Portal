@@ -236,19 +236,39 @@ export class StockTransferAdapter {
       transactions.push(tx);
     }
 
-    // Final counts
+    // POST-PROCESSING: Consolidate multi-item stock transfer entries sharing the same
+    // invoiceNumber + HSN code + tax rate.
+    const invoiceMap = new Map<string, NormalizedInvoiceRow>();
+    for (const tx of transactions) {
+      const rate = tx.igstRate > 0 ? tx.igstRate : tx.cgstRate + tx.sgstRate;
+      const key = `${tx.transactionType}::${tx.invoiceNumber}::${tx.hsnCode}::${rate}`;
+      const existing = invoiceMap.get(key);
+      if (!existing) {
+        invoiceMap.set(key, tx);
+      } else {
+        existing.taxableValue = round2(existing.taxableValue + tx.taxableValue);
+        existing.igstAmount = round2(existing.igstAmount + tx.igstAmount);
+        existing.cgstAmount = round2(existing.cgstAmount + tx.cgstAmount);
+        existing.sgstAmount = round2(existing.sgstAmount + tx.sgstAmount);
+        existing.cessAmount = round2(existing.cessAmount + tx.cessAmount);
+        existing.totalValue = round2(existing.totalValue + tx.totalValue);
+        existing.quantity = (existing.quantity || 1) + (tx.quantity || 1);
+      }
+    }
+
+    const consolidated = Array.from(invoiceMap.values());
     let finalValidRows = 0;
     let finalErrorRows = 0;
-    for (const tx of transactions) {
+    for (const tx of consolidated) {
       if (tx.errors.length > 0) finalErrorRows++;
       else finalValidRows++;
     }
 
     return {
       sourceContext: context,
-      transactions,
-      unmappedColumns: [...unmappedColumns],
-      totalRows: transactions.length,
+      transactions: consolidated,
+      unmappedColumns: Array.from(unmappedColumns),
+      totalRows: rows.length,
       validRows: finalValidRows,
       errorRows: finalErrorRows,
     };
