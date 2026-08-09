@@ -14,6 +14,17 @@ function r2(n: number) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
+// GSTN portal requires DD-MM-YYYY format, not YYYY-MM-DD.
+function toGstnDate(isoDate: string): string {
+  if (!isoDate) return "";
+  // Already DD-MM-YYYY
+  if (/^\d{2}-\d{2}-\d{4}$/.test(isoDate)) return isoDate;
+  // Convert YYYY-MM-DD → DD-MM-YYYY
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+  return isoDate;
+}
+
 function deriveFilingPeriod(rows: NormalizedInvoiceRow[], period?: string): string {
   if (period && /^\d{6}$/.test(period.trim())) {
     return period.trim();
@@ -56,20 +67,21 @@ export function generateGstr1Json(
     ctin: buyerGstin,
     inv: inv.map((r) => ({
       inum: r.invoiceNumber,
-      idt: r.invoiceDate,
+      idt: toGstnDate(r.invoiceDate),
       val: r.totalValue,
       pos: r.placeOfSupply,
       rchrg: "N",
+      inv_typ: "R",
       itms: [
         {
-          num: 1,
+          num: 501,
           itm_det: {
             txval: r.taxableValue,
             rt: r.igstRate > 0 ? r.igstRate : r.cgstRate + r.sgstRate,
-            iamt: r.igstAmount || undefined,
-            camt: r.cgstAmount || undefined,
-            samt: r.sgstAmount || undefined,
-            csamt: r.cessAmount || undefined,
+            iamt: r.igstAmount > 0 ? r.igstAmount : undefined,
+            camt: r.cgstAmount > 0 ? r.cgstAmount : undefined,
+            samt: r.sgstAmount > 0 ? r.sgstAmount : undefined,
+            csamt: 0,
           },
         },
       ],
@@ -88,16 +100,16 @@ export function generateGstr1Json(
     pos,
     inv: rowsList.map((r) => ({
       inum: r.invoiceNumber,
-      idt: r.invoiceDate,
+      idt: toGstnDate(r.invoiceDate),
       val: r.totalValue,
       itms: [
         {
-          num: 1,
+          num: 501,
           itm_det: {
             txval: r.taxableValue,
             rt: r.igstRate,
             iamt: r.igstAmount,
-            csamt: r.cessAmount || 0,
+            csamt: 0,
           },
         },
       ],
@@ -143,17 +155,17 @@ export function generateGstr1Json(
     bucket.samt = r2(bucket.samt + row.sgstAmount);
     bucket.csamt = r2(bucket.csamt + row.cessAmount);
   }
-  const b2cs = Array.from(b2csMap.values()).map((val) => ({
-    sply_ty: supplierState && val.pos !== supplierState ? "INTER" : "INTRA",
-    pos: val.pos,
-    typ: "OE",
-    rt: val.rt,
-    txval: val.txval,
-    iamt: val.iamt || 0,
-    camt: val.camt || 0,
-    samt: val.samt || 0,
-    csamt: val.csamt || 0,
-  }));
+  const b2cs = Array.from(b2csMap.values()).map((val) => {
+    const isInter = supplierState && val.pos !== supplierState;
+    return {
+      sply_ty: isInter ? "INTER" : "INTRA",
+      rt: val.rt,
+      typ: "OE",
+      pos: val.pos,
+      txval: val.txval,
+      ...(isInter ? { iamt: val.iamt, csamt: 0 } : { camt: val.camt, samt: val.samt, csamt: 0 }),
+    };
+  });
 
   // --- CDNR (B2B Credit Notes) ---
   const cdnrRows = validRows.filter((r) => r.invoiceType === "CDNR");
@@ -213,28 +225,29 @@ export function generateGstr1Json(
     ],
   }));
 
-  // --- HSN Summary ---
-  const hsnMap = new Map<
-    string,
-    {
-      hsn: string;
-      desc: string;
-      uqc: string;
-      txval: number;
-      iamt: number;
-      camt: number;
-      samt: number;
-      csamt: number;
-      qty: number;
-      rt: number;
-    }
-  >();
+  // --- HSN Summary (split into hsn_b2b and hsn_b2c as per GSTN v3.1.6) ---
+  type HsnBucket = {
+    hsn: string;
+    desc: string;
+    uqc: string;
+    txval: number;
+    iamt: number;
+    camt: number;
+    samt: number;
+    csamt: number;
+    qty: number;
+    rt: number;
+  };
+  const hsnB2bMap = new Map<string, HsnBucket>();
+  const hsnB2cMap = new Map<string, HsnBucket>();
   for (const row of validRows) {
+    const isB2bRow = row.invoiceType === "B2B" || row.invoiceType === "CDNR";
+    const hsnTarget = isB2bRow ? hsnB2bMap : hsnB2cMap;
     const rt = r2(row.igstRate > 0 ? row.igstRate : row.cgstRate + row.sgstRate);
-    const uqc = row.uqc ?? "OTH";
+    const uqc = row.uqc ?? "PCS";
     const key = `${row.hsnCode}|${rt}|${uqc}`;
-    if (!hsnMap.has(key)) {
-      hsnMap.set(key, {
+    if (!hsnTarget.has(key)) {
+      hsnTarget.set(key, {
         hsn: row.hsnCode,
         desc: row.itemDescription ?? "",
         uqc,
@@ -249,29 +262,38 @@ export function generateGstr1Json(
     }
     const sign =
       row.taxableValue < 0 || row.invoiceType === "CDNR" || row.invoiceType === "CDNCS" ? -1 : 1;
-    const b = hsnMap.get(key)!;
-    if (!b.desc && row.itemDescription) b.desc = row.itemDescription;
-    b.txval = r2(b.txval + Math.abs(row.taxableValue) * sign);
-    b.iamt = r2(b.iamt + Math.abs(row.igstAmount) * sign);
-    b.camt = r2(b.camt + Math.abs(row.cgstAmount) * sign);
-    b.samt = r2(b.samt + Math.abs(row.sgstAmount) * sign);
-    b.csamt = r2(b.csamt + Math.abs(row.cessAmount) * sign);
-    b.qty = r2(b.qty + row.quantity * sign);
+    const isB2bRow2 = row.invoiceType === "B2B" || row.invoiceType === "CDNR";
+    const hsnTarget2 = isB2bRow2 ? hsnB2bMap : hsnB2cMap;
+    const rt2 = r2(row.igstRate > 0 ? row.igstRate : row.cgstRate + row.sgstRate);
+    const uqc2 = row.uqc ?? "PCS";
+    const key2 = `${row.hsnCode}|${rt2}|${uqc2}`;
+    const b = hsnTarget2.get(key2)!;
+    if (b) {
+      if (!b.desc && row.itemDescription) b.desc = row.itemDescription;
+      b.txval = r2(b.txval + Math.abs(row.taxableValue) * sign);
+      b.iamt = r2(b.iamt + Math.abs(row.igstAmount) * sign);
+      b.camt = r2(b.camt + Math.abs(row.cgstAmount) * sign);
+      b.samt = r2(b.samt + Math.abs(row.sgstAmount) * sign);
+      b.csamt = r2(b.csamt + Math.abs(row.cessAmount) * sign);
+      b.qty = r2(b.qty + row.quantity * sign);
+    }
   }
-  const hsn = {
-    data: Array.from(hsnMap.values()).map((val, idx) => ({
+  const mapToHsnArr = (m: Map<string, HsnBucket>) =>
+    Array.from(m.values()).map((val, idx) => ({
       num: idx + 1,
       hsn_sc: val.hsn,
-      desc: val.desc,
       uqc: val.uqc,
       qty: val.qty,
-      txval: val.txval,
       rt: val.rt,
+      txval: val.txval,
       iamt: val.iamt,
-      camt: val.camt,
       samt: val.samt,
+      camt: val.camt,
       csamt: val.csamt,
-    })),
+    }));
+  const hsn = {
+    ...(hsnB2bMap.size > 0 ? { hsn_b2b: mapToHsnArr(hsnB2bMap) } : {}),
+    ...(hsnB2cMap.size > 0 ? { hsn_b2c: mapToHsnArr(hsnB2cMap) } : {}),
   };
 
   // --- Document Summary ---
@@ -279,13 +301,14 @@ export function generateGstr1Json(
     (r) => r.invoiceType !== "CDNR" && r.invoiceType !== "CDNCS"
   );
   const noteDocs = validRows.filter((r) => r.invoiceType === "CDNR" || r.invoiceType === "CDNCS");
-  const docSeries = (docNum: number, list: NormalizedInvoiceRow[]) => {
+  const docSeries = (docNum: number, docTyp: string, list: NormalizedInvoiceRow[]) => {
     const numbers = list
       .map((r) => r.invoiceNumber)
       .filter(Boolean)
       .sort();
     return {
       doc_num: docNum,
+      doc_typ: docTyp,
       docs: [
         {
           num: 1,
@@ -299,7 +322,10 @@ export function generateGstr1Json(
     };
   };
   const docIssue = {
-    doc_det: [docSeries(1, invoiceDocs), ...(noteDocs.length > 0 ? [docSeries(4, noteDocs)] : [])],
+    doc_det: [
+      docSeries(1, "Invoices for outward supply", invoiceDocs),
+      ...(noteDocs.length > 0 ? [docSeries(4, "Credit Notes", noteDocs)] : []),
+    ],
   };
 
   // --- Table 14(a): supplies made through an e-commerce operator ---
@@ -333,12 +359,13 @@ export function generateGstr1Json(
     cgst: val.camt,
     sgst: val.samt,
     cess: val.csamt,
+    flag: "N",
   }));
 
   const gstr1 = {
     gstin,
     fp,
-    version: "GST3.0.4",
+    version: "GST3.1.6",
     hash: "hash",
     b2b: b2b.length > 0 ? b2b : undefined,
     b2cl: b2cl.length > 0 ? b2cl : undefined,
