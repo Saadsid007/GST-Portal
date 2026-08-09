@@ -343,13 +343,14 @@ export function generateGstr1Json(
   };
 
   // --- Table 14(a): supplies made through an e-commerce operator ---
-  // Credit notes net against sales here, since the table reports the net value supplied through ECO.
+  // Reports B2C supplies made through ECO u/s 52. B2B supplies are declared separately in Table 4A/9.
   const ecoMap = new Map<
     string,
     { ecoName: string; txval: number; iamt: number; camt: number; samt: number; csamt: number }
   >();
   for (const row of validRows) {
     if (!row.ecoGstin) continue;
+    if (row.invoiceType !== "B2CS" && row.invoiceType !== "CDNCS") continue;
     if (!ecoMap.has(row.ecoGstin)) {
       ecoMap.set(row.ecoGstin, {
         ecoName: row.ecoName ?? "",
@@ -360,7 +361,7 @@ export function generateGstr1Json(
         csamt: 0,
       });
     }
-    const sign = row.invoiceType === "CDNR" || row.invoiceType === "CDNCS" ? -1 : 1;
+    const sign = row.invoiceType === "CDNCS" ? -1 : 1;
     const b = ecoMap.get(row.ecoGstin)!;
     b.txval = r2(b.txval + Math.abs(row.taxableValue) * sign);
     b.iamt = r2(b.iamt + Math.abs(row.igstAmount) * sign);
