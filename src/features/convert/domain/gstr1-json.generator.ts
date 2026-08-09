@@ -10,6 +10,19 @@ import type {
 } from "@/features/convert/types/convert.types";
 import { WATERMARK_TEXT } from "@/features/billing/constants/billing.constants";
 
+type HsnBucket = {
+  hsn: string;
+  desc: string;
+  uqc: string;
+  txval: number;
+  iamt: number;
+  camt: number;
+  samt: number;
+  csamt: number;
+  qty: number;
+  rt: number;
+};
+
 function r2(n: number) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
@@ -226,18 +239,6 @@ export function generateGstr1Json(
   }));
 
   // --- HSN Summary (split into hsn_b2b and hsn_b2c as per GSTN v3.1.6) ---
-  type HsnBucket = {
-    hsn: string;
-    desc: string;
-    uqc: string;
-    txval: number;
-    iamt: number;
-    camt: number;
-    samt: number;
-    csamt: number;
-    qty: number;
-    rt: number;
-  };
   const hsnB2bMap = new Map<string, HsnBucket>();
   const hsnB2cMap = new Map<string, HsnBucket>();
   for (const row of validRows) {
