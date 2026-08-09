@@ -295,7 +295,7 @@ export function generateGstr1Json(
       num: idx + 1,
       hsn_sc: val.hsn,
       uqc: val.uqc,
-      qty: val.qty,
+      qty: Math.abs(val.qty),
       rt: val.rt,
       txval: val.txval,
       iamt: val.iamt,
@@ -316,21 +316,43 @@ export function generateGstr1Json(
   );
   const noteDocs = validRows.filter((r) => r.invoiceType === "CDNR" || r.invoiceType === "CDNCS");
   const docSeries = (docNum: number, docTyp: string, list: NormalizedInvoiceRow[]) => {
-    const numbers = list
-      .map((r) => r.invoiceNumber)
-      .filter(Boolean)
-      .sort();
+    if (list.length === 0) {
+      return {
+        doc_num: docNum,
+        doc_typ: docTyp,
+        docs: [{ num: 1, from: "", to: "", totnum: 0, cancel: 0, net_issue: 0 }],
+      };
+    }
+
+    const sorted = [...list].sort((a, b) => {
+      const numA = parseInt((a.invoiceNumber.match(/\d+/g) || []).pop() || "0", 10);
+      const numB = parseInt((b.invoiceNumber.match(/\d+/g) || []).pop() || "0", 10);
+      return numA - numB;
+    });
+
+    const first = sorted[0]?.invoiceNumber ?? "";
+    const last = sorted[sorted.length - 1]?.invoiceNumber ?? "";
+
+    const firstNum = parseInt((first.match(/\d+/g) || []).pop() || "0", 10);
+    const lastNum = parseInt((last.match(/\d+/g) || []).pop() || "0", 10);
+
+    const actualCount = list.length;
+    const rangeCount = lastNum >= firstNum && firstNum > 0 ? lastNum - firstNum + 1 : actualCount;
+    const totnum = Math.max(actualCount, rangeCount);
+    const cancel = Math.max(0, totnum - actualCount);
+    const netIssue = totnum - cancel;
+
     return {
       doc_num: docNum,
       doc_typ: docTyp,
       docs: [
         {
           num: 1,
-          from: numbers[0] ?? "",
-          to: numbers[numbers.length - 1] ?? "",
-          totnum: list.length,
-          cancel: 0,
-          net_issue: list.length,
+          from: first,
+          to: last,
+          totnum,
+          cancel,
+          net_issue: netIssue,
         },
       ],
     };
