@@ -25,7 +25,33 @@ export class AmazonAdapter {
       const row = rows[i]!;
       const errors: string[] = [];
 
-      // 1. Transaction Type
+      // ── Step 1: GSTIN-level strict row filter ──────────────────────────────
+      // Amazon MTR files contain rows for ALL of a merchant's GSTINs mixed
+      // together (06-Haryana, 09-UP, 27-Maharashtra, 29-Karnataka, etc.).
+      // We MUST only process rows belonging to the GSTIN we're generating
+      // GSTR-1 for, otherwise data from other states bleeds into this return.
+      const rowSellerGstin = (
+        row["Seller Gstin"] ||
+        row["Seller Gstid"] ||
+        row["Supplier Gstin"] ||
+        row["Customer Bill From Gstid"] ||
+        ""
+      )
+        .trim()
+        .toUpperCase();
+
+      if (
+        context.supplierGstin &&
+        rowSellerGstin &&
+        rowSellerGstin !== context.supplierGstin.toUpperCase()
+      ) {
+        // Row belongs to a different GSTIN — skip it entirely.
+        continue;
+      }
+
+      // ── Step 1 end ─────────────────────────────────────────────────────────
+
+      // 2. Transaction Type
       const rawTxType = (row["Transaction Type"] || row["Transaction type"] || "")
         .trim()
         .toUpperCase();
@@ -33,7 +59,21 @@ export class AmazonAdapter {
       if (rawTxType === "REFUND" || rawTxType === "RETURN") {
         txType = "Return";
       } else if (rawTxType === "CANCEL") {
-        continue; // Skip cancelled order entries
+        // Cancelled orders never become invoices — exclude completely.
+        continue;
+      } else if (
+        rawTxType === "FREEREPLACEMNT" ||
+        rawTxType === "FREE_REPLACEMENT" ||
+        rawTxType === "FREEREPLACEMENT"
+      ) {
+        // FreeReplacement: Amazon ships a free unit to the customer.
+        // If the value is zero, there is no supply to report.
+        // If it carries a taxable value (rare), treat it as a normal B2C sale.
+        const freeVal = parseFloat(
+          row["Tax Exclusive Gross"] || row["Principal Amount Basis"] || "0"
+        );
+        if (Math.abs(freeVal) === 0) continue; // zero-value → skip
+        // non-zero falls through as Sales
       }
 
       // 2. Identities
@@ -150,14 +190,8 @@ export class AmazonAdapter {
       //
       // If we don't have the supplier GSTIN here (context provides it), fall back
       // to the raw rate columns as a secondary signal.
-      const supplierGstinInRow = (
-        row["Seller Gstin"] ||
-        row["Seller Gstid"] ||
-        row["Supplier Gstin"] ||
-        row["Customer Bill From Gstid"] ||
-        ""
-      ).trim();
-
+      // supplierGstinInRow was already read above for the GSTIN filter (Step 1).
+      // Reuse it here for inter-state detection.
       const rawSupplierStateInRow = (
         row["Ship From State"] ||
         row["Ship-From State"] ||
@@ -168,8 +202,8 @@ export class AmazonAdapter {
 
       const supplierStateInAdapter = context.supplierGstin
         ? context.supplierGstin.substring(0, 2)
-        : supplierGstinInRow
-          ? supplierGstinInRow.substring(0, 2)
+        : rowSellerGstin
+          ? rowSellerGstin.substring(0, 2)
           : transformStateCode(rawSupplierStateInRow) || "";
 
       const isInterState =

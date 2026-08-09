@@ -46,6 +46,18 @@ export class StockTransferAdapter {
     const cancelRows: Record<string, string>[] = [];
 
     for (const row of rows) {
+      // ── Step 1: GSTIN-level strict row filter ────────────────────────────
+      // Stock Transfer files may contain rows for multiple GSTINs.
+      // Only process rows where the Supplier GSTIN matches our target GSTIN.
+      const rowSupplierGstin = (row["Gstin Of Supplier"] || "").trim().toUpperCase();
+      if (
+        context.supplierGstin &&
+        rowSupplierGstin &&
+        rowSupplierGstin !== context.supplierGstin.toUpperCase()
+      ) {
+        continue; // belongs to a different GSTIN — skip
+      }
+
       const txType = (row["Transaction Type"] || "").trim().toUpperCase();
       if (txType === "FC_TRANSFER") {
         transferRows.push(row);
