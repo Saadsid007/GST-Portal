@@ -150,9 +150,27 @@ export class AmazonAdapter {
       //
       // If we don't have the supplier GSTIN here (context provides it), fall back
       // to the raw rate columns as a secondary signal.
+      const supplierGstinInRow = (
+        row["Seller Gstin"] ||
+        row["Seller Gstid"] ||
+        row["Supplier Gstin"] ||
+        row["Customer Bill From Gstid"] ||
+        ""
+      ).trim();
+
+      const rawSupplierStateInRow = (
+        row["Ship From State"] ||
+        row["Ship-From State"] ||
+        row["Supplier State"] ||
+        row["Seller State"] ||
+        ""
+      ).trim();
+
       const supplierStateInAdapter = context.supplierGstin
         ? context.supplierGstin.substring(0, 2)
-        : "";
+        : supplierGstinInRow
+          ? supplierGstinInRow.substring(0, 2)
+          : transformStateCode(rawSupplierStateInRow) || "";
 
       const isInterState =
         supplierStateInAdapter && pos

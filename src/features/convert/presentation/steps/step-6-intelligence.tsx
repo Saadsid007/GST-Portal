@@ -42,7 +42,7 @@ export function Step6Intelligence({ state, onChange, onNext, onBack }: Props) {
     async function evaluate() {
       try {
         setLoading(true);
-        const res = await evaluateWorkbooksAction(state.uploadedFiles);
+        const res = await evaluateWorkbooksAction(state.uploadedFiles, state.gstinNumber);
         if (!mounted) return;
 
         setReports(res.data.reports);

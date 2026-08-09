@@ -21,7 +21,8 @@ export class ImportSessionManager {
    * and setting aside unknown files for the Universal Engine / AI Mapping.
    */
   static async processBatch(
-    tables: { fileId: string; fileName: string; table: ReconstructedTable }[]
+    tables: { fileId: string; fileName: string; table: ReconstructedTable }[],
+    supplierGstin?: string
   ): Promise<SessionResult> {
     const sessionId = crypto.randomUUID();
     const resultsByPlatform: Record<string, AdapterResult> = {};
@@ -40,6 +41,7 @@ export class ImportSessionManager {
         sheetName: table.sheetName,
         sourceRow: 0,
         reportType: detection.fileTypeId,
+        supplierGstin,
       };
 
       // 2. Route to Adapter

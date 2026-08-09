@@ -54,7 +54,7 @@ export interface FileCustomMapping {
  * Runs just the semantic understanding and field discovery passes,
  * returning the intelligence report (and questions) before processing begins.
  */
-export async function evaluateWorkbooksAction(files: MultiUploadFileInput[]) {
+export async function evaluateWorkbooksAction(files: MultiUploadFileInput[], gstinNumber?: string) {
   await requireSession();
   const reports: ImportIntelligenceReport[] = [];
 
@@ -68,7 +68,7 @@ export async function evaluateWorkbooksAction(files: MultiUploadFileInput[]) {
     }
   }
 
-  const sessionResult = await ImportSessionManager.processBatch(rawTables);
+  const sessionResult = await ImportSessionManager.processBatch(rawTables, gstinNumber);
 
   // For unmapped files (Unknown Platforms), run Dual-AI and solve universally
   for (const table of sessionResult.unmappedFiles) {
@@ -145,7 +145,7 @@ export async function parseMultiPlatformFilesAction(
     }
   }
 
-  const sessionResult = await ImportSessionManager.processBatch(rawTables);
+  const sessionResult = await ImportSessionManager.processBatch(rawTables, gstinNumber);
 
   // Add adapter results as batches
   for (const [platformId, result] of Object.entries(sessionResult.resultsByPlatform)) {
