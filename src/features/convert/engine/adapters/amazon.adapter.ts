@@ -156,18 +156,45 @@ export class AmazonAdapter {
       }
       taxableValue = round2(taxableValue);
 
-      // Stated Tax Components
-      // NOTE: Item Promo Tax is a discount tax adjustment — do NOT add to IGST.
-      // It is already factored into Total Tax Amount and Tax Exclusive Gross.
-      const rawIgstTax =
+      // Stated Tax Components (including Promo Tax adjustments which offset shipping/item tax)
+      const itemPromoTax = parseFloat(row["Item Promo Tax"] || "0");
+      const shippingPromoTax = parseFloat(row["Shipping Promo Tax"] || "0");
+      const giftWrapPromoTax = parseFloat(row["Gift Wrap Promo Tax"] || "0");
+      const genericPromoTax = itemPromoTax + shippingPromoTax + giftWrapPromoTax;
+
+      let rawIgstTax =
         parseFloat(row["Igst Tax"] || row["IGST Tax"] || "0") +
-        parseFloat(row["Shipping Igst Tax"] || "0");
-      const rawCgstTax =
+        parseFloat(row["Shipping Igst Tax"] || "0") +
+        parseFloat(row["Gift Wrap Igst Tax"] || "0") +
+        parseFloat(row["Item Promo Igst Tax"] || "0") +
+        parseFloat(row["Shipping Promo Igst Tax"] || "0") +
+        parseFloat(row["Gift Wrap Promo Igst Tax"] || "0");
+
+      let rawCgstTax =
         parseFloat(row["Cgst Tax"] || row["CGST Tax"] || "0") +
-        parseFloat(row["Shipping Cgst Tax"] || "0");
-      const rawSgstTax =
+        parseFloat(row["Shipping Cgst Tax"] || "0") +
+        parseFloat(row["Gift Wrap Cgst Tax"] || "0") +
+        parseFloat(row["Item Promo Cgst Tax"] || "0") +
+        parseFloat(row["Shipping Promo Cgst Tax"] || "0") +
+        parseFloat(row["Gift Wrap Promo Cgst Tax"] || "0");
+
+      let rawSgstTax =
         parseFloat(row["Sgst Tax"] || row["SGST Tax"] || "0") +
-        parseFloat(row["Shipping Sgst Tax"] || "0");
+        parseFloat(row["Shipping Sgst Tax"] || "0") +
+        parseFloat(row["Gift Wrap Sgst Tax"] || "0") +
+        parseFloat(row["Item Promo Sgst Tax"] || "0") +
+        parseFloat(row["Shipping Promo Sgst Tax"] || "0") +
+        parseFloat(row["Gift Wrap Promo Sgst Tax"] || "0");
+
+      if (genericPromoTax !== 0) {
+        if (rawIgstTax !== 0) {
+          rawIgstTax += genericPromoTax;
+        } else if (rawCgstTax !== 0 || rawSgstTax !== 0) {
+          rawCgstTax += genericPromoTax / 2;
+          rawSgstTax += genericPromoTax / 2;
+        }
+      }
+
       const cessAmount = parseFloat(row["Cess Tax"] || "0");
 
       // Component sum is the most reliable figure — it is always row-specific.
