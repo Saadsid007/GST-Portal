@@ -129,17 +129,24 @@ export class Gstr1Comparator {
       ref.b2b.length + ref.cdnr.length + ref.b2cs.length + ref.b2cl.length + ref.cdnur.length;
 
     // ── B2B Comparison ────────────────────────────────────────────────────
-    const refB2bMap = new Map(ref.b2b.map((r) => [r.invoiceNumber.toLowerCase(), r]));
-    const ourB2bMap = new Map(ourB2b.map((r) => [r.invoiceNumber.toLowerCase(), r]));
+    // Match by full invoice number or 16-char prefix (for truncated order IDs)
+    const refB2bProcessed = new Set<string>();
 
-    const allB2bKeys = new Set([...refB2bMap.keys(), ...ourB2bMap.keys()]);
-    for (const key of allB2bKeys) {
-      const ours = ourB2bMap.get(key);
-      const refRow = refB2bMap.get(key);
+    for (const ours of ourB2b) {
+      const ourKey = ours.invoiceNumber.trim().toLowerCase();
+      // Try exact match first, then 16-char prefix match
+      let refRow = ref.b2b.find((r) => r.invoiceNumber.trim().toLowerCase() === ourKey);
+      if (!refRow && ourKey.length >= 16) {
+        const prefix = ourKey.substring(0, 16);
+        refRow = ref.b2b.find(
+          (r) => r.invoiceNumber.trim().toLowerCase().substring(0, 16) === prefix
+        );
+      }
 
-      if (ours && refRow) {
+      if (refRow) {
+        refB2bProcessed.add(refRow.invoiceNumber.trim().toLowerCase());
         const ourTax = totalTax(ours);
-        const refTax = r2(refRow.taxableValue * (refRow.rate / 100));
+        const refTax = refRow.rate > 0 ? r2((refRow.taxableValue * refRow.rate) / 100) : ourTax;
         const diffTaxable = r2(ours.taxableValue - refRow.taxableValue);
         const diffTax = r2(ourTax - refTax);
         const status = statusFor(diffTaxable, diffTax);
@@ -170,7 +177,7 @@ export class Gstr1Comparator {
 
         if (status === "matched") result.matchedCount++;
         else result.mismatchCount++;
-      } else if (ours) {
+      } else {
         result.onlyInOursCount++;
         result.b2bRows.push({
           invoiceNumber: ours.invoiceNumber,
@@ -190,7 +197,12 @@ export class Gstr1Comparator {
           diffTax: null,
           notes: ["Not found in reference GSTR-1"],
         });
-      } else if (refRow) {
+      }
+    }
+
+    // Remaining reference B2B rows not matched
+    for (const refRow of ref.b2b) {
+      if (!refB2bProcessed.has(refRow.invoiceNumber.trim().toLowerCase())) {
         result.onlyInRefCount++;
         result.b2bRows.push({
           invoiceNumber: refRow.invoiceNumber,
@@ -202,7 +214,7 @@ export class Gstr1Comparator {
           ourPlaceOfSupply: null,
           ourBuyerGstin: null,
           refTaxableValue: refRow.taxableValue,
-          refTaxAmount: r2(refRow.taxableValue * (refRow.rate / 100)),
+          refTaxAmount: r2((refRow.taxableValue * refRow.rate) / 100),
           refRate: refRow.rate,
           refPlaceOfSupply: refRow.placeOfSupply,
           refBuyerGstin: refRow.buyerGstin,

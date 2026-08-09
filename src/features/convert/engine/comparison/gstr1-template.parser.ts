@@ -87,6 +87,12 @@ function extractStateCode(raw: string): string {
   return normalizeStateCode(raw);
 }
 
+function parseRate(val: unknown): number {
+  let r = Number(val) || 0;
+  if (r > 0 && r <= 1) r *= 100;
+  return r2(r);
+}
+
 /**
  * Read a sheet skipping N header rows (summary rows before actual column header).
  * Returns { headers, rows } where rows are keyed by the actual header values.
@@ -142,7 +148,7 @@ function parseAmazonGstr1(workbook: XLSX.WorkBook): ParsedGstr1Template {
       reverseCharge: String(r["Reverse Charge"] || "").toUpperCase() === "Y",
       invoiceType: String(r["Invoice Type"] || "Regular B2B"),
       ecoGstin: String(r["E-Commerce GSTIN"] || "").trim(),
-      rate: r2(Number(r["Rate"]) || 0),
+      rate: parseRate(r["Rate"]),
       taxableValue: r2(Number(r["Taxable Value"]) || 0),
       cessAmount: r2(Number(r["Cess Amount"]) || 0),
     }));
@@ -153,7 +159,7 @@ function parseAmazonGstr1(workbook: XLSX.WorkBook): ParsedGstr1Template {
     .map((r) => ({
       type: String(r["Type"] || "E"),
       placeOfSupply: extractStateCode(String(r["Place Of Supply"] || "")),
-      rate: r2(Number(r["Rate"]) || 0),
+      rate: parseRate(r["Rate"]),
       taxableValue: r2(Number(r["Taxable Value"]) || 0),
       cessAmount: r2(Number(r["Cess Amount"]) || 0),
       ecoGstin: String(r["E-Commerce GSTIN"] || "").trim(),
@@ -167,7 +173,7 @@ function parseAmazonGstr1(workbook: XLSX.WorkBook): ParsedGstr1Template {
       invoiceDate: String(r["Invoice date"] || "").trim(),
       invoiceValue: r2(Number(r["Invoice Value"]) || 0),
       placeOfSupply: extractStateCode(String(r["Place Of Supply"] || "")),
-      rate: r2(Number(r["Rate"]) || 0),
+      rate: parseRate(r["Rate"]),
       taxableValue: r2(Number(r["Taxable Value"]) || 0),
       cessAmount: r2(Number(r["Cess Amount"]) || 0),
       ecoGstin: String(r["E-Commerce GSTIN"] || "").trim(),
@@ -185,7 +191,7 @@ function parseAmazonGstr1(workbook: XLSX.WorkBook): ParsedGstr1Template {
       reverseCharge: String(r["Reverse Charge"] || "").toUpperCase() === "Y",
       noteSupplyType: String(r["Note Supply Type"] || "Regular B2B"),
       noteValue: r2(Number(r["Note Value"]) || 0),
-      rate: r2(Number(r["Rate"]) || 0),
+      rate: parseRate(r["Rate"]),
       taxableValue: r2(Number(r["Taxable Value"]) || 0),
       cessAmount: r2(Number(r["Cess Amount"]) || 0),
     }));
@@ -234,7 +240,7 @@ function parseGovtTemplate(workbook: XLSX.WorkBook): ParsedGstr1Template {
       reverseCharge: String(r["Reverse Charge"] || "").toUpperCase() === "Y",
       invoiceType: String(r["Invoice Type"] || "Regular B2B"),
       ecoGstin: String(r["E-Commerce GSTIN"] || "").trim(),
-      rate: r2(Number(r["Rate"]) || 0),
+      rate: parseRate(r["Rate"]),
       taxableValue: r2(Number(r["Taxable Value"]) || 0),
       cessAmount: r2(Number(r["Cess Amount"]) || 0),
     }));
@@ -245,7 +251,7 @@ function parseGovtTemplate(workbook: XLSX.WorkBook): ParsedGstr1Template {
     .map((r) => ({
       type: String(r["Type"] || "OE"),
       placeOfSupply: extractStateCode(String(r["Place Of Supply"] || "")),
-      rate: r2(Number(r["Rate"]) || 0),
+      rate: parseRate(r["Rate"]),
       taxableValue: r2(Number(r["Taxable Value"]) || 0),
       cessAmount: r2(Number(r["Cess Amount"]) || 0),
       ecoGstin: String(r["E-Commerce GSTIN"] || "").trim(),
@@ -259,7 +265,7 @@ function parseGovtTemplate(workbook: XLSX.WorkBook): ParsedGstr1Template {
       invoiceDate: String(r["Invoice date"] || "").trim(),
       invoiceValue: r2(Number(r["Invoice Value"]) || 0),
       placeOfSupply: extractStateCode(String(r["Place Of Supply"] || "")),
-      rate: r2(Number(r["Rate"]) || 0),
+      rate: parseRate(r["Rate"]),
       taxableValue: r2(Number(r["Taxable Value"]) || 0),
       cessAmount: r2(Number(r["Cess Amount"]) || 0),
       ecoGstin: String(r["E-Commerce GSTIN"] || "").trim(),
@@ -277,7 +283,7 @@ function parseGovtTemplate(workbook: XLSX.WorkBook): ParsedGstr1Template {
       reverseCharge: String(r["Reverse Charge"] || "").toUpperCase() === "Y",
       noteSupplyType: String(r["Note Supply Type"] || "Regular B2B"),
       noteValue: r2(Number(r["Note Value"]) || 0),
-      rate: r2(Number(r["Rate"]) || 0),
+      rate: parseRate(r["Rate"]),
       taxableValue: r2(Number(r["Taxable Value"]) || 0),
       cessAmount: r2(Number(r["Cess Amount"]) || 0),
     }));
@@ -292,7 +298,7 @@ function parseGovtTemplate(workbook: XLSX.WorkBook): ParsedGstr1Template {
       noteType: String(r["Note Type"] || "C").toUpperCase() === "D" ? "D" : "C",
       placeOfSupply: extractStateCode(String(r["Place Of Supply"] || "")),
       noteValue: r2(Number(r["Note Value"]) || 0),
-      rate: r2(Number(r["Rate"]) || 0),
+      rate: parseRate(r["Rate"]),
       taxableValue: r2(Number(r["Taxable Value"]) || 0),
       cessAmount: r2(Number(r["Cess Amount"]) || 0),
     }));
