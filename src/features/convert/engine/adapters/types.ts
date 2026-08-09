@@ -9,6 +9,7 @@ export interface SourceContext {
   sourceRow: number;
   reportType: string; // e.g. "MTR_B2B", "GST_REPORT"
   supplierGstin?: string; // seller's own GSTIN — used to derive inter-state flag
+  fallbackEcoGstin?: string; // operator GSTIN from user settings (e.g. Amazon GSTIN for the supplier's state)
 }
 
 export interface AdapterResult {

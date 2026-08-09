@@ -22,7 +22,8 @@ export class ImportSessionManager {
    */
   static async processBatch(
     tables: { fileId: string; fileName: string; table: ReconstructedTable }[],
-    supplierGstin?: string
+    supplierGstin?: string,
+    fallbackEcoGstins?: Map<string, string>
   ): Promise<SessionResult> {
     const sessionId = crypto.randomUUID();
     const resultsByPlatform: Record<string, AdapterResult> = {};
@@ -42,6 +43,7 @@ export class ImportSessionManager {
         sourceRow: 0,
         reportType: detection.fileTypeId,
         supplierGstin,
+        fallbackEcoGstin: fallbackEcoGstins?.get(detection.platformId),
       };
 
       // 2. Route to Adapter

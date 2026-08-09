@@ -351,7 +351,7 @@ export class AmazonAdapter {
         sgstRate,
         cessRate,
 
-        ecoGstin: "29XXXXXAMAZON",
+        ecoGstin: context.fallbackEcoGstin ?? "AMAZON_ECO",
         ecoName: "Amazon",
 
         originalInvoiceNumber,

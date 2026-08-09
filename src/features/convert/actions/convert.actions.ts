@@ -151,7 +151,11 @@ export async function parseMultiPlatformFilesAction(
     }
   }
 
-  const sessionResult = await ImportSessionManager.processBatch(rawTables, gstinNumber);
+  const sessionResult = await ImportSessionManager.processBatch(
+    rawTables,
+    gstinNumber,
+    fallbackEcoGstins
+  );
 
   // Add adapter results as batches
   for (const [platformId, result] of Object.entries(sessionResult.resultsByPlatform)) {
