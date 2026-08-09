@@ -194,17 +194,17 @@ export function generateGstr1Json(
       ntty: "C",
       nt_num: r.invoiceNumber,
       nt_dt: toGstnDate(r.invoiceDate),
-      val: Math.abs(r.totalValue),
+      val: -Math.abs(r.totalValue),
       rsn: "01",
       itms: [
         {
           num: 501,
           itm_det: {
-            txval: Math.abs(r.taxableValue),
+            txval: -Math.abs(r.taxableValue),
             rt: r.igstRate > 0 ? r.igstRate : r.cgstRate + r.sgstRate,
-            iamt: Math.abs(r.igstAmount) > 0 ? Math.abs(r.igstAmount) : undefined,
-            camt: Math.abs(r.cgstAmount) > 0 ? Math.abs(r.cgstAmount) : undefined,
-            samt: Math.abs(r.sgstAmount) > 0 ? Math.abs(r.sgstAmount) : undefined,
+            iamt: r.igstAmount !== 0 ? -Math.abs(r.igstAmount) : undefined,
+            camt: r.cgstAmount !== 0 ? -Math.abs(r.cgstAmount) : undefined,
+            samt: r.sgstAmount !== 0 ? -Math.abs(r.sgstAmount) : undefined,
             csamt: 0,
           },
         },
@@ -219,7 +219,7 @@ export function generateGstr1Json(
     ntty: "C",
     nt_num: r.invoiceNumber,
     nt_dt: toGstnDate(r.invoiceDate),
-    val: Math.abs(r.totalValue),
+    val: -Math.abs(r.totalValue),
     pos: r.placeOfSupply,
     sply_ty: supplierState && r.placeOfSupply !== supplierState ? "INTER" : "INTRA",
     rsn: "01",
@@ -227,28 +227,46 @@ export function generateGstr1Json(
       {
         num: 501,
         itm_det: {
-          txval: Math.abs(r.taxableValue),
+          txval: -Math.abs(r.taxableValue),
           rt: r.igstRate > 0 ? r.igstRate : r.cgstRate + r.sgstRate,
-          iamt: Math.abs(r.igstAmount) > 0 ? Math.abs(r.igstAmount) : undefined,
-          camt: Math.abs(r.cgstAmount) > 0 ? Math.abs(r.cgstAmount) : undefined,
-          samt: Math.abs(r.sgstAmount) > 0 ? Math.abs(r.sgstAmount) : undefined,
+          iamt: r.igstAmount !== 0 ? -Math.abs(r.igstAmount) : undefined,
+          camt: r.cgstAmount !== 0 ? -Math.abs(r.cgstAmount) : undefined,
+          samt: r.sgstAmount !== 0 ? -Math.abs(r.sgstAmount) : undefined,
           csamt: 0,
         },
       },
     ],
   }));
 
-  // --- HSN Summary (split into hsn_b2b and hsn_b2c as per GSTN v3.1.6) ---
+  // --- HSN Summary (split into hsn_b2b, hsn_cdnr, and hsn_b2c) ---
   const hsnB2bMap = new Map<string, HsnBucket>();
+  const hsnCdnrMap = new Map<string, HsnBucket>();
   const hsnB2cMap = new Map<string, HsnBucket>();
+
   for (const row of validRows) {
-    const isB2bRow = row.invoiceType === "B2B" || row.invoiceType === "CDNR";
-    const hsnTarget = isB2bRow ? hsnB2bMap : hsnB2cMap;
+    let targetMap = hsnB2cMap;
+    let sign = 1;
+
+    if (row.invoiceType === "B2B") {
+      targetMap = hsnB2bMap;
+      sign = 1;
+    } else if (row.invoiceType === "CDNR") {
+      targetMap = hsnCdnrMap;
+      sign = -1;
+    } else if (row.invoiceType === "CDNCS") {
+      targetMap = hsnB2cMap;
+      sign = -1;
+    } else {
+      targetMap = hsnB2cMap;
+      sign = 1;
+    }
+
     const rt = r2(row.igstRate > 0 ? row.igstRate : row.cgstRate + row.sgstRate);
-    const uqc = row.uqc ?? "PCS";
+    const uqc = row.uqc ?? "NOS";
     const key = `${row.hsnCode}|${rt}|${uqc}`;
-    if (!hsnTarget.has(key)) {
-      hsnTarget.set(key, {
+
+    if (!targetMap.has(key)) {
+      targetMap.set(key, {
         hsn: row.hsnCode,
         desc: row.itemDescription ?? "",
         uqc,
@@ -261,39 +279,34 @@ export function generateGstr1Json(
         rt,
       });
     }
-    const sign =
-      row.taxableValue < 0 || row.invoiceType === "CDNR" || row.invoiceType === "CDNCS" ? -1 : 1;
-    const isB2bRow2 = row.invoiceType === "B2B" || row.invoiceType === "CDNR";
-    const hsnTarget2 = isB2bRow2 ? hsnB2bMap : hsnB2cMap;
-    const rt2 = r2(row.igstRate > 0 ? row.igstRate : row.cgstRate + row.sgstRate);
-    const uqc2 = row.uqc ?? "PCS";
-    const key2 = `${row.hsnCode}|${rt2}|${uqc2}`;
-    const b = hsnTarget2.get(key2)!;
-    if (b) {
-      if (!b.desc && row.itemDescription) b.desc = row.itemDescription;
-      b.txval = r2(b.txval + Math.abs(row.taxableValue) * sign);
-      b.iamt = r2(b.iamt + Math.abs(row.igstAmount) * sign);
-      b.camt = r2(b.camt + Math.abs(row.cgstAmount) * sign);
-      b.samt = r2(b.samt + Math.abs(row.sgstAmount) * sign);
-      b.csamt = r2(b.csamt + Math.abs(row.cessAmount) * sign);
-      b.qty = r2(b.qty + row.quantity * sign);
-    }
+
+    const b = targetMap.get(key)!;
+    if (!b.desc && row.itemDescription) b.desc = row.itemDescription;
+    b.txval = r2(b.txval + Math.abs(row.taxableValue) * sign);
+    b.iamt = r2(b.iamt + Math.abs(row.igstAmount) * sign);
+    b.camt = r2(b.camt + Math.abs(row.cgstAmount) * sign);
+    b.samt = r2(b.samt + Math.abs(row.sgstAmount) * sign);
+    b.csamt = r2(b.csamt + Math.abs(row.cessAmount) * sign);
+    b.qty = r2(b.qty + row.quantity * sign);
   }
+
   const mapToHsnArr = (m: Map<string, HsnBucket>) =>
     Array.from(m.values()).map((val, idx) => ({
       num: idx + 1,
       hsn_sc: val.hsn,
       uqc: val.uqc,
-      qty: Math.max(0, val.qty),
+      qty: val.qty,
       rt: val.rt,
-      txval: Math.max(0, val.txval),
-      iamt: Math.max(0, val.iamt),
-      samt: Math.max(0, val.samt),
-      camt: Math.max(0, val.camt),
-      csamt: Math.max(0, val.csamt),
+      txval: val.txval,
+      iamt: val.iamt,
+      samt: val.samt,
+      camt: val.camt,
+      csamt: val.csamt,
     }));
+
   const hsn = {
     ...(hsnB2bMap.size > 0 ? { hsn_b2b: mapToHsnArr(hsnB2bMap) } : {}),
+    ...(hsnCdnrMap.size > 0 ? { hsn_cdnr: mapToHsnArr(hsnCdnrMap) } : {}),
     ...(hsnB2cMap.size > 0 ? { hsn_b2c: mapToHsnArr(hsnB2cMap) } : {}),
   };
 
