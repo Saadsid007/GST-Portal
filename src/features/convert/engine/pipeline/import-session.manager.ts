@@ -54,10 +54,15 @@ export class ImportSessionManager {
         continue; // silently skip — comparison is handled client-side via compareGstr1Action
       }
 
-      if (detection.platformId === "amazon" && detection.confidence > 50) {
-        result = AmazonAdapter.adapt(table.rows, sourceContext);
-      } else if (detection.platformId === "amazon_stock_transfer" && detection.confidence > 50) {
-        result = StockTransferAdapter.adapt(table.rows, sourceContext);
+      if (
+        (detection.platformId === "amazon" || detection.platformId === "amazon_stock_transfer") &&
+        detection.confidence > 50
+      ) {
+        if (detection.fileTypeId === "stock_transfer") {
+          result = StockTransferAdapter.adapt(table.rows, sourceContext);
+        } else {
+          result = AmazonAdapter.adapt(table.rows, sourceContext);
+        }
       } else if (detection.platformId === "meesho" && detection.confidence > 50) {
         result = MeeshoAdapter.adapt(table.rows, sourceContext);
       } else if (detection.platformId === "flipkart" && detection.confidence > 50) {

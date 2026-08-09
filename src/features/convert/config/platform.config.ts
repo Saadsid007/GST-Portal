@@ -89,32 +89,6 @@ export const PLATFORMS_CONFIG: PlatformConfig[] = [
     ],
   },
   {
-    id: "amazon_stock_transfer",
-    name: "Amazon FC Stock Transfer",
-    description: "Amazon inter-Fulfillment Center stock transfer (MTR_STOCK_TRANSFER)",
-    iconName: "ArrowLeftRight",
-    badge: "FC Transfer",
-    accentColor: "from-amber-400 to-yellow-500",
-    files: [
-      {
-        id: "stock_transfer",
-        name: "Stock Transfer Report",
-        description: "MTR_STOCK_TRANSFER CSV from Amazon Seller Central",
-        required: true,
-        fileTypes: [".xlsx", ".xls", ".csv"],
-        headerKeywords: [
-          // These keywords are unique to the stock transfer file and won't match regular MTR
-          "gstinofrecceiver",
-          "shipfromfc",
-          "shiptofc",
-          "irnnumber",
-          "gstinsupplier",
-        ],
-      },
-    ],
-  },
-
-  {
     id: "meesho",
     name: "Meesho Supplier Panel",
     description: "Meesho Supplier Panel Sales & Sales Return Reports",
