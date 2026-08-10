@@ -22,7 +22,9 @@ export class MeeshoAdapter {
     let _errorRows = 0;
 
     const isReturnReport =
-      context.reportType === "returns" || context.fileName.toLowerCase().includes("return");
+      context.reportType === "returns" ||
+      context.reportType === "tcs_sales_return" ||
+      context.fileName.toLowerCase().includes("return");
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i]!;
@@ -50,18 +52,9 @@ export class MeeshoAdapter {
         continue;
       }
 
-      // 2. Identities
-      // GSTR-1 mandates invoice numbers ≤ 16 characters (GSTN hard limit).
-      // Meesho sub_order_num (e.g. "303488396337487040_1") is 18-21 chars.
-      //
-      // Strategy: keep the item suffix (_1, _2 etc.) intact and fit the
-      // numeric part into remaining space. This avoids suffix collisions
-      // while satisfying GSTN's 16-char limit.
-      //
-      // Example: "303488396337487040_1" (20 chars)
-      //   suffix = "_1" (2 chars)
-      //   numeric tail = last 14 chars of "303488396337487040" = "96337487040_1"
-      //   result = "96337487040" + "_1" = 13 chars ✓ ≤ 16
+      // 2. Invoice Number
+      // GSTN limit is 16 chars. For sub_order_num (e.g. "313318095866203520_1"),
+      // slice last 16 chars to preserve item suffix _1 and unique order tail.
       const rawInvoiceNumber = (
         row["sub_order_num"] ||
         row["sub_order_no"] ||
@@ -72,27 +65,38 @@ export class MeeshoAdapter {
 
       let invoiceNumber = rawInvoiceNumber;
       if (rawInvoiceNumber.length > 16) {
-        // Split off trailing _N suffix if present (e.g. "_1", "_12")
-        const suffixMatch = rawInvoiceNumber.match(/(_\d+)$/);
-        const suffix: string = suffixMatch?.[1] ?? "";
-        const numericPart = suffix ? rawInvoiceNumber.slice(0, -suffix.length) : rawInvoiceNumber;
-        // Take last chars of numeric part to fill up to 16 total
-        const maxNumeric = 16 - suffix.length;
-        invoiceNumber = numericPart.slice(-maxNumeric) + suffix;
+        invoiceNumber = rawInvoiceNumber.slice(-16);
       }
 
+      // 3. Date
       const rawInvoiceDate = (
-        row["order_date"] ||
-        row["cancel_return_date"] ||
-        row["manifest_date"] ||
-        row["Invoice Date"] ||
-        ""
-      ).trim();
+        txType === "Return"
+          ? row["cancel_return_date"] || row["order_date"] || row["manifest_date"]
+          : row["order_date"] || row["manifest_date"] || row["cancel_return_date"]
+      ) || "";
 
-      const invoiceDate = transformDate(rawInvoiceDate) || rawInvoiceDate;
+      const invoiceDate = transformDate(rawInvoiceDate.trim()) || rawInvoiceDate.trim();
 
-      const buyerGstin = (row["gstin"] || row["Customer GSTIN"] || row["Buyer Gstin"] || "").trim();
+      // 4. Buyer GSTIN & Category
+      // Note: row["gstin"] in Meesho TCS report is SELLER GSTIN, NOT BUYER GSTIN.
+      // Buyer GSTIN is only present if explicitly in "Customer GSTIN" or "Buyer Gstin".
+      const rawBuyerGstin = (row["Customer GSTIN"] || row["Buyer Gstin"] || row["recipient_gstin"] || "").trim();
+      const buyerGstin =
+        rawBuyerGstin && rawBuyerGstin.toUpperCase() !== context.supplierGstin?.toUpperCase()
+          ? rawBuyerGstin
+          : "";
 
+      const isB2B = Boolean(buyerGstin);
+
+      let invoiceType: InvoiceCategory;
+      if (isB2B) {
+        invoiceType = txType === "Return" ? "CDNR" : "B2B";
+      } else {
+        // B2C: Sales go to B2CS, Returns go to CDNCS (which nets off in B2CS Table 7)
+        invoiceType = txType === "Return" ? "CDNCS" : "B2CS";
+      }
+
+      // 5. Place of Supply
       const rawPos = (
         row["end_customer_state_new"] ||
         row["end_customer_state"] ||
@@ -104,14 +108,7 @@ export class MeeshoAdapter {
 
       const pos = transformStateCode(rawPos) || rawPos;
 
-      const isB2B = Boolean(buyerGstin);
-
-      let invoiceType: InvoiceCategory = isB2B ? "B2B" : "B2CS";
-      if (txType === "Return") {
-        invoiceType = "CDNR";
-      }
-
-      // 3. Taxable & Tax Values
+      // 6. Taxable & Tax Values
       let taxableValue = parseFloat(
         row["total_taxable_sale_value"] || row["Taxable Value"] || row["Taxable Amount"] || "0"
       );
@@ -137,7 +134,7 @@ export class MeeshoAdapter {
         ) || taxableValue + totalTax
       );
 
-      // 4. Rate
+      // 7. Rate
       let gstRate = parseFloat(row["gst_rate"] || row["GST Rate"] || row["Tax Rate"] || "0");
       if (!gstRate && Math.abs(taxableValue) > 0 && Math.abs(totalTax) > 0) {
         gstRate = Math.round((Math.abs(totalTax) / Math.abs(taxableValue)) * 100);
@@ -151,65 +148,49 @@ export class MeeshoAdapter {
         );
       }
 
-      // Determine inter-state vs intra-state.
-      // Meesho TCS file has NO separate IGST/CGST/SGST columns.
-      // The ONLY reliable signal is: supplier GSTIN state vs customer state (POS).
-      // Extract supplier GSTIN from the row itself (Meesho puts it in 'gstin' column).
-      const supplierGstin = (
-        rows[0]?.["gstin"] ||
-        rows[0]?.["Supplier GSTIN"] ||
-        context.supplierGstin ||
-        ""
-      ).trim();
-      const supplierStateCode = supplierGstin.substring(0, 2);
-      const customerStateCode = pos; // already normalized 2-digit code
-      const isInterState =
-        supplierStateCode !== "" &&
-        customerStateCode !== "" &&
-        supplierStateCode !== customerStateCode;
+      const isInterState = context.supplierGstin
+        ? context.supplierGstin.substring(0, 2) !== pos
+        : true;
 
       let igstRate = 0;
       let cgstRate = 0;
       let sgstRate = 0;
-
       let igstAmount = 0;
       let cgstAmount = 0;
       let sgstAmount = 0;
 
       if (isInterState) {
         igstRate = gstRate;
-        igstAmount = totalTax;
+        igstAmount = round2(taxableValue * (gstRate / 100));
       } else {
         cgstRate = gstRate / 2;
         sgstRate = gstRate / 2;
-        cgstAmount = round2(totalTax / 2);
-        sgstAmount = round2(totalTax / 2);
+        cgstAmount = round2(taxableValue * (gstRate / 200));
+        sgstAmount = round2(taxableValue * (gstRate / 200));
       }
 
-      const cessRate = 0;
+      // HSN
+      const hsnCode = transformHsn(row["hsn_code"] || row["HSN Code"] || row["HSN"]);
 
-      // Returns mapping
-      let originalInvoiceNumber = undefined;
-      if (txType === "Return") {
-        originalInvoiceNumber = row["Original Invoice Number"] || invoiceNumber;
-      }
+      // ECO GSTIN
+      const ecoGstin = (row["eco_tcs_gstin"] || row["ECO GSTIN"] || "09AARCM9332R1CM").trim();
 
-      // Validation
-      if (!invoiceNumber) {
-        errors.push("Missing Invoice Number");
-      }
-      if (!invoiceDate) {
-        errors.push("Missing Invoice Date");
-      }
-      if (!pos) {
-        errors.push("Missing Place of Supply");
-      }
+      // Quantity
+      const quantity = parseInt(row["quantity"] || row["Qty"] || "1", 10) || 1;
+
+      // Validation check
+      if (!invoiceNumber) errors.push("Missing Invoice Number");
+      if (!invoiceDate) errors.push("Missing Invoice Date");
+      if (!pos) errors.push("Missing Place of Supply");
+
+      if (errors.length === 0) _validRows++;
+      else _errorRows++;
 
       const tx: NormalizedInvoiceRow = {
         id: crypto.randomUUID(),
         rowIndex: i + 1,
         sourcePlatformId: "meesho",
-        sourcePlatformName: "Meesho Supplier Panel",
+        sourcePlatformName: "Meesho",
         sourceFileName: context.fileName,
         sourceFileType: context.reportType,
         transactionType: txType,
@@ -218,78 +199,45 @@ export class MeeshoAdapter {
         invoiceDate,
         invoiceType,
 
-        buyerName: row["sup_name"] || "Meesho Customer",
+        buyerName: "Meesho B2C Customer",
         buyerGstin,
         placeOfSupply: pos,
 
-        itemDescription: row["Product Name"] || row["Item Description"] || "",
-        hsnCode: transformHsn(row["hsn_code"] || row["HSN Code"] || row["HSN"]),
-        uqc: "NOS",
-        quantity: parseInt(row["quantity"] || row["Quantity"] || "1", 10) || 1,
+        itemDescription: `Meesho Order ${invoiceNumber}`,
+        hsnCode,
+        uqc: "PCS",
+        quantity,
 
-        taxableValue,
-        igstAmount,
-        cgstAmount,
-        sgstAmount,
-        cessAmount,
         totalValue,
+        taxableValue,
 
         igstRate,
         cgstRate,
         sgstRate,
-        cessRate,
+        cessRate: 0,
 
-        ecoGstin: row["eco_tcs_gstin"] || "09AARCM9332R1CM",
-        ecoName: "Meesho",
+        igstAmount,
+        cgstAmount,
+        sgstAmount,
+        cessAmount: 0,
 
-        originalInvoiceNumber,
+        ecoGstin,
+        ecoName: "Fashnear Technologies Private Limited (Meesho)",
+
         errors,
+        reviews: [],
       };
-
-      if (errors.length > 0) {
-        _errorRows++;
-      } else {
-        _validRows++;
-      }
 
       transactions.push(tx);
     }
 
-    // POST-PROCESSING: Consolidate multi-item orders.
-    // Some platforms export one row per SKU within the same sub_order_num.
-    // GSTR-1 requires one row per invoice — merge rows sharing invoiceNumber + transactionType.
-    const invoiceMap = new Map<string, NormalizedInvoiceRow>();
-    for (const tx of transactions) {
-      const key = `${tx.transactionType}::${tx.invoiceNumber}`;
-      const existing = invoiceMap.get(key);
-      if (!existing) {
-        invoiceMap.set(key, tx);
-      } else {
-        existing.taxableValue = round2(existing.taxableValue + tx.taxableValue);
-        existing.igstAmount = round2(existing.igstAmount + tx.igstAmount);
-        existing.cgstAmount = round2(existing.cgstAmount + tx.cgstAmount);
-        existing.sgstAmount = round2(existing.sgstAmount + tx.sgstAmount);
-        existing.cessAmount = round2(existing.cessAmount + tx.cessAmount);
-        existing.totalValue = round2(existing.totalValue + tx.totalValue);
-        existing.quantity = (existing.quantity || 1) + (tx.quantity || 1);
-      }
-    }
-
-    const consolidated = Array.from(invoiceMap.values());
-    let finalValidRows = 0;
-    let finalErrorRows = 0;
-    for (const tx of consolidated) {
-      if (tx.errors.length > 0) finalErrorRows++;
-      else finalValidRows++;
-    }
-
     return {
       sourceContext: context,
-      transactions: consolidated,
+      transactions,
       unmappedColumns: Array.from(unmappedColumns),
       totalRows: rows.length,
-      validRows: finalValidRows,
-      errorRows: finalErrorRows,
+      validRows: _validRows,
+      errorRows: _errorRows,
     };
   }
 }
