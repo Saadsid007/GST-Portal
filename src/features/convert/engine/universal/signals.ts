@@ -10,7 +10,7 @@ import { STATE_CODES } from "@/features/convert/domain/state-codes";
  */
 
 /** Structure of a GSTIN: state code, PAN, entity number, Z, checksum. */
-export const GSTIN_PATTERN = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/i;
+export const GSTIN_PATTERN = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z][0-9A-Z][0-9A-Z]$/i;
 
 /** GST slabs notified under the Act, plus the cess-only 0.1/0.25 rates. */
 export const GST_SLABS = [0, 0.1, 0.25, 1, 1.5, 3, 5, 6, 7.5, 12, 18, 28] as const;

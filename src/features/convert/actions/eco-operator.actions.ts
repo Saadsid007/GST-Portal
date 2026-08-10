@@ -6,7 +6,7 @@ import { requireSession } from "@/features/auth";
 import { getPlatformConfig } from "@/features/convert/config/platform.config";
 import prisma from "@/lib/prisma";
 
-const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}[0-9A-Z]{1}[0-9A-Z]{1}$/;
 
 const saveSchema = z.object({
   gstinNumber: z.string().min(1),

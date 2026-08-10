@@ -9,7 +9,7 @@ import {
 } from "@/features/convert/engine/error-center/rate-suggester";
 import type { NormalizedInvoiceRow, ValidationIssue } from "@/features/convert/types/convert.types";
 
-const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}[0-9A-Z]{1}[0-9A-Z]{1}$/;
 
 function round2(n: number) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
