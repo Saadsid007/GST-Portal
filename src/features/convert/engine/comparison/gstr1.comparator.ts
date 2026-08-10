@@ -110,21 +110,33 @@ export class Gstr1Comparator {
     };
 
     // ── Split our rows by section ─────────────────────────────────────────
-    const ourB2b = ourRows.filter(
+    const ourB2bRaw = ourRows.filter(
       (r) => r.invoiceType === "B2B" && r.transactionType === "Sales" && r.errors.length === 0
     );
+    // Aggregate B2B rows by invoice number so multi-line invoices (like BLR7-T-7) match ref 1:1
+    const aggregatedB2bMap = new Map<string, NormalizedInvoiceRow>();
+    for (const r of ourB2bRaw) {
+      const key = r.invoiceNumber.trim().toLowerCase();
+      if (!aggregatedB2bMap.has(key)) {
+        aggregatedB2bMap.set(key, { ...r });
+      } else {
+        const existing = aggregatedB2bMap.get(key)!;
+        existing.taxableValue = r2(existing.taxableValue + r.taxableValue);
+        existing.totalValue = r2(existing.totalValue + r.totalValue);
+        existing.igstAmount = r2(existing.igstAmount + r.igstAmount);
+        existing.cgstAmount = r2(existing.cgstAmount + r.cgstAmount);
+        existing.sgstAmount = r2(existing.sgstAmount + r.sgstAmount);
+        existing.cessAmount = r2(existing.cessAmount + r.cessAmount);
+      }
+    }
+    const ourB2b = Array.from(aggregatedB2bMap.values());
+
     const ourCdnr = ourRows.filter((r) => r.invoiceType === "CDNR" && r.errors.length === 0);
-    // Note: CDNUR (B2C credit notes) are stored as CDNR in our system.
-    // The reference template may have a separate CDNUR sheet; we compare them against
-    // our CDNR rows by note number.
-    const ourB2cs = ourRows.filter(
-      (r) => r.invoiceType === "B2CS" && r.transactionType === "Sales" && r.errors.length === 0
-    );
     const ourB2cl = ourRows.filter(
       (r) => r.invoiceType === "B2CL" && r.transactionType === "Sales" && r.errors.length === 0
     );
 
-    result.totalOurInvoices = ourB2b.length + ourCdnr.length + ourB2cs.length + ourB2cl.length;
+    result.totalOurInvoices = ourB2b.length + ourCdnr.length + ourB2cl.length;
     result.totalRefInvoices =
       ref.b2b.length + ref.cdnr.length + ref.b2cs.length + ref.b2cl.length + ref.cdnur.length;
 
@@ -302,12 +314,17 @@ export class Gstr1Comparator {
       }
     }
 
-    // ── B2CS Comparison (aggregate by POS + rate) ─────────────────────────
+    // ── B2CS Comparison (aggregate by POS + rate, netting off B2C returns) ──
+    const ourB2cRows = ourRows.filter(
+      (r) => (r.invoiceType === "B2CS" || r.invoiceType === "CDNCS") && r.errors.length === 0
+    );
     const ourB2csMap = new Map<string, number>();
-    for (const r of ourB2cs) {
+    for (const r of ourB2cRows) {
       const k = `${r.placeOfSupply}|${gstRate(r)}`;
-      ourB2csMap.set(k, r2((ourB2csMap.get(k) ?? 0) + r.taxableValue));
-      result.b2csTotalOur = r2(result.b2csTotalOur + r.taxableValue);
+      const sign = r.invoiceType === "CDNCS" ? -1 : 1;
+      const val = r2(Math.abs(r.taxableValue) * sign);
+      ourB2csMap.set(k, r2((ourB2csMap.get(k) ?? 0) + val));
+      result.b2csTotalOur = r2(result.b2csTotalOur + val);
     }
 
     const refB2csMap = new Map<string, number>();
@@ -353,7 +370,7 @@ export class Gstr1Comparator {
       const ours = ourCdnrMap.get(key);
       const refRow = refCdnrMap.get(key);
       if (ours && refRow) {
-        const ourTax = totalTax(ours);
+        const ourTax = Math.abs(totalTax(ours));
         const refTax = r2(refRow.taxableValue * (refRow.rate / 100));
         const diffTaxable = r2(Math.abs(ours.taxableValue) - refRow.taxableValue);
         const diffTax = r2(ourTax - refTax);
