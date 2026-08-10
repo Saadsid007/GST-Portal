@@ -130,6 +130,22 @@ function posLabel(code: string): string {
 // Export
 // ─────────────────────────────────────────────────────────────────────────────
 
+function isStockTransferRow(r: NormalizedInvoiceRow, gstin: string): boolean {
+  if (r.sourcePlatformId === "amazon_stock_transfer") return true;
+  if (
+    (r.transactionType as string) === "FC_TRANSFER" ||
+    (r.transactionType as string) === "FC_REMOVAL"
+  )
+    return true;
+  if (/-(T|D)-\d+$/i.test(r.invoiceNumber) || r.invoiceNumber.startsWith("AFT-")) return true;
+  if (r.buyerGstin && gstin && r.buyerGstin.length >= 12 && gstin.length >= 12) {
+    const buyerPan = r.buyerGstin.substring(2, 12).toUpperCase();
+    const sellerPan = gstin.substring(2, 12).toUpperCase();
+    if (buyerPan === sellerPan) return true;
+  }
+  return false;
+}
+
 export function generateGstr1Excel(
   rows: NormalizedInvoiceRow[],
   gstin: string,
@@ -141,7 +157,7 @@ export function generateGstr1Excel(
   const workbook = XLSX.utils.book_new();
 
   // ─── B2B Sheet ("b2b,sez,de") ──────────────────────────────────────────
-  const b2bRows = validRows.filter((r) => r.invoiceType === "B2B");
+  const b2bRows = validRows.filter((r) => r.invoiceType === "B2B" && !isStockTransferRow(r, gstin));
   const b2bRecipients = new Set(b2bRows.map((r) => r.buyerGstin)).size;
   const b2bInvCount = b2bRows.length;
   const b2bTotalInvVal = r2(b2bRows.reduce((s, r) => s + r.totalValue, 0));
@@ -565,7 +581,7 @@ export function generateGstr1Excel(
   // ─── DOCS Sheet ────────────────────────────────────────────────────────
   // Split invoices by prefix (BLR7, BLR8, etc.) and compute cancelled from sequence gaps.
   const invoiceDocs = validRows.filter(
-    (r) => r.invoiceType !== "CDNR" && r.invoiceType !== "CDNCS"
+    (r) => r.invoiceType !== "CDNR" && r.invoiceType !== "CDNCS" && !isStockTransferRow(r, gstin)
   );
   const noteDocs = validRows.filter((r) => r.invoiceType === "CDNR" || r.invoiceType === "CDNCS");
 

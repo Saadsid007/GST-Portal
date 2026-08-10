@@ -57,6 +57,22 @@ function deriveFilingPeriod(rows: NormalizedInvoiceRow[], period?: string): stri
   return `${mm}${yyyy}`;
 }
 
+function isStockTransferRow(r: NormalizedInvoiceRow, gstin: string): boolean {
+  if (r.sourcePlatformId === "amazon_stock_transfer") return true;
+  if (
+    (r.transactionType as string) === "FC_TRANSFER" ||
+    (r.transactionType as string) === "FC_REMOVAL"
+  )
+    return true;
+  if (/-(T|D)-\d+$/i.test(r.invoiceNumber) || r.invoiceNumber.startsWith("AFT-")) return true;
+  if (r.buyerGstin && gstin && r.buyerGstin.length >= 12 && gstin.length >= 12) {
+    const buyerPan = r.buyerGstin.substring(2, 12).toUpperCase();
+    const sellerPan = gstin.substring(2, 12).toUpperCase();
+    if (buyerPan === sellerPan) return true;
+  }
+  return false;
+}
+
 export function generateGstr1Json(
   rows: NormalizedInvoiceRow[],
   gstin: string,
@@ -68,7 +84,7 @@ export function generateGstr1Json(
   const fp = deriveFilingPeriod(validRows, period);
 
   // --- B2B ---
-  const b2bRows = validRows.filter((r) => r.invoiceType === "B2B");
+  const b2bRows = validRows.filter((r) => r.invoiceType === "B2B" && !isStockTransferRow(r, gstin));
   const b2bMap = new Map<string, { inv: typeof b2bRows }>();
   for (const row of b2bRows) {
     const key = row.buyerGstin;
@@ -298,9 +314,10 @@ export function generateGstr1Json(
 
   // --- Document Summary ---
   const invoiceDocs = validRows.filter(
-    (r) => r.invoiceType !== "CDNR" && r.invoiceType !== "CDNCS"
+    (r) => r.invoiceType !== "CDNR" && r.invoiceType !== "CDNCS" && !isStockTransferRow(r, gstin)
   );
   const noteDocs = validRows.filter((r) => r.invoiceType === "CDNR" || r.invoiceType === "CDNCS");
+
   const docSeries = (docNum: number, docTyp: string, list: NormalizedInvoiceRow[]) => {
     if (list.length === 0) {
       return {
@@ -310,37 +327,57 @@ export function generateGstr1Json(
       };
     }
 
-    const sorted = [...list].sort((a, b) => {
-      const numA = parseInt((a.invoiceNumber.match(/\d+/g) || []).pop() || "0", 10);
-      const numB = parseInt((b.invoiceNumber.match(/\d+/g) || []).pop() || "0", 10);
-      return numA - numB;
-    });
+    const prefixGroups = new Map<string, NormalizedInvoiceRow[]>();
+    for (const r of list) {
+      const inv = r.invoiceNumber;
+      const lastDash = inv.lastIndexOf("-");
+      const prefix = lastDash > 0 ? inv.substring(0, lastDash) : inv;
+      if (!prefixGroups.has(prefix)) prefixGroups.set(prefix, []);
+      prefixGroups.get(prefix)!.push(r);
+    }
 
-    const first = sorted[0]?.invoiceNumber ?? "";
-    const last = sorted[sorted.length - 1]?.invoiceNumber ?? "";
+    const docsArr: Array<{
+      num: number;
+      from: string;
+      to: string;
+      totnum: number;
+      cancel: number;
+      net_issue: number;
+    }> = [];
+    let numIdx = 1;
 
-    const firstNum = parseInt((first.match(/\d+/g) || []).pop() || "0", 10);
-    const lastNum = parseInt((last.match(/\d+/g) || []).pop() || "0", 10);
+    for (const [, items] of prefixGroups) {
+      const sorted = [...items].sort((a, b) => {
+        const numA = parseInt((a.invoiceNumber.match(/\d+/g) || []).pop() || "0", 10);
+        const numB = parseInt((b.invoiceNumber.match(/\d+/g) || []).pop() || "0", 10);
+        return numA - numB;
+      });
 
-    const actualCount = list.length;
-    const rangeCount = lastNum >= firstNum && firstNum > 0 ? lastNum - firstNum + 1 : actualCount;
-    const totnum = Math.max(actualCount, rangeCount);
-    const cancel = Math.max(0, totnum - actualCount);
-    const netIssue = totnum - cancel;
+      const first = sorted[0]?.invoiceNumber ?? "";
+      const last = sorted[sorted.length - 1]?.invoiceNumber ?? "";
+      const firstNum = parseInt((first.match(/\d+/g) || []).pop() || "0", 10);
+      const lastNum = parseInt((last.match(/\d+/g) || []).pop() || "0", 10);
+
+      const actualCount = items.length;
+      const rangeCount = lastNum >= firstNum && firstNum > 0 ? lastNum - firstNum + 1 : actualCount;
+      const totnum = Math.max(actualCount, rangeCount);
+      const cancel = Math.max(0, totnum - actualCount);
+      const netIssue = totnum - cancel;
+
+      docsArr.push({
+        num: numIdx++,
+        from: first,
+        to: last,
+        totnum,
+        cancel,
+        net_issue: netIssue,
+      });
+    }
 
     return {
       doc_num: docNum,
       doc_typ: docTyp,
-      docs: [
-        {
-          num: 1,
-          from: first,
-          to: last,
-          totnum,
-          cancel,
-          net_issue: netIssue,
-        },
-      ],
+      docs: docsArr,
     };
   };
   const docIssue = {

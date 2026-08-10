@@ -22,7 +22,7 @@ function toIsoDay(date: Date): string {
 
 export function transformDate(val: unknown): string {
   if (val === undefined || val === null || val === "") {
-    return toIsoDay(new Date());
+    return "";
   }
 
   // A true Excel date cell (read with cellDates) already carries the exact calendar day.
@@ -30,10 +30,13 @@ export function transformDate(val: unknown): string {
     return toIsoDay(val);
   }
 
-  const str = String(val).trim();
+  let str = String(val).trim();
 
-  // Excel serial number e.g. 45123
-  if (/^\d{5}$/.test(str)) {
+  // Strip time part if present: "19/06/2026 13:51:00" -> "19/06/2026", "2026-06-19T13:51:00Z" -> "2026-06-19"
+  str = str.replace(/T.*$/, "").replace(/\s+\d{1,2}:\d{2}(:\d{2})?.*$/, "");
+
+  // Excel serial number e.g. 45123 or 46174.1013888889
+  if (/^\d{5}(\.\d+)?$/.test(str)) {
     const excelEpoch = new Date(1899, 11, 30);
     const days = Number(str);
     const date = new Date(excelEpoch.getTime() + days * 86400000);
@@ -49,13 +52,39 @@ export function transformDate(val: unknown): string {
     return `${year}-${month}-${day}`;
   }
 
-  // YYYY-MM-DD
+  // YYYY-MM-DD or YYYY/MM/DD
   const yyyymmdd = /^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/.exec(str);
   if (yyyymmdd && yyyymmdd[1] && yyyymmdd[2] && yyyymmdd[3]) {
     const year = yyyymmdd[1];
     const month = yyyymmdd[2].padStart(2, "0");
     const day = yyyymmdd[3].padStart(2, "0");
     return `${year}-${month}-${day}`;
+  }
+
+  // DD-MMM-YYYY e.g. 20-Jun-2026 or 20-JUNE-2026
+  const ddmmmyyyy = /^(\d{1,2})[/-]([A-Za-z]{3,9})[/-](\d{4})$/.exec(str);
+  if (ddmmmyyyy && ddmmmyyyy[1] && ddmmmyyyy[2] && ddmmmyyyy[3]) {
+    const day = ddmmmyyyy[1].padStart(2, "0");
+    const monthStr = ddmmmyyyy[2].toLowerCase();
+    const months = [
+      "jan",
+      "feb",
+      "mar",
+      "apr",
+      "may",
+      "jun",
+      "jul",
+      "aug",
+      "sep",
+      "oct",
+      "nov",
+      "dec",
+    ];
+    const monthIdx = months.findIndex((m) => monthStr.startsWith(m));
+    if (monthIdx >= 0) {
+      const month = String(monthIdx + 1).padStart(2, "0");
+      return `${ddmmmyyyy[3]}-${month}-${day}`;
+    }
   }
 
   try {
@@ -67,7 +96,7 @@ export function transformDate(val: unknown): string {
     // fallback
   }
 
-  return toIsoDay(new Date());
+  return "";
 }
 
 /**
