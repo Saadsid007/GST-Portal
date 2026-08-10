@@ -847,6 +847,12 @@ export function generateGstr1Excel(
     ["Inter-State supplies to unregistered persons"],
   ]);
 
+  const isStockTransferRow = (r: NormalizedInvoiceRow) =>
+    r.sourcePlatformId === "amazon_stock_transfer" ||
+    (r.transactionType as string) === "FC_TRANSFER" ||
+    (r.transactionType as string) === "FC_REMOVAL" ||
+    /-(T|D)-\d+$/i.test(r.invoiceNumber);
+
   // 19. hsn(b2b) Sheet
   type HsnBucket = {
     hsn: string;
@@ -962,9 +968,13 @@ export function generateGstr1Excel(
     ];
   };
 
-  const hsnB2bMap = buildHsnMap((r) => r.invoiceType === "B2B" || r.invoiceType === "CDNR");
+  const hsnB2bMap = buildHsnMap(
+    (r) => (r.invoiceType === "B2B" || r.invoiceType === "CDNR") && !isStockTransferRow(r)
+  );
   const _hsnB2cMap = buildHsnMap(
-    (r) => r.invoiceType === "B2CS" || r.invoiceType === "B2CL" || r.invoiceType === "CDNCS"
+    (r) =>
+      (r.invoiceType === "B2CS" || r.invoiceType === "B2CL" || r.invoiceType === "CDNCS") &&
+      !isStockTransferRow(r)
   );
 
   addSheetWithData("hsn(b2b)", buildHsnSheet(hsnB2bMap));
@@ -1003,11 +1013,6 @@ export function generateGstr1Excel(
 
   // 21. docs Sheet
   // Split invoices by prefix (BLR7, BLR8, etc.)
-  const isStockTransferRow = (r: NormalizedInvoiceRow) =>
-    r.sourcePlatformId === "amazon_stock_transfer" ||
-    (r.transactionType as string) === "FC_TRANSFER" ||
-    (r.transactionType as string) === "FC_REMOVAL" ||
-    /-(T|D)-\d+$/i.test(r.invoiceNumber);
 
   const invoiceDocs = validRows.filter(
     (r) => r.invoiceType !== "CDNR" && r.invoiceType !== "CDNCS" && !isStockTransferRow(r)
@@ -1087,20 +1092,22 @@ export function generateGstr1Excel(
     string,
     { ecoName: string; txval: number; iamt: number; camt: number; samt: number; csamt: number }
   >();
-  validRows.forEach((r) => {
-    const etin = r.ecoGstin || "29AAICA3918J1CP"; // Default Amazon TCS GSTIN
-    const isCreditNote = r.invoiceType === "CDNR" || r.invoiceType === "CDNCS";
-    const sign = isCreditNote ? -1 : 1;
-    if (!ecoAgg.has(etin)) {
-      ecoAgg.set(etin, { ecoName: "", txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0 });
-    }
-    const b = ecoAgg.get(etin)!;
-    b.txval = r2(b.txval + Math.abs(r.taxableValue) * sign);
-    b.iamt = r2(b.iamt + Math.abs(r.igstAmount) * sign);
-    b.camt = r2(b.camt + Math.abs(r.cgstAmount) * sign);
-    b.samt = r2(b.samt + Math.abs(r.sgstAmount) * sign);
-    b.csamt = r2(b.csamt + Math.abs(r.cessAmount) * sign);
-  });
+  validRows
+    .filter((r) => !isStockTransferRow(r))
+    .forEach((r) => {
+      const etin = r.ecoGstin || "29AAICA3918J1CP"; // Default Amazon TCS GSTIN
+      const isCreditNote = r.invoiceType === "CDNR" || r.invoiceType === "CDNCS";
+      const sign = isCreditNote ? -1 : 1;
+      if (!ecoAgg.has(etin)) {
+        ecoAgg.set(etin, { ecoName: "", txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0 });
+      }
+      const b = ecoAgg.get(etin)!;
+      b.txval = r2(b.txval + Math.abs(r.taxableValue) * sign);
+      b.iamt = r2(b.iamt + Math.abs(r.igstAmount) * sign);
+      b.camt = r2(b.camt + Math.abs(r.cgstAmount) * sign);
+      b.samt = r2(b.samt + Math.abs(r.sgstAmount) * sign);
+      b.csamt = r2(b.csamt + Math.abs(r.cessAmount) * sign);
+    });
   const ecoVals = Array.from(ecoAgg.entries());
   const ecoOperators = ecoVals.length;
   const ecoTotalSupp = r2(ecoVals.reduce((s, [, v]) => s + v.txval, 0));
