@@ -190,7 +190,7 @@ export class StockTransferAdapter {
           taxableValue + igstAmount + cgstAmount + sgstAmount + cessAmount
       );
 
-      const hsnCode = transformHsn(row["Hsn Code"] || row["HSN Code"]);
+      const hsnCode = transformHsn(row["Hsn Code"] || row["HSN Code"]) || "441900";
       const txTypeFinal: TransactionType = isOrphanCancel ? "Return" : "Sales";
 
       // ── Validation ───────────────────────────────────────────────────────

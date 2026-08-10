@@ -276,34 +276,12 @@ export class AmazonAdapter {
 
       if (isInterState) {
         igstRate = gstRate;
-        // For IGST amount: use the raw IGST tax column if present;
-        // otherwise use totalTax (all tax for this row is IGST).
-        // Guard: if rawCgstTax or rawSgstTax are non-zero and rawIgstTax is zero,
-        // the raw amounts were in CGST/SGST columns — sum them as IGST.
-        igstAmount =
-          rawIgstTax !== 0
-            ? round2(rawIgstTax)
-            : rawCgstTax !== 0 || rawSgstTax !== 0
-              ? round2(rawCgstTax + rawSgstTax) // swap: was intra, now inter
-              : totalTax;
+        igstAmount = round2(taxableValue * (gstRate / 100));
       } else {
         cgstRate = gstRate / 2;
         sgstRate = gstRate / 2;
-        // For CGST/SGST amount: use raw columns if present;
-        // otherwise split totalTax 50/50.
-        // Guard: if rawIgstTax is non-zero and cgst/sgst are zero,
-        // the raw amounts were in IGST column — split as CGST+SGST.
-        if (rawCgstTax !== 0 || rawSgstTax !== 0) {
-          cgstAmount = round2(rawCgstTax);
-          sgstAmount = round2(rawSgstTax);
-        } else if (rawIgstTax !== 0) {
-          // swap: was inter, now intra
-          cgstAmount = round2(rawIgstTax / 2);
-          sgstAmount = round2(rawIgstTax / 2);
-        } else {
-          cgstAmount = round2(totalTax / 2);
-          sgstAmount = round2(totalTax / 2);
-        }
+        cgstAmount = round2(taxableValue * (gstRate / 200));
+        sgstAmount = round2(taxableValue * (gstRate / 200));
       }
 
       const cessRate = 0;

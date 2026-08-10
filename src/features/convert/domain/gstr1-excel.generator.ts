@@ -339,18 +339,19 @@ export function generateGstr1Excel(
     { txval: number; iamt: number; camt: number; samt: number; rt: number; pos: string }
   >();
   validRows
-    .filter((r) => r.invoiceType === "B2CS")
+    .filter((r) => r.invoiceType === "B2CS" || r.invoiceType === "CDNCS")
     .forEach((r) => {
       const rt = r2(r.igstRate > 0 ? r.igstRate : r.cgstRate + r.sgstRate);
       const key = `${r.placeOfSupply}|${rt}`;
       if (!b2csAgg.has(key)) {
         b2csAgg.set(key, { txval: 0, iamt: 0, camt: 0, samt: 0, rt, pos: r.placeOfSupply });
       }
+      const sign = r.invoiceType === "CDNCS" ? -1 : 1;
       const b = b2csAgg.get(key)!;
-      b.txval = r2(b.txval + r.taxableValue);
-      b.iamt = r2(b.iamt + r.igstAmount);
-      b.camt = r2(b.camt + r.cgstAmount);
-      b.samt = r2(b.samt + r.sgstAmount);
+      b.txval = r2(b.txval + Math.abs(r.taxableValue) * sign);
+      b.iamt = r2(b.iamt + Math.abs(r.igstAmount) * sign);
+      b.camt = r2(b.camt + Math.abs(r.cgstAmount) * sign);
+      b.samt = r2(b.samt + Math.abs(r.sgstAmount) * sign);
     });
   const b2csValues = Array.from(b2csAgg.values());
   const b2csTotalTxVal = r2(b2csValues.reduce((s, v) => s + v.txval, 0));

@@ -146,7 +146,7 @@ export function generateGstr1Json(
 
   // --- B2CS ---
   const supplierState = gstin ? gstin.substring(0, 2) : "";
-  const b2csRows = validRows.filter((r) => r.invoiceType === "B2CS");
+  const b2csRows = validRows.filter((r) => r.invoiceType === "B2CS" || r.invoiceType === "CDNCS");
   const b2csMap = new Map<
     string,
     {
@@ -176,12 +176,13 @@ export function generateGstr1Json(
         ecoGstin,
       });
     }
+    const sign = row.invoiceType === "CDNCS" ? -1 : 1;
     const bucket = b2csMap.get(key)!;
-    bucket.txval = r2(bucket.txval + row.taxableValue);
-    bucket.iamt = r2(bucket.iamt + row.igstAmount);
-    bucket.camt = r2(bucket.camt + row.cgstAmount);
-    bucket.samt = r2(bucket.samt + row.sgstAmount);
-    bucket.csamt = r2(bucket.csamt + row.cessAmount);
+    bucket.txval = r2(bucket.txval + Math.abs(row.taxableValue) * sign);
+    bucket.iamt = r2(bucket.iamt + Math.abs(row.igstAmount) * sign);
+    bucket.camt = r2(bucket.camt + Math.abs(row.cgstAmount) * sign);
+    bucket.samt = r2(bucket.samt + Math.abs(row.sgstAmount) * sign);
+    bucket.csamt = r2(bucket.csamt + Math.abs(row.cessAmount) * sign);
   }
   const b2cs = Array.from(b2csMap.values()).map((val) => {
     const isInter = supplierState && val.pos !== supplierState;
