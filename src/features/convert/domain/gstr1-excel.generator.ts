@@ -67,10 +67,9 @@ function toExcelDate(dateStr: string): string {
 
 /** Map UQC short codes to GSTN full format */
 function toUqcFull(uqc: string): string {
+  const upper = (uqc || "PCS").toUpperCase();
+  if (upper === "NOS" || upper === "NOS-NUMBERS" || upper === "PCS") return "PCS-PIECES";
   const map: Record<string, string> = {
-    PCS: "PCS-PIECES",
-    NOS: "NOS-NUMBERS",
-    KGS: "KGS-KILOGRAMS",
     MTR: "MTR-METRES",
     LTR: "LTR-LITRES",
     BOX: "BOX-BOX",
@@ -105,7 +104,6 @@ function toUqcFull(uqc: string): string {
     TGM: "TGM-TEN GROSS",
     YDS: "YDS-YARDS",
   };
-  const upper = (uqc || "PCS").toUpperCase();
   return map[upper] ?? `${upper}-${upper}`;
 }
 

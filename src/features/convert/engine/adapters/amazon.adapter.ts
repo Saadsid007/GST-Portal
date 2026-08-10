@@ -127,7 +127,7 @@ export class AmazonAdapter {
       // Determine Invoice Category
       let invoiceType: InvoiceCategory = isB2B ? "B2B" : "B2CS";
       if (txType === "Return") {
-        invoiceType = "CDNR";
+        invoiceType = isB2B ? "CDNR" : "CDNCS";
       }
 
       // 3. Taxable & Tax Values
