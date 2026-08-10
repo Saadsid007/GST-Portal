@@ -139,10 +139,11 @@ export class AmazonAdapter {
       const shippingPromo = Math.abs(parseFloat(row["Shipping Promo Discount"] || "0"));
       const giftWrapPromo = Math.abs(parseFloat(row["Gift Wrap Promo Discount"] || "0"));
 
-      // Taxable value = Principal + Shipping + GiftWrap - Promo Discounts.
-      // Promo discounts funded by seller reduce the taxable base.
+      // Taxable value = Tax Exclusive Gross when present in Amazon MTR (pre-calculated net base).
       let taxableValue: number;
-      if (principalBasis || shippingBasis) {
+      if (row["Tax Exclusive Gross"] !== undefined && row["Tax Exclusive Gross"] !== "") {
+        taxableValue = parseFloat(row["Tax Exclusive Gross"]);
+      } else if (principalBasis || shippingBasis) {
         taxableValue =
           principalBasis +
           shippingBasis +
@@ -151,8 +152,7 @@ export class AmazonAdapter {
           shippingPromo -
           giftWrapPromo;
       } else {
-        // Older report format: Tax Exclusive Gross is all we have
-        taxableValue = parseFloat(row["Tax Exclusive Gross"] || "0");
+        taxableValue = 0;
       }
       taxableValue = round2(taxableValue);
 
