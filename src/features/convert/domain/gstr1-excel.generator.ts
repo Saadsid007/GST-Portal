@@ -570,8 +570,8 @@ export function generateGstr1Excel(
     ],
   ]);
 
-  // 10. cdnur Sheet (B2C Credit Notes)
-  const cdnurRows = validRows.filter((r) => r.invoiceType === "CDNCS");
+  // 10. cdnur Sheet (B2C Large & Export Credit Notes - Empty for B2C Small)
+  const cdnurRows: NormalizedInvoiceRow[] = [];
   const cdnurNotes = cdnurRows.length;
   const cdnurTotalVal = r2(cdnurRows.reduce((s, r) => s + Math.abs(r.totalValue), 0));
   const cdnurTotalTxVal = r2(cdnurRows.reduce((s, r) => s + Math.abs(r.taxableValue), 0));
