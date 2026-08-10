@@ -69,18 +69,22 @@ export class MeeshoAdapter {
       }
 
       // 3. Date
-      const rawInvoiceDate = (
-        txType === "Return"
+      const rawInvoiceDate =
+        (txType === "Return"
           ? row["cancel_return_date"] || row["order_date"] || row["manifest_date"]
-          : row["order_date"] || row["manifest_date"] || row["cancel_return_date"]
-      ) || "";
+          : row["order_date"] || row["manifest_date"] || row["cancel_return_date"]) || "";
 
       const invoiceDate = transformDate(rawInvoiceDate.trim()) || rawInvoiceDate.trim();
 
       // 4. Buyer GSTIN & Category
       // Note: row["gstin"] in Meesho TCS report is SELLER GSTIN, NOT BUYER GSTIN.
       // Buyer GSTIN is only present if explicitly in "Customer GSTIN" or "Buyer Gstin".
-      const rawBuyerGstin = (row["Customer GSTIN"] || row["Buyer Gstin"] || row["recipient_gstin"] || "").trim();
+      const rawBuyerGstin = (
+        row["Customer GSTIN"] ||
+        row["Buyer Gstin"] ||
+        row["recipient_gstin"] ||
+        ""
+      ).trim();
       const buyerGstin =
         rawBuyerGstin && rawBuyerGstin.toUpperCase() !== context.supplierGstin?.toUpperCase()
           ? rawBuyerGstin
