@@ -130,7 +130,25 @@ export function generateGstr1Excel(
   ]);
 
   // 2. b2b,sez,de Sheet
-  const b2bRows = validRows.filter((r) => r.invoiceType === "B2B");
+  const b2bRaw = validRows.filter((r) => r.invoiceType === "B2B");
+  const b2bAggMap = new Map<string, NormalizedInvoiceRow>();
+  for (const r of b2bRaw) {
+    const rate = r2(r.igstRate > 0 ? r.igstRate : r.cgstRate + r.sgstRate);
+    const key = `${r.buyerGstin}|${r.invoiceNumber.trim().toUpperCase()}|${r.placeOfSupply}|${rate}`;
+    if (!b2bAggMap.has(key)) {
+      b2bAggMap.set(key, { ...r });
+    } else {
+      const existing = b2bAggMap.get(key)!;
+      existing.totalValue = r2(existing.totalValue + r.totalValue);
+      existing.taxableValue = r2(existing.taxableValue + r.taxableValue);
+      existing.igstAmount = r2(existing.igstAmount + r.igstAmount);
+      existing.cgstAmount = r2(existing.cgstAmount + r.cgstAmount);
+      existing.sgstAmount = r2(existing.sgstAmount + r.sgstAmount);
+      existing.cessAmount = r2(existing.cessAmount + r.cessAmount);
+      existing.quantity = r2(existing.quantity + r.quantity);
+    }
+  }
+  const b2bRows = Array.from(b2bAggMap.values());
   const b2bRecipients = new Set(b2bRows.map((r) => r.buyerGstin)).size;
   const b2bInvCount = b2bRows.length;
   const b2bTotalInvVal = r2(b2bRows.reduce((s, r) => s + r.totalValue, 0));
