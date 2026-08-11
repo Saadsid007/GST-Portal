@@ -182,11 +182,6 @@ export class MeeshoAdapter {
       // Quantity
       const quantity = parseInt(row["quantity"] || row["Qty"] || "1", 10) || 1;
 
-      // Fallback for non-required fields
-      if (!invoiceNumber) {
-        invoiceNumber = `MEESHO-${i + 1}`;
-      }
-
       // Strictly validate Columns H, I, J, M as required fields for Meesho
       const rawGstRate = row["gst_rate"] ?? row["GST Rate"] ?? row["Tax Rate"];
       const rawTaxableVal =

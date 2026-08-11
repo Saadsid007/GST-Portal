@@ -64,10 +64,12 @@ export function validateInvoices(
     const errors: string[] = [];
     const reviews: string[] = [];
 
+    const isB2C = row.invoiceType === "B2CS" || row.invoiceType === "CDNCS" || !row.buyerGstin;
+
     // VAL-001: Mandatory fields
-    if (!row.invoiceNumber?.trim()) errors.push("Invoice number is required");
-    if (!row.invoiceDate) errors.push("Invoice date is required");
-    if (!row.buyerName?.trim()) errors.push("Buyer name is required");
+    if (!isB2C && !row.invoiceNumber?.trim()) errors.push("Invoice number is required");
+    if (!isB2C && !row.invoiceDate) errors.push("Invoice date is required");
+    if (!isB2C && !row.buyerName?.trim()) errors.push("Buyer name is required");
     if (row.taxableValue === 0) errors.push("Taxable value cannot be zero");
 
     // VAL-002: GSTIN format
@@ -87,11 +89,13 @@ export function validateInvoices(
       errors.push(`Invalid state code: "${row.placeOfSupply}"`);
     }
 
-    // VAL-005: HSN code format
-    if (!row.hsnCode?.trim()) {
-      errors.push("HSN/SAC code is required");
-    } else if (!/^\d{4}(\d{2}(\d{2})?)?$/.test(row.hsnCode.replace(/\s/g, ""))) {
-      errors.push(`Invalid HSN code: "${row.hsnCode}" (must be 4, 6, or 8 digits)`);
+    // VAL-005: HSN code format (Mandatory for B2B, optional for B2C)
+    if (!isB2C) {
+      if (!row.hsnCode?.trim()) {
+        errors.push("HSN/SAC code is required");
+      } else if (!/^\d{4}(\d{2}(\d{2})?)?$/.test(row.hsnCode.replace(/\s/g, ""))) {
+        errors.push(`Invalid HSN code: "${row.hsnCode}" (must be 4, 6, or 8 digits)`);
+      }
     }
 
     // VAL-006: Tax calculation
