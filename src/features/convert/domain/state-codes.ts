@@ -53,6 +53,9 @@ export function normalizeStateCode(input: unknown): string {
   const str = String(input).trim();
   if (!str) return "";
 
+  // If old Daman & Diu code "25", map to merged UT code "26"
+  if (str === "25") return "26";
+
   // If already 2 digit code
   if (/^\d{2}$/.exec(str) && STATE_CODES[str]) {
     return str;

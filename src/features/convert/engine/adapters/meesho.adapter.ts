@@ -30,6 +30,14 @@ export class MeeshoAdapter {
       const row = rows[i]!;
       const errors: string[] = [];
 
+      // 6. Taxable & Tax Values
+      const rawTaxableValNum = parseFloat(
+        row["total_taxable_sale_value"] || row["Taxable Value"] || row["Taxable Amount"] || "0"
+      );
+      const rawTaxNum = parseFloat(
+        row["tax_amount"] || row["Tax Amount"] || row["IGST Amount"] || "0"
+      );
+
       // 1. Transaction Type
       const rawTxType = (
         row["transaction_type"] ||
@@ -45,7 +53,9 @@ export class MeeshoAdapter {
         isReturnReport ||
         rawTxType === "RETURN" ||
         rawTxType === "REFUND" ||
-        Boolean(row["cancel_return_date"])
+        Boolean(row["cancel_return_date"]) ||
+        rawTaxableValNum < 0 ||
+        rawTaxNum < 0
       ) {
         txType = "Return";
       } else if (rawTxType === "CANCELLED" || rawTxType === "CANCEL") {
@@ -53,8 +63,6 @@ export class MeeshoAdapter {
       }
 
       // 2. Invoice Number
-      // GSTN limit is 16 chars. For sub_order_num (e.g. "313318095866203520_1"),
-      // slice last 16 chars to preserve item suffix _1 and unique order tail.
       const rawInvoiceNumber = (
         row["sub_order_num"] ||
         row["sub_order_no"] ||
@@ -77,8 +85,6 @@ export class MeeshoAdapter {
       const invoiceDate = transformDate(rawInvoiceDate.trim()) || rawInvoiceDate.trim();
 
       // 4. Buyer GSTIN & Category
-      // Note: row["gstin"] in Meesho TCS report is SELLER GSTIN, NOT BUYER GSTIN.
-      // Buyer GSTIN is only present if explicitly in "Customer GSTIN" or "Buyer Gstin".
       const rawBuyerGstin = (
         row["Customer GSTIN"] ||
         row["Buyer Gstin"] ||
@@ -96,7 +102,6 @@ export class MeeshoAdapter {
       if (isB2B) {
         invoiceType = txType === "Return" ? "CDNR" : "B2B";
       } else {
-        // B2C: Sales go to B2CS, Returns go to CDNCS (which nets off in B2CS Table 7)
         invoiceType = txType === "Return" ? "CDNCS" : "B2CS";
       }
 
@@ -112,29 +117,23 @@ export class MeeshoAdapter {
 
       const pos = transformStateCode(rawPos) || rawPos;
 
-      // 6. Taxable & Tax Values
-      let taxableValue = parseFloat(
-        row["total_taxable_sale_value"] || row["Taxable Value"] || row["Taxable Amount"] || "0"
-      );
-      taxableValue = round2(taxableValue);
+      let taxableValue = round2(Math.abs(rawTaxableValNum));
+      let totalTax = round2(Math.abs(rawTaxNum));
 
-      let totalTax = parseFloat(
-        row["tax_amount"] || row["Tax Amount"] || row["IGST Amount"] || "0"
-      );
-
-      const rawIgst = parseFloat(row["IGST Amount"] || row["IGST"] || "0");
-      const rawCgst = parseFloat(row["CGST Amount"] || row["CGST"] || "0");
-      const rawSgst = parseFloat(row["SGST Amount"] || row["SGST"] || "0");
-      const cessAmount = parseFloat(row["CESS Amount"] || row["Cess"] || "0");
+      const rawIgst = Math.abs(parseFloat(row["IGST Amount"] || row["IGST"] || "0"));
+      const rawCgst = Math.abs(parseFloat(row["CGST Amount"] || row["CGST"] || "0"));
+      const rawSgst = Math.abs(parseFloat(row["SGST Amount"] || row["SGST"] || "0"));
+      const cessAmount = Math.abs(parseFloat(row["CESS Amount"] || row["Cess"] || "0"));
 
       if (!totalTax) {
-        totalTax = rawIgst + rawCgst + rawSgst + cessAmount;
+        totalTax = round2(rawIgst + rawCgst + rawSgst + cessAmount);
       }
-      totalTax = round2(totalTax);
 
       const totalValue = round2(
-        parseFloat(
-          row["total_invoice_value"] || row["Total Amount"] || row["Invoice Amount"] || "0"
+        Math.abs(
+          parseFloat(
+            row["total_invoice_value"] || row["Total Amount"] || row["Invoice Amount"] || "0"
+          )
         ) || taxableValue + totalTax
       );
 
