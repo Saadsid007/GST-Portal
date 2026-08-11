@@ -182,10 +182,43 @@ export class MeeshoAdapter {
       // Quantity
       const quantity = parseInt(row["quantity"] || row["Qty"] || "1", 10) || 1;
 
-      // Validation check
-      if (!invoiceNumber) errors.push("Missing Invoice Number");
-      if (!invoiceDate) errors.push("Missing Invoice Date");
-      if (!pos) errors.push("Missing Place of Supply");
+      // Fallback for non-required fields
+      if (!invoiceNumber) {
+        invoiceNumber = `MEESHO-${i + 1}`;
+      }
+
+      // Strictly validate Columns H, I, J, M as required fields for Meesho
+      const rawGstRate = row["gst_rate"] ?? row["GST Rate"] ?? row["Tax Rate"];
+      const rawTaxableVal =
+        row["total_taxable_sale_value"] ?? row["Taxable Value"] ?? row["Taxable Amount"];
+      const rawTaxAmount = row["tax_amount"] ?? row["Tax Amount"] ?? row["IGST Amount"];
+      const rawState =
+        row["end_customer_state_new"] ??
+        row["end_customer_state"] ??
+        row["End Customer State"] ??
+        row["Customer State"] ??
+        row["State"];
+
+      if (rawGstRate === undefined || rawGstRate === null || String(rawGstRate).trim() === "") {
+        errors.push("Missing GST Rate (Column H)");
+      }
+      if (
+        rawTaxableVal === undefined ||
+        rawTaxableVal === null ||
+        String(rawTaxableVal).trim() === ""
+      ) {
+        errors.push("Missing Taxable Value (Column I)");
+      }
+      if (
+        rawTaxAmount === undefined ||
+        rawTaxAmount === null ||
+        String(rawTaxAmount).trim() === ""
+      ) {
+        errors.push("Missing Tax Amount (Column J)");
+      }
+      if (rawState === undefined || rawState === null || String(rawState).trim() === "") {
+        errors.push("Missing Place of Supply (Column M)");
+      }
 
       if (errors.length === 0) _validRows++;
       else _errorRows++;
