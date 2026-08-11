@@ -40,7 +40,7 @@ export const STATE_CODES: Record<string, string> = {
   "34": "Puducherry",
   "35": "Andaman & Nicobar Islands",
   "36": "Telangana",
-  "37": "Andhra Pradesh (New)",
+  "37": "Andhra Pradesh",
   "38": "Ladakh",
   "97": "Other Territory",
   "96": "Foreign Country",

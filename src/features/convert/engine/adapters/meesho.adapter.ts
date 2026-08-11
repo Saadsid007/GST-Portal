@@ -220,8 +220,11 @@ export class MeeshoAdapter {
         errors.push("Missing Place of Supply (Column M)");
       }
 
-      if (errors.length === 0) _validRows++;
-      else _errorRows++;
+      if (errors.length > 0) {
+        _errorRows++;
+        continue;
+      }
+      _validRows++;
 
       const tx: NormalizedInvoiceRow = {
         id: crypto.randomUUID(),

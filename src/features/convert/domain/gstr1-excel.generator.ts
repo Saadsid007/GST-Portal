@@ -357,7 +357,7 @@ export function generateGstr1Excel(
     { txval: number; iamt: number; camt: number; samt: number; rt: number; pos: string }
   >();
   validRows
-    .filter((r) => r.invoiceType === "B2CS" || r.invoiceType === "CDNCS")
+    .filter((r) => (r.invoiceType === "B2CS" || r.invoiceType === "CDNCS") && Boolean(r.placeOfSupply))
     .forEach((r) => {
       const rt = r2(r.igstRate > 0 ? r.igstRate : r.cgstRate + r.sgstRate);
       const key = `${r.placeOfSupply}|${rt}`;
