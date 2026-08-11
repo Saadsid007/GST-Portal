@@ -31,7 +31,6 @@ export const STATE_CODES: Record<string, string> = {
   "25": "Daman & Diu",
   "26": "Dadra & Nagar Haveli",
   "27": "Maharashtra",
-  "28": "Andhra Pradesh (Old)",
   "29": "Karnataka",
   "30": "Goa",
   "31": "Lakshadweep",
