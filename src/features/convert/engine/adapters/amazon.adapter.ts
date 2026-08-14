@@ -28,8 +28,8 @@ export class AmazonAdapter {
     // ASIN that appears with a valid HSN, then use that mapping to fill blanks.
     const asinHsnMap = new Map<string, string>();
     for (const r of rows) {
-      const asin = (r["ASIN"] || "").trim();
-      const rawHsn = (r["Hsn/sac"] || r["HSN/SAC"] || "").trim();
+      const asin = String(r["ASIN"] || "").trim();
+      const rawHsn = String(r["Hsn/sac"] || r["HSN/SAC"] || "").trim();
       if (asin && rawHsn && /\d{4,8}/.test(rawHsn)) {
         const digits = rawHsn.replace(/\D/g, "");
         if (digits) asinHsnMap.set(asin, digits);
@@ -92,7 +92,7 @@ export class AmazonAdapter {
       }
 
       // 2. Identities
-      const rawInvoiceNumber = (
+      const rawInvoiceNumber = String(
         row["Credit Note No"] ||
         row["Invoice Number"] ||
         row["Invoice number"] ||
@@ -104,7 +104,7 @@ export class AmazonAdapter {
       const invoiceNumberTruncated = rawInvoiceNumber.length > 16;
       const invoiceNumber = rawInvoiceNumber.substring(0, 16);
 
-      const rawInvoiceDate = (
+      const rawInvoiceDate = String(
         row["Credit Note Date"] ||
         row["Invoice Date"] ||
         row["Invoice date"] ||
@@ -113,8 +113,8 @@ export class AmazonAdapter {
       ).trim();
       const invoiceDate = transformDate(rawInvoiceDate) || rawInvoiceDate;
 
-      const buyerGstin = (row["Buyer Gstin"] || row["Customer Bill To Gstid"] || "").trim();
-      const rawPos = (
+      const buyerGstin = String(row["Buyer Gstin"] || row["Customer Bill To Gstid"] || "").trim();
+      const rawPos = String(
         row["Ship To State"] ||
         row["Customer Bill To State"] ||
         row["Bill To State"] ||
@@ -331,8 +331,8 @@ export class AmazonAdapter {
         itemDescription: row["Item Description"] || "",
         hsnCode: (() => {
           // Step 5: Use ASIN→HSN map to fill blank HSN before falling back to generic
-          const rawHsn = row["Hsn/sac"] || row["HSN/SAC"] || "";
-          const asin = (row["ASIN"] || "").trim();
+          const rawHsn = String(row["Hsn/sac"] || row["HSN/SAC"] || "");
+          const asin = String(row["ASIN"] || "").trim();
           if (rawHsn.trim()) return transformHsn(rawHsn); // has its own HSN
           if (asin && asinHsnMap.has(asin)) return asinHsnMap.get(asin)!; // filled from map
           // No HSN known — flag as review, use generic fallback

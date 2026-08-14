@@ -9,6 +9,10 @@ import {
   transformDate,
 } from "@/features/convert/engine/transformation/transformers";
 
+function round2(num: number): number {
+  return Math.round((num + Number.EPSILON) * 100) / 100;
+}
+
 export class FlipkartAdapter {
   static adapt(rows: Record<string, string>[], context: SourceContext): AdapterResult {
     const transactions: NormalizedInvoiceRow[] = [];
@@ -16,84 +20,147 @@ export class FlipkartAdapter {
     let validRows = 0;
     let errorRows = 0;
 
+    const sheetNameLower = (context.sheetName || "").toLowerCase();
+
+    // Skip reference/summary/help sheets that do not contain individual transaction line items
+    if (
+      sheetNameLower.includes("help") ||
+      sheetNameLower.includes("section 12") ||
+      sheetNameLower.includes("section 13") ||
+      sheetNameLower.includes("gstr-8") ||
+      sheetNameLower.includes("section 3 in gstr-8")
+    ) {
+      return {
+        sourceContext: context,
+        transactions: [],
+        unmappedColumns: [],
+        totalRows: rows.length,
+        validRows: 0,
+        errorRows: 0,
+      };
+    }
+
+    const isSection7B2 = sheetNameLower.includes("7(b)(2)") || sheetNameLower.includes("7b2");
+    const isSection7A2 = sheetNameLower.includes("7(a)(2)") || sheetNameLower.includes("7a2");
+
+    // Default Flipkart ECO TCS GSTIN
+    const defaultFlipkartEcoGstin = context.fallbackEcoGstin || "09AACCF0683K1ZF";
+
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i]!;
       const errors: string[] = [];
 
-      // 1. Transaction Type
-      const rawTxType = (row["Transaction Type"] || row["Event Type"] || "").trim().toUpperCase();
+      // Skip empty rows
+      const hasAnyValue = Object.values(row).some((v) => String(v || "").trim() !== "");
+      if (!hasAnyValue) continue;
+
+      // 1. Transaction Type & Category
       let txType: TransactionType = "Sales";
+      const rawTxType = (row["Transaction Type"] || row["Event Type"] || "").trim().toUpperCase();
       if (rawTxType === "RETURN" || rawTxType === "REFUND") {
         txType = "Return";
       } else if (rawTxType === "CANCELLED" || rawTxType === "CANCEL") {
         continue;
       }
 
-      // 2. Identities
-      const invoiceNumber = (row["Invoice Number"] || "").trim();
-      const rawInvoiceDate = (row["Invoice Date"] || "").trim();
+      // 2. Place of Supply
+      const rawPos = (
+        row["Delivered State (PoS)"] ||
+        row["Delivered State Code"] ||
+        row["Customer State"] ||
+        row["Delivery State"] ||
+        row["State"] ||
+        ""
+      ).trim();
+
+      const pos = transformStateCode(rawPos) || rawPos;
+
+      // 3. Taxable & Tax Values
+      const taxableValue = round2(
+        parseFloat(
+          row["Aggregate Taxable Value Rs."] ||
+            row["Gross Taxable Value Rs."] ||
+            row["Total Taxable Value Rs."] ||
+            row["Taxable Value Rs."] ||
+            row["Taxable Value"] ||
+            row["Taxable Amount"] ||
+            "0"
+        )
+      );
+
+      // Skip zero taxable rows in summary section reports
+      if (taxableValue === 0 && (isSection7B2 || isSection7A2)) {
+        continue;
+      }
+
+      const igstRate = parseFloat(row["IGST %"] || row["IGST Rate"] || "0");
+      const cgstRate = parseFloat(row["CGST %"] || row["CGST Rate"] || "0");
+      const sgstRate = parseFloat(row["SGST/UT %"] || row["SGST Rate"] || "0");
+
+      let igstAmount = round2(parseFloat(row["IGST Amount Rs."] || row["IGST"] || "0"));
+      let cgstAmount = round2(parseFloat(row["CGST Amount Rs."] || row["CGST"] || "0"));
+      let sgstAmount = round2(
+        parseFloat(row["SGST /UT Amount Rs."] || row["SGST Amount"] || row["SGST"] || "0")
+      );
+      const cessAmount = round2(
+        parseFloat(row["CESS Amount Rs."] || row["Cess Rs."] || row["CESS"] || "0")
+      );
+
+      let totalTax = round2(igstAmount + cgstAmount + sgstAmount + cessAmount);
+
+      // Derive missing tax amounts from rates if available
+      if (totalTax === 0 && (igstRate > 0 || cgstRate > 0 || sgstRate > 0)) {
+        if (igstRate > 0) igstAmount = round2(taxableValue * (igstRate / 100));
+        if (cgstRate > 0) cgstAmount = round2(taxableValue * (cgstRate / 100));
+        if (sgstRate > 0) sgstAmount = round2(taxableValue * (sgstRate / 100));
+        totalTax = round2(igstAmount + cgstAmount + sgstAmount + cessAmount);
+      }
+
+      const totalValue = round2(
+        parseFloat(
+          row["Total Value Rs."] || row["Invoice Amount Rs."] || row["Invoice Amount"] || "0"
+        ) || taxableValue + totalTax
+      );
+
+      // 4. Identities & Dates
+      const rawInvoiceNumber = (
+        row["Invoice Number"] ||
+        row["sub_order_num"] ||
+        ""
+      ).trim();
+
+      const invoiceNumber =
+        rawInvoiceNumber.length > 16 ? rawInvoiceNumber.slice(-16) : rawInvoiceNumber;
+
+      const rawInvoiceDate = (row["Invoice Date"] || row["Order Date"] || "").trim();
       const invoiceDate = transformDate(rawInvoiceDate) || rawInvoiceDate;
 
       const buyerGstin = (row["Buyer Gstin"] || row["Customer GSTIN"] || "").trim();
-      const rawPos = (row["Customer State"] || row["Delivery State"] || "").trim();
-      const pos = transformStateCode(rawPos) || rawPos;
-
       const isB2B = Boolean(buyerGstin);
 
       let invoiceType: InvoiceCategory = isB2B ? "B2B" : "B2CS";
       if (txType === "Return") {
-        invoiceType = "CDNR";
+        invoiceType = isB2B ? "CDNR" : "CDNCS";
       }
 
-      // 3. Taxable & Tax Values
-      const taxableValue = parseFloat(row["Taxable Value"] || row["Taxable Amount"] || "0");
-
-      const igstAmount = parseFloat(row["IGST"] || "0");
-      const cgstAmount = parseFloat(row["CGST"] || "0");
-      const sgstAmount = parseFloat(row["SGST"] || "0");
-      const cessAmount = parseFloat(row["CESS"] || "0");
-
-      const totalTax = igstAmount + cgstAmount + sgstAmount + cessAmount;
-      const totalValue =
-        parseFloat(row["Invoice Amount"] || row["Total Amount"] || "0") || taxableValue + totalTax;
-
-      // 4. Rate
-      let gstRate = parseFloat(row["GST Rate"] || row["Tax Rate"] || "0");
-      if (!gstRate && taxableValue !== 0 && totalTax !== 0) {
-        gstRate = Math.round((totalTax / taxableValue) * 100);
-      }
-
-      const validSlabs = [0, 5, 12, 18, 28];
-      if (!validSlabs.includes(gstRate)) {
-        gstRate = validSlabs.reduce(
-          (prev, curr) => (Math.abs(curr - gstRate) < Math.abs(prev - gstRate) ? curr : prev),
-          0
-        );
-      }
-
-      const isInterState = igstAmount > 0 || (!cgstAmount && !sgstAmount);
-      const igstRate = isInterState ? gstRate : 0;
-      const cgstRate = !isInterState ? gstRate / 2 : 0;
-      const sgstRate = !isInterState ? gstRate / 2 : 0;
-      const cessRate = 0;
-
-      // Returns mapping
-      let originalInvoiceNumber = undefined;
-      if (txType === "Return") {
-        originalInvoiceNumber =
-          row["Original Invoice Number"] || row["Invoice Number"] || undefined;
-      }
+      const quantity = parseInt(row["Total Quantity in Nos."] || row["Quantity"] || "1", 10) || 1;
 
       // Validation
-      if (!invoiceNumber) {
-        errors.push("Missing Invoice Number");
-      }
-      if (!invoiceDate) {
-        errors.push("Missing Invoice Date");
-      }
       if (!pos) {
         errors.push("Missing Place of Supply");
       }
+
+      if (errors.length > 0) {
+        errorRows++;
+        continue;
+      }
+      validRows++;
+
+      const ecoGstin = (
+        row["GSTIN of Flipkart.Com"] ||
+        row["ECO GSTIN"] ||
+        defaultFlipkartEcoGstin
+      ).trim();
 
       const tx: NormalizedInvoiceRow = {
         id: crypto.randomUUID(),
@@ -108,39 +175,34 @@ export class FlipkartAdapter {
         invoiceDate,
         invoiceType,
 
-        buyerName: "Flipkart Customer",
+        buyerName: isB2B ? "Flipkart Registered Customer" : "Flipkart B2C Customer",
         buyerGstin,
         placeOfSupply: pos,
 
-        itemDescription: row["Item Description"] || "",
-        hsnCode: row["HSN"] || "",
-        uqc: "NOS",
-        quantity: parseInt(row["Quantity"] || "1", 10) || 1,
+        itemDescription: "Flipkart Outward Supply",
+        hsnCode: "441990",
+        uqc: "PCS",
+        quantity,
 
-        taxableValue,
-        igstAmount,
-        cgstAmount,
-        sgstAmount,
-        cessAmount,
         totalValue,
+        taxableValue,
 
         igstRate,
         cgstRate,
         sgstRate,
-        cessRate,
+        cessRate: 0,
 
-        ecoGstin: "29XXXXXFLIPKART", // Placeholder
-        ecoName: "Flipkart",
+        igstAmount,
+        cgstAmount,
+        sgstAmount,
+        cessAmount,
 
-        originalInvoiceNumber,
+        ecoGstin,
+        ecoName: "Flipkart Internet Private Limited",
+
         errors,
+        reviews: [],
       };
-
-      if (errors.length > 0) {
-        errorRows++;
-      } else {
-        validRows++;
-      }
 
       transactions.push(tx);
     }
