@@ -68,9 +68,10 @@ export async function evaluateWorkbooksAction(files: MultiUploadFileInput[], gst
   for (const fileItem of files) {
     const buffer = Buffer.from(await fileItem.file.arrayBuffer());
     const tables = readWorkbook(buffer);
-    const table = tables[0];
-    if (table && table.rows.length > 0) {
-      rawTables.push({ fileId: fileItem.fileName, fileName: fileItem.fileName, table });
+    for (const table of tables) {
+      if (table && table.rows.length > 0) {
+        rawTables.push({ fileId: fileItem.fileName, fileName: fileItem.fileName, table });
+      }
     }
   }
 
@@ -145,9 +146,10 @@ export async function parseMultiPlatformFilesAction(
   for (const fileItem of files) {
     const buffer = Buffer.from(await fileItem.file.arrayBuffer());
     const tables = readWorkbook(buffer);
-    const table = tables[0];
-    if (table && table.rows.length > 0) {
-      rawTables.push({ fileId: fileItem.fileName, fileName: fileItem.fileName, table });
+    for (const table of tables) {
+      if (table && table.rows.length > 0) {
+        rawTables.push({ fileId: fileItem.fileName, fileName: fileItem.fileName, table });
+      }
     }
   }
 

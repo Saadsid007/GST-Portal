@@ -75,7 +75,7 @@ export class PlatformDetector {
 
         // 1. File name match
         if (normFile.includes(sanitize(plat.id)) || normFile.includes(sanitize(plat.name))) {
-          score += 25;
+          score += 40;
           matchedKeywords.push(`File: ${plat.name}`);
         }
 
@@ -88,14 +88,15 @@ export class PlatformDetector {
           matchedKeywords.push(`Sheet: ${fileSlot.name}`);
         }
 
-        // 3. Header keyword matches
+        // 3. Header & Sheet keyword matches
         if (fileSlot.headerKeywords) {
           for (const kw of fileSlot.headerKeywords) {
             const sanitizedKw = sanitize(kw);
-            const found = normHeaders.some((h) => h.includes(sanitizedKw));
-            if (found) {
+            const foundHeader = normHeaders.some((h) => h.includes(sanitizedKw));
+            const foundSheet = normSheet.includes(sanitizedKw);
+            if (foundHeader || foundSheet) {
               score += 15;
-              matchedKeywords.push(`Header: ${kw}`);
+              matchedKeywords.push(`Keyword: ${kw}`);
             }
           }
         }
