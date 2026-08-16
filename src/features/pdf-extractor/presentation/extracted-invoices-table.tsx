@@ -1,17 +1,8 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import {
-  Search,
-  Building,
-  User,
-  Hash,
-  Eye,
-  Layers,
-  ChevronRight,
-  Sparkles,
-} from "lucide-react";
-import type { ExtractedInvoice, PdfExtractionBatchResult } from "../domain/types";
+import { Search, Eye } from "lucide-react";
+import type { ExtractedInvoice, PdfExtractionBatchResult } from "@/features/pdf-extractor/domain/types";
 
 interface ExtractedInvoicesTableProps {
   data: PdfExtractionBatchResult;

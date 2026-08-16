@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useState } from "react";
-import { Copy, Check, Download, FileSpreadsheet, Layers } from "lucide-react";
+import { Copy, Check, Download, Layers } from "lucide-react";
 import { toast } from "sonner";
-import type { PdfExtractionBatchResult } from "../domain/types";
-import { downloadExtractedExcelAction } from "../actions/pdf-extractor.actions";
+import type { PdfExtractionBatchResult } from "@/features/pdf-extractor/domain/types";
+import { downloadExtractedExcelAction } from "@/features/pdf-extractor/actions/pdf-extractor.actions";
 
 interface CopyExportToolbarProps {
   data: PdfExtractionBatchResult;

@@ -117,7 +117,7 @@ export class MeeshoAdapter {
 
       const pos = transformStateCode(rawPos) || rawPos;
 
-      let taxableValue = round2(Math.abs(rawTaxableValNum));
+      const taxableValue = round2(Math.abs(rawTaxableValNum));
       let totalTax = round2(Math.abs(rawTaxNum));
 
       const rawIgst = Math.abs(parseFloat(row["IGST Amount"] || row["IGST"] || "0"));

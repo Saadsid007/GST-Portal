@@ -1,13 +1,13 @@
 "use server";
 
 import { requireSession } from "@/features/auth";
-import { extractTextFromPdfBuffer } from "../engine/pdf-text-parser";
-import { extractInvoiceFromText } from "../engine/regex-invoice-extractor";
+import { extractTextFromPdfBuffer } from "@/features/pdf-extractor/engine/pdf-text-parser";
+import { extractInvoiceFromText } from "@/features/pdf-extractor/engine/regex-invoice-extractor";
 import {
   formatGstr1BatchResult,
   generatePdfInvoicesExcel,
-} from "../engine/gstr1-formatter";
-import type { ExtractedInvoice, PdfExtractionBatchResult } from "../domain/types";
+} from "@/features/pdf-extractor/engine/gstr1-formatter";
+import type { ExtractedInvoice, PdfExtractionBatchResult } from "@/features/pdf-extractor/domain/types";
 
 export interface ExtractPdfActionResponse {
   success: boolean;

@@ -4,7 +4,7 @@ import type {
   ExtractedHsnRow,
   ExtractedB2csRow,
   PdfExtractionBatchResult,
-} from "../domain/types";
+} from "@/features/pdf-extractor/domain/types";
 import { STATE_CODES } from "@/features/convert/domain/state-codes";
 
 function r2(n: number): number {

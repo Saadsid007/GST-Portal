@@ -2,7 +2,7 @@
 
 import React from "react";
 import { FileCheck, Receipt, ArrowUpRight, CheckCircle2 } from "lucide-react";
-import type { PdfExtractionBatchResult } from "../domain/types";
+import type { PdfExtractionBatchResult } from "@/features/pdf-extractor/domain/types";
 
 interface ExtractionSummaryCardsProps {
   data: PdfExtractionBatchResult;

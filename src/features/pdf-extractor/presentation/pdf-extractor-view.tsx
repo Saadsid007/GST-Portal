@@ -1,22 +1,14 @@
 "use client";
 
 import React, { useState } from "react";
-import {
-  FileSpreadsheet,
-  UploadCloud,
-  RotateCcw,
-  Sparkles,
-  Layers,
-  FileCheck2,
-  AlertTriangle,
-} from "lucide-react";
+import { FileSpreadsheet, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { PdfDropzone } from "./pdf-dropzone";
 import { ExtractionSummaryCards } from "./extraction-summary-cards";
 import { CopyExportToolbar } from "./copy-export-toolbar";
 import { ExtractedInvoicesTable } from "./extracted-invoices-table";
-import type { PdfExtractionBatchResult } from "../domain/types";
-import { extractPdfInvoicesAction } from "../actions/pdf-extractor.actions";
+import type { PdfExtractionBatchResult } from "@/features/pdf-extractor/domain/types";
+import { extractPdfInvoicesAction } from "@/features/pdf-extractor/actions/pdf-extractor.actions";
 
 interface PdfExtractorViewProps {
   initialGstin?: string;

@@ -1,5 +1,5 @@
-import type { ExtractedInvoice, ExtractedLineItem } from "../domain/types";
-import { classifyInvoice } from "../domain/classifier";
+import type { ExtractedInvoice, ExtractedLineItem } from "@/features/pdf-extractor/domain/types";
+import { classifyInvoice } from "@/features/pdf-extractor/domain/classifier";
 import {
   normalizeStateCode,
   STATE_CODES,
