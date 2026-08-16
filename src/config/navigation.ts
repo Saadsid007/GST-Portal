@@ -5,6 +5,7 @@ import {
   History,
   Settings,
   Zap,
+  FileSpreadsheet,
   Wallet,
   Users,
   Tags,
@@ -54,6 +55,12 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: Zap,
         description: "Turn marketplace reports into GSTR-1",
         accent: true,
+      },
+      {
+        label: "PDF Extractor",
+        href: "/pdf-extractor",
+        icon: FileSpreadsheet,
+        description: "Extract B2B & B2C data from PDF invoices",
       },
       {
         label: "GST Profile",
