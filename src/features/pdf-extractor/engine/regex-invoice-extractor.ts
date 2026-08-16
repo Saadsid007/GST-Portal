@@ -269,19 +269,38 @@ export function extractInvoiceFromText(params: {
     }
   }
 
-  // 6. HSN / SAC Code
+  // 6. HSN / SAC Code & Description
   let hsnCode = "";
+  let itemDescription = "Goods/Services";
+
   const hsnMatch = text.match(/(?:HSN|SAC|HSN\s*\/|\bSAC\s*Code|\bHSN\s*Code)\s*[:#\s-]*(\d{4,8})/i);
+  const sacMatch = text.match(/\b(99\d{4})\b/);
+  const eazeMatch = text.match(/\d+\.\s*(\d{4,8})\s+([^\n\r]+)/i);
+  const tableHsnMatch = text.match(/\n\s*(\d{4,8})\s+\d{1,2}\s+\d+/);
+
   if (hsnMatch?.[1]) {
     hsnCode = hsnMatch[1].trim();
+    itemDescription = `Goods supplied under HSN ${hsnCode}`;
+  } else if (sacMatch?.[1]) {
+    hsnCode = sacMatch[1].trim();
+    itemDescription = `Services supplied under SAC ${hsnCode}`;
+  } else if (eazeMatch?.[1]) {
+    hsnCode = eazeMatch[1].trim();
+    itemDescription = eazeMatch[2]?.trim() || `Software services under SAC ${hsnCode}`;
+  } else if (tableHsnMatch?.[1]) {
+    hsnCode = tableHsnMatch[1].trim();
+    itemDescription = `Goods supplied under HSN ${hsnCode}`;
+  } else {
+    hsnCode = "4419";
+    itemDescription = `Goods supplied under HSN 4419`;
   }
 
   // 7. Line Item Extraction
   const lineItems: ExtractedLineItem[] = [
     {
-      itemDescription: `Goods/Services supplied under HSN ${hsnCode || "General"}`,
-      hsnCode: hsnCode || "441990",
-      uqc: "NOS",
+      itemDescription,
+      hsnCode,
+      uqc: hsnCode.startsWith("99") ? "OTH" : "NOS",
       quantity: 1,
       rate: gstRate,
       taxableValue,
