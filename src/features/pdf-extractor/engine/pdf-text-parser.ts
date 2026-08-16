@@ -1,4 +1,4 @@
-import { PDFParse } from "pdf-parse";
+import { extractText, getDocumentProxy } from "unpdf";
 
 export interface ParsedPdfDocument {
   text: string;
@@ -7,12 +7,13 @@ export interface ParsedPdfDocument {
 }
 
 export async function extractTextFromPdfBuffer(buffer: Buffer | Uint8Array): Promise<ParsedPdfDocument> {
+  // Convert Node.js Buffer to a pure standard Uint8Array to satisfy unpdf checks
   const uint8 = new Uint8Array(buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength));
-  const parser = new PDFParse(uint8);
-  const result = await parser.getText();
+  const pdf = await getDocumentProxy(uint8);
+  const { text, totalPages } = await extractText(pdf, { mergePages: true });
 
   // Normalize excessive spaces and irregular line breaks
-  const cleanText = (result.text || "")
+  const cleanText = (text || "")
     .replace(/\r\n/g, "\n")
     .replace(/\r/g, "\n")
     .replace(/\t/g, " ")
@@ -20,6 +21,6 @@ export async function extractTextFromPdfBuffer(buffer: Buffer | Uint8Array): Pro
 
   return {
     text: cleanText,
-    pageCount: result.pages?.length || 1,
+    pageCount: totalPages || 1,
   };
 }
