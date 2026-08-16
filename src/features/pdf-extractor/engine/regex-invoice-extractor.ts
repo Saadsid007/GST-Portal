@@ -119,6 +119,7 @@ export function extractInvoiceFromText(params: {
   let posCode = "";
   let posName = "";
 
+  // 4a. Explicit "Place of Supply:"
   const posMatch = text.match(/Place\s*of\s*Supply\s*[:\s-]*([A-Za-z\s&]+?)(?:\n|\r|\t|Billing|Shipping|Order|$)/i);
   if (posMatch?.[1]) {
     const candidate = posMatch[1].trim();
@@ -128,21 +129,55 @@ export function extractInvoiceFromText(params: {
     }
   }
 
+  // 4b. Buyer GSTIN (B2B)
+  if (!posCode && buyerGstin && buyerGstin.length >= 2) {
+    const candidate = buyerGstin.slice(0, 2);
+    if (candidate && STATE_CODES[candidate]) {
+      posCode = candidate;
+      posName = STATE_CODES[candidate] ?? "";
+    }
+  }
+
+  // 4c. Search state names in Buyer / Delivery Address section
   if (!posCode) {
-    const stateCodeMatch = text.match(/(?:State\s*(?:\(Code\)|Code)?)\s*[:\s-]*(\d{1,2})/i);
-    if (stateCodeMatch?.[1]) {
-      posCode = normalizeStateCode(stateCodeMatch[1]);
-      if (posCode && STATE_CODES[posCode]) {
-        posName = STATE_CODES[posCode] ?? "";
+    const headerSplit = text.split(/(?:TAX\s*INVOICE|GSTN\s*:\s*[0-9A-Z]{15}|GSTIN\s*[:\-]\s*[0-9A-Z]{15})/i);
+    const relevantText = headerSplit.length > 1 ? headerSplit.slice(1).join("\n") : text;
+    const tableSplit = relevantText.split(/(?:Sr\.no|Sl\.\s*No|Description\s*of\s*goods|Item\s*Description|Bank\s*Account|Terms\s*&)/i);
+    const buyerBlock = tableSplit[0] || relevantText;
+
+    const stateNameToCode: Record<string, string> = {};
+    for (const [c, n] of Object.entries(STATE_CODES)) {
+      stateNameToCode[n.toLowerCase()] = c;
+    }
+    const stateNamesDesc = Object.keys(stateNameToCode).sort((a, b) => b.length - a.length);
+    for (const sName of stateNamesDesc) {
+      const pat = new RegExp(`\\b${sName}\\b`, "i");
+      if (pat.test(buyerBlock)) {
+        posCode = stateNameToCode[sName] ?? "";
+        if (posCode && STATE_CODES[posCode]) {
+          posName = STATE_CODES[posCode] ?? "";
+          break;
+        }
+      }
+    }
+
+    // Check "State Code : XX" in buyer block
+    if (!posCode) {
+      const stateCodeMatches = Array.from(buyerBlock.matchAll(/(?:State\s*(?:\(Code\)|Code)?)\s*[:\s-]*(\d{1,2})/gi));
+      if (stateCodeMatches.length > 0) {
+        const lastMatch = stateCodeMatches[stateCodeMatches.length - 1];
+        if (lastMatch?.[1]) {
+          const code = normalizeStateCode(lastMatch[1]);
+          if (code && STATE_CODES[code]) {
+            posCode = code;
+            posName = STATE_CODES[code] ?? "";
+          }
+        }
       }
     }
   }
 
-  if (!posCode && buyerGstin) {
-    posCode = buyerGstin.slice(0, 2);
-    if (posCode && STATE_CODES[posCode]) posName = STATE_CODES[posCode] ?? "";
-  }
-
+  // 4d. Fallback to supplier state (Intra-state)
   if (!posCode && supplierGstin) {
     posCode = supplierGstin.slice(0, 2);
     if (posCode && STATE_CODES[posCode]) posName = STATE_CODES[posCode] ?? "";
