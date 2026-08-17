@@ -18,6 +18,28 @@ export interface ExtractedLineItem {
   totalAmount: number;
 }
 
+export interface FlatLineItemRow {
+  id: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  classification: InvoiceClassification;
+  buyerName: string;
+  buyerGstin: string;
+  placeOfSupply: string;
+  hsnCode: string;
+  itemDescription: string;
+  uqc: string;
+  quantity: number;
+  rate: number;
+  taxableValue: number;
+  igstAmount: number;
+  cgstAmount: number;
+  sgstAmount: number;
+  cessAmount: number;
+  totalAmount: number;
+  fileName: string;
+}
+
 export interface ExtractedInvoice {
   id: string;
   fileName: string;
@@ -83,9 +105,12 @@ export interface ExtractedB2csRow {
 
 export interface PdfExtractionBatchResult {
   invoices: ExtractedInvoice[];
+  allLineItems: FlatLineItemRow[];
   hsnSummary: ExtractedHsnRow[];
+  b2bHsnSummary: ExtractedHsnRow[];
   b2csSummary: ExtractedB2csRow[];
   totalInvoicesCount: number;
+  totalLineItemsCount: number;
   b2bCount: number;
   b2cCount: number;
   totalTaxableValue: number;
@@ -94,8 +119,10 @@ export interface PdfExtractionBatchResult {
   totalSgstAmount: number;
   totalCessAmount: number;
   totalGrossAmount: number;
+  formattedGstr1LineItemsTsv: string;
   formattedGstr1B2bTsv: string;
   formattedGstr1B2csTsv: string;
   formattedGstr1HsnTsv: string;
+  formattedGstr1B2bHsnTsv: string;
   formattedGstr1DocsTsv: string;
 }

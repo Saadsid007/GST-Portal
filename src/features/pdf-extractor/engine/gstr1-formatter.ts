@@ -3,6 +3,7 @@ import type {
   ExtractedInvoice,
   ExtractedHsnRow,
   ExtractedB2csRow,
+  FlatLineItemRow,
   PdfExtractionBatchResult,
 } from "@/features/pdf-extractor/domain/types";
 import { STATE_CODES } from "@/features/convert/domain/state-codes";
@@ -21,8 +22,14 @@ export function formatGstr1BatchResult(invoices: ExtractedInvoice[]): PdfExtract
   let b2bCount = 0;
   let b2cCount = 0;
 
-  // Aggregate HSN
+  // Flattened line items
+  const allLineItems: FlatLineItemRow[] = [];
+
+  // Aggregate HSN (All invoices)
   const hsnMap = new Map<string, ExtractedHsnRow>();
+
+  // Aggregate HSN (B2B invoices only)
+  const b2bHsnMap = new Map<string, ExtractedHsnRow>();
 
   // Aggregate B2CS (by State + Rate)
   const b2csMap = new Map<string, ExtractedB2csRow>();
@@ -35,7 +42,8 @@ export function formatGstr1BatchResult(invoices: ExtractedInvoice[]): PdfExtract
     totalCessAmount = r2(totalCessAmount + inv.cessAmount);
     totalGrossAmount = r2(totalGrossAmount + inv.totalInvoiceValue);
 
-    if (inv.classification === "B2B") {
+    const isB2b = inv.classification === "B2B";
+    if (isB2b) {
       b2bCount++;
     } else {
       b2cCount++;
@@ -61,8 +69,32 @@ export function formatGstr1BatchResult(invoices: ExtractedInvoice[]): PdfExtract
       }
     }
 
-    // Line items HSN aggregation
+    // Line items processing & HSN aggregation
     for (const item of inv.lineItems) {
+      // 1. Add to flat line items list
+      allLineItems.push({
+        id: crypto.randomUUID(),
+        invoiceNumber: inv.invoiceNumber,
+        invoiceDate: inv.invoiceDate,
+        classification: inv.classification,
+        buyerName: inv.buyerName,
+        buyerGstin: inv.buyerGstin,
+        placeOfSupply: inv.placeOfSupplyStateName,
+        hsnCode: item.hsnCode || "4419",
+        itemDescription: item.itemDescription || "General goods",
+        uqc: item.uqc || (item.hsnCode.startsWith("99") ? "OTH" : "NOS"),
+        quantity: item.quantity || 1,
+        rate: item.rate || inv.gstRate,
+        taxableValue: item.taxableValue,
+        igstAmount: item.igstAmount,
+        cgstAmount: item.cgstAmount,
+        sgstAmount: item.sgstAmount,
+        cessAmount: item.cessAmount,
+        totalAmount: item.totalAmount,
+        fileName: inv.fileName,
+      });
+
+      // 2. All Invoices HSN aggregation
       const hsnKey = `${item.hsnCode}|${item.rate}`;
       let standardDesc = item.itemDescription;
       if (item.hsnCode === "4419") standardDesc = "Wood tableware and kitchenware";
@@ -93,13 +125,87 @@ export function formatGstr1BatchResult(invoices: ExtractedInvoice[]): PdfExtract
         ex.sgstAmount = r2(ex.sgstAmount + (item.sgstAmount || inv.sgstAmount));
         ex.cessAmount = r2(ex.cessAmount + (item.cessAmount || inv.cessAmount));
       }
+
+      // 3. B2B Only HSN aggregation
+      if (isB2b) {
+        if (!b2bHsnMap.has(hsnKey)) {
+          b2bHsnMap.set(hsnKey, {
+            hsnCode: item.hsnCode || "4419",
+            description: standardDesc || "General goods",
+            uqc: item.uqc || (item.hsnCode.startsWith("99") ? "OTH" : "NOS"),
+            totalQuantity: item.quantity || 1,
+            totalValue: item.totalAmount || inv.totalInvoiceValue,
+            rate: item.rate || inv.gstRate,
+            taxableValue: item.taxableValue || inv.taxableValue,
+            igstAmount: item.igstAmount || inv.igstAmount,
+            cgstAmount: item.cgstAmount || inv.cgstAmount,
+            sgstAmount: item.sgstAmount || inv.sgstAmount,
+            cessAmount: item.cessAmount || inv.cessAmount,
+          });
+        } else {
+          const ex = b2bHsnMap.get(hsnKey)!;
+          ex.totalQuantity += item.quantity || 1;
+          ex.totalValue = r2(ex.totalValue + (item.totalAmount || inv.totalInvoiceValue));
+          ex.taxableValue = r2(ex.taxableValue + (item.taxableValue || inv.taxableValue));
+          ex.igstAmount = r2(ex.igstAmount + (item.igstAmount || inv.igstAmount));
+          ex.cgstAmount = r2(ex.cgstAmount + (item.cgstAmount || inv.cgstAmount));
+          ex.sgstAmount = r2(ex.sgstAmount + (item.sgstAmount || inv.sgstAmount));
+          ex.cessAmount = r2(ex.cessAmount + (item.cessAmount || inv.cessAmount));
+        }
+      }
     }
   }
 
   const hsnSummary = Array.from(hsnMap.values());
+  const b2bHsnSummary = Array.from(b2bHsnMap.values());
   const b2csSummary = Array.from(b2csMap.values());
 
-  // 1. Format GSTR-1 B2B TSV String
+  // 1. Format Flat Line Items TSV String
+  const lineHeaders = [
+    "Invoice Number",
+    "Invoice Date",
+    "Type",
+    "Buyer Name",
+    "Buyer GSTIN",
+    "Place of Supply",
+    "HSN/SAC",
+    "Item Description",
+    "UQC",
+    "Quantity",
+    "Rate (%)",
+    "Taxable Value (Rs)",
+    "IGST (Rs)",
+    "CGST (Rs)",
+    "SGST (Rs)",
+    "Total Amount (Rs)",
+    "File Name",
+  ];
+  const lineRows = [lineHeaders.join("\t")];
+  for (const it of allLineItems) {
+    lineRows.push(
+      [
+        it.invoiceNumber,
+        it.invoiceDate,
+        it.classification,
+        it.buyerName,
+        it.buyerGstin,
+        it.placeOfSupply,
+        it.hsnCode,
+        it.itemDescription,
+        it.uqc,
+        it.quantity,
+        it.rate,
+        it.taxableValue.toFixed(2),
+        it.igstAmount.toFixed(2),
+        it.cgstAmount.toFixed(2),
+        it.sgstAmount.toFixed(2),
+        it.totalAmount.toFixed(2),
+        it.fileName,
+      ].join("\t")
+    );
+  }
+
+  // 2. Format GSTR-1 B2B TSV String
   const b2bInvoices = invoices.filter((i) => i.classification === "B2B");
   const b2bHeaders = [
     "GSTIN/UIN of Recipient",
@@ -140,7 +246,7 @@ export function formatGstr1BatchResult(invoices: ExtractedInvoice[]): PdfExtract
     );
   }
 
-  // 2. Format GSTR-1 B2CS TSV String
+  // 3. Format GSTR-1 B2CS TSV String
   const b2csHeaders = [
     "Type",
     "Place Of Supply",
@@ -165,7 +271,7 @@ export function formatGstr1BatchResult(invoices: ExtractedInvoice[]): PdfExtract
     );
   }
 
-  // 3. Format GSTR-1 HSN TSV String
+  // 4. Format GSTR-1 HSN TSV String (All & B2B)
   const hsnHeaders = [
     "HSN",
     "Description",
@@ -198,7 +304,26 @@ export function formatGstr1BatchResult(invoices: ExtractedInvoice[]): PdfExtract
     );
   }
 
-  // 4. Format Docs TSV String
+  const b2bHsnLines = [hsnHeaders.join("\t")];
+  for (const h of b2bHsnSummary) {
+    b2bHsnLines.push(
+      [
+        h.hsnCode,
+        h.description,
+        h.uqc,
+        h.totalQuantity,
+        h.totalValue.toFixed(2),
+        h.rate,
+        h.taxableValue.toFixed(2),
+        h.igstAmount.toFixed(2),
+        h.cgstAmount.toFixed(2),
+        h.sgstAmount.toFixed(2),
+        h.cessAmount > 0 ? h.cessAmount.toFixed(2) : "",
+      ].join("\t")
+    );
+  }
+
+  // 5. Format Docs TSV String
   const docsHeaders = ["Nature of Document", "Sr. No. From", "Sr. No. To", "Total Number", "Cancelled"];
   const docsLines = [docsHeaders.join("\t")];
   if (invoices.length > 0) {
@@ -215,9 +340,12 @@ export function formatGstr1BatchResult(invoices: ExtractedInvoice[]): PdfExtract
 
   return {
     invoices,
+    allLineItems,
     hsnSummary,
+    b2bHsnSummary,
     b2csSummary,
     totalInvoicesCount: invoices.length,
+    totalLineItemsCount: allLineItems.length,
     b2bCount,
     b2cCount,
     totalTaxableValue,
@@ -226,17 +354,43 @@ export function formatGstr1BatchResult(invoices: ExtractedInvoice[]): PdfExtract
     totalSgstAmount,
     totalCessAmount,
     totalGrossAmount,
+    formattedGstr1LineItemsTsv: lineRows.join("\n"),
     formattedGstr1B2bTsv: b2bLines.join("\n"),
     formattedGstr1B2csTsv: b2csLines.join("\n"),
     formattedGstr1HsnTsv: hsnLines.join("\n"),
+    formattedGstr1B2bHsnTsv: b2bHsnLines.join("\n"),
     formattedGstr1DocsTsv: docsLines.join("\n"),
   };
 }
 
 export function generatePdfInvoicesExcel(invoices: ExtractedInvoice[]): Uint8Array {
   const wb = XLSX.utils.book_new();
+  const batch = formatGstr1BatchResult(invoices);
 
-  // Sheet 1: All Extracted Invoices
+  // Sheet 1: Individual Invoice Line Items (Row by Row breakdown)
+  const lineItemRows = batch.allLineItems.map((it) => ({
+    "Invoice Number": it.invoiceNumber,
+    "Invoice Date": it.invoiceDate,
+    "Type": it.classification,
+    "Buyer Name": it.buyerName,
+    "Buyer GSTIN": it.buyerGstin,
+    "Place of Supply": it.placeOfSupply,
+    "HSN/SAC Code": it.hsnCode,
+    "Item Description": it.itemDescription,
+    "UQC": it.uqc,
+    "Quantity": it.quantity,
+    "GST Rate (%)": it.rate,
+    "Taxable Value (Rs)": it.taxableValue,
+    "IGST (Rs)": it.igstAmount,
+    "CGST (Rs)": it.cgstAmount,
+    "SGST (Rs)": it.sgstAmount,
+    "Total Amount (Rs)": it.totalAmount,
+    "File Name": it.fileName,
+  }));
+  const wsLineItems = XLSX.utils.json_to_sheet(lineItemRows);
+  XLSX.utils.book_append_sheet(wb, wsLineItems, "Invoice_Line_Items");
+
+  // Sheet 2: All Extracted Invoices
   const allRows = invoices.map((inv) => ({
     "File Name": inv.fileName,
     "Invoice Number": inv.invoiceNumber,
@@ -259,7 +413,7 @@ export function generatePdfInvoicesExcel(invoices: ExtractedInvoice[]): Uint8Arr
   const wsAll = XLSX.utils.json_to_sheet(allRows);
   XLSX.utils.book_append_sheet(wb, wsAll, "All_Extracted");
 
-  // Sheet 2: B2B Table
+  // Sheet 3: B2B Table
   const b2bInvoices = invoices.filter((i) => i.classification === "B2B");
   const b2bRows = b2bInvoices.map((inv) => ({
     "GSTIN/UIN of Recipient": inv.buyerGstin,
@@ -281,9 +435,7 @@ export function generatePdfInvoicesExcel(invoices: ExtractedInvoice[]): Uint8Arr
   const wsB2b = XLSX.utils.json_to_sheet(b2bRows);
   XLSX.utils.book_append_sheet(wb, wsB2b, "b2b,sez,de");
 
-  const batch = formatGstr1BatchResult(invoices);
-
-  // Sheet 3: B2CS Table
+  // Sheet 4: B2CS Table
   const b2csRows = batch.b2csSummary.map((s) => ({
     "Type": s.type,
     "Place Of Supply": s.placeOfSupply,
@@ -296,8 +448,8 @@ export function generatePdfInvoicesExcel(invoices: ExtractedInvoice[]): Uint8Arr
   const wsB2cs = XLSX.utils.json_to_sheet(b2csRows);
   XLSX.utils.book_append_sheet(wb, wsB2cs, "b2cs");
 
-  // Sheet 4: HSN Table
-  const hsnRows = batch.hsnSummary.map((h) => ({
+  // Sheet 5: HSN (B2B Table 12)
+  const b2bHsnRows = batch.b2bHsnSummary.map((h) => ({
     "HSN": h.hsnCode,
     "Description": h.description,
     "UQC": h.uqc,
@@ -310,8 +462,25 @@ export function generatePdfInvoicesExcel(invoices: ExtractedInvoice[]): Uint8Arr
     "State/UT Tax Amount": h.sgstAmount,
     "Cess Amount": h.cessAmount,
   }));
-  const wsHsn = XLSX.utils.json_to_sheet(hsnRows);
-  XLSX.utils.book_append_sheet(wb, wsHsn, "hsn(b2b)");
+  const wsB2bHsn = XLSX.utils.json_to_sheet(b2bHsnRows);
+  XLSX.utils.book_append_sheet(wb, wsB2bHsn, "hsn(b2b)");
+
+  // Sheet 6: HSN (All Invoices Table 12)
+  const allHsnRows = batch.hsnSummary.map((h) => ({
+    "HSN": h.hsnCode,
+    "Description": h.description,
+    "UQC": h.uqc,
+    "Total Quantity": h.totalQuantity,
+    "Total Value": h.totalValue,
+    "Rate": h.rate,
+    "Taxable Value": h.taxableValue,
+    "Integrated Tax Amount": h.igstAmount,
+    "Central Tax Amount": h.cgstAmount,
+    "State/UT Tax Amount": h.sgstAmount,
+    "Cess Amount": h.cessAmount,
+  }));
+  const wsAllHsn = XLSX.utils.json_to_sheet(allHsnRows);
+  XLSX.utils.book_append_sheet(wb, wsAllHsn, "hsn(all)");
 
   const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
   return new Uint8Array(buffer);

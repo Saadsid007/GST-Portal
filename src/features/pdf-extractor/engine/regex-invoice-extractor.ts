@@ -422,38 +422,37 @@ export function extractInvoiceFromText(params: {
 
   // Strategy B: Craftykart D2C Invoices Item Blocks
   if (lineItems.length === 0) {
-    const craftykartBlocks = text.split(/\n(?=\d+\n[^\n]+\nHSN:\s*\d+)/);
-    if (craftykartBlocks.length > 1) {
-      for (let i = 1; i < craftykartBlocks.length; i++) {
-        const blk = craftykartBlocks[i]!;
-        const descMatch = blk.match(/^\d+\n([^\n]+(?:\n[^\n]+)?)\nHSN:\s*(\d{4,8})/i);
-        const numMatch = blk.match(/(\d+)\s+[\d.]+\s+[\d.]+\s+([\d.]+)\s+[\d.]+\s+(?:IGST|CGST|SGST|GST)[:\s]*([\d.]+)%?\s+(?:IGST|CGST|SGST)[:\s]*([\d.]+)\s+([\d.]+)/i);
+    const tableMatch = text.match(/#\s*Item\s*Description\s*Qty\s*MRP[\s\S]*?Total\s*Amount\n([\s\S]*?)(?:Amount\s*in\s*Words|Total\s*\(\s*excluding\s*Tax\)|Total\s*Amount:)/i);
+    if (tableMatch?.[1]) {
+      const tableBody = tableMatch[1];
+      const itemBlocks = tableBody.split(/\n(?=\d+\n[\s\S]*?HSN:\s*\d+)/i).filter((b) => b.trim());
 
-        if (descMatch && numMatch) {
-          const hsn = descMatch[2]!;
-          const desc = descMatch[1]!.replace(/\n/g, " ").trim();
-          const qty = parseInt(numMatch[1]!) || 1;
-          const itemTaxable = parseFloat(numMatch[2]!) || 0;
-          const rate = parseFloat(numMatch[3]!) || gstRate || 5;
-          const taxAmt = parseFloat(numMatch[4]!) || 0;
-          const total = parseFloat(numMatch[5]!) || itemTaxable + taxAmt;
+      for (const blk of itemBlocks) {
+        const srMatch = blk.match(/^(\d+)\n([\s\S]*?)HSN:\s*(\d{4,8})/i);
+        const numLineMatch = blk.match(/(\d+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+(?:IGST|CGST|SGST|GST)[:\s]*([\d.]+)%?\s+(?:IGST|CGST|SGST)[:\s]*([\d.]+)\s+([\d.]+)/i);
+
+        if (srMatch && numLineMatch) {
+          const itemTaxable = parseFloat(numLineMatch[4]!);
+          const itemRate = parseFloat(numLineMatch[6]!) || gstRate || 5;
+          const itemTaxAmt = parseFloat(numLineMatch[7]!);
+          const itemTotal = parseFloat(numLineMatch[8]!) || itemTaxable + itemTaxAmt;
 
           lineItems.push({
-            itemDescription: desc,
-            hsnCode: hsn,
+            itemDescription: srMatch[2]!.replace(/\n/g, " ").trim(),
+            hsnCode: srMatch[3]!,
             uqc: "NOS",
-            quantity: qty,
-            rate,
+            quantity: parseInt(numLineMatch[1]!) || 1,
+            rate: itemRate,
             taxableValue: itemTaxable,
-            igstRate: isInterState ? rate : 0,
-            cgstRate: isInterState ? 0 : rate / 2,
-            sgstRate: isInterState ? 0 : rate / 2,
+            igstRate: isInterState ? itemRate : 0,
+            cgstRate: isInterState ? 0 : itemRate / 2,
+            sgstRate: isInterState ? 0 : itemRate / 2,
             cessRate: 0,
-            igstAmount: isInterState ? taxAmt : 0,
-            cgstAmount: isInterState ? 0 : r2(taxAmt / 2),
-            sgstAmount: isInterState ? 0 : r2(taxAmt / 2),
+            igstAmount: isInterState ? itemTaxAmt : 0,
+            cgstAmount: isInterState ? 0 : r2(itemTaxAmt / 2),
+            sgstAmount: isInterState ? 0 : r2(itemTaxAmt / 2),
             cessAmount: 0,
-            totalAmount: total,
+            totalAmount: itemTotal,
           });
         }
       }

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Copy, Check, Download, Layers } from "lucide-react";
+import { Copy, Check, Download, Layers, ListOrdered } from "lucide-react";
 import { toast } from "sonner";
 import type { PdfExtractionBatchResult } from "@/features/pdf-extractor/domain/types";
 import { downloadExtractedExcelAction } from "@/features/pdf-extractor/actions/pdf-extractor.actions";
@@ -53,7 +53,7 @@ export function CopyExportToolbar({ data }: CopyExportToolbarProps) {
       } else {
         toast.error(res.error || "Failed to download Excel file.");
       }
-    } catch (err) {
+    } catch {
       toast.error("Failed to export Excel file.");
     } finally {
       setIsExporting(false);
@@ -68,6 +68,21 @@ export function CopyExportToolbar({ data }: CopyExportToolbarProps) {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
+        {/* Copy Line Items */}
+        <button
+          onClick={() =>
+            handleCopy(data.formattedGstr1LineItemsTsv, "All Invoice Line Items", "lines")
+          }
+          className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-amber-50 dark:hover:bg-amber-950/40 hover:border-amber-300 dark:hover:border-amber-700 px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all cursor-pointer"
+        >
+          {copiedType === "lines" ? (
+            <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+          ) : (
+            <ListOrdered className="h-3.5 w-3.5 text-slate-500" />
+          )}
+          <span>Copy All Line Items ({data.allLineItems.length})</span>
+        </button>
+
         {/* Copy B2B */}
         <button
           onClick={() =>
@@ -98,19 +113,34 @@ export function CopyExportToolbar({ data }: CopyExportToolbarProps) {
           <span>Copy B2CS Table</span>
         </button>
 
-        {/* Copy HSN */}
+        {/* Copy B2B HSN */}
         <button
           onClick={() =>
-            handleCopy(data.formattedGstr1HsnTsv, "GSTR-1 HSN Table", "hsn")
+            handleCopy(data.formattedGstr1B2bHsnTsv, "B2B HSN Table", "b2bhsn")
           }
           className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-purple-50 dark:hover:bg-purple-950/40 hover:border-purple-300 dark:hover:border-purple-700 px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all cursor-pointer"
         >
-          {copiedType === "hsn" ? (
+          {copiedType === "b2bhsn" ? (
             <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
           ) : (
             <Copy className="h-3.5 w-3.5 text-slate-500" />
           )}
-          <span>Copy HSN Table</span>
+          <span>Copy B2B HSN ({data.b2bHsnSummary.length})</span>
+        </button>
+
+        {/* Copy All HSN */}
+        <button
+          onClick={() =>
+            handleCopy(data.formattedGstr1HsnTsv, "GSTR-1 All HSN Table", "allhsn")
+          }
+          className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-purple-50 dark:hover:bg-purple-950/40 hover:border-purple-300 dark:hover:border-purple-700 px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all cursor-pointer"
+        >
+          {copiedType === "allhsn" ? (
+            <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+          ) : (
+            <Copy className="h-3.5 w-3.5 text-slate-500" />
+          )}
+          <span>Copy All HSN ({data.hsnSummary.length})</span>
         </button>
 
         {/* Download Excel */}
