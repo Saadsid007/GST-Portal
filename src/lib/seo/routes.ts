@@ -26,6 +26,7 @@ const FALLBACK_DATE = "2025-01-01T00:00:00.000Z";
 export const PRIVATE_ROUTE_PREFIXES = [
   "/dashboard",
   "/convert",
+  "/pdf-extractor",
   "/history",
   "/profile",
   "/settings",
