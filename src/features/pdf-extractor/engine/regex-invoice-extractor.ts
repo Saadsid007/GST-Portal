@@ -85,6 +85,9 @@ export function extractInvoiceFromText(params: {
   // 2. Invoice Number
   let invoiceNumber = "";
   const invPatterns = [
+    /Invoice\s*(?:#|No\.?|Number)\s*[:#\s]*([A-Za-z0-9]+(?:\s*[\/\-_]\s*[A-Za-z0-9]+)+)/i,
+    /Tax\s*Invoice\s*(?:#|No\.?)\s*[:#\s]*([A-Za-z0-9]+(?:\s*[\/\-_]\s*[A-Za-z0-9]+)+)/i,
+    /Bill\s*No\.?\s*[:#\s]*([A-Za-z0-9]+(?:\s*[\/\-_]\s*[A-Za-z0-9]+)+)/i,
     /Invoice\s*#\s*[:\s]*([A-Za-z0-9\-\/_]+)/i,
     /Invoice\s*No\.?\s*[:\s]*([A-Za-z0-9\-\/_]+)/i,
     /Tax\s*Invoice\s*(?:#|No\.?)\s*[:#\s-]*([A-Za-z0-9\-\/_]+)/i,
@@ -94,7 +97,7 @@ export function extractInvoiceFromText(params: {
   for (const pat of invPatterns) {
     const m = text.match(pat);
     if (m?.[1] && m[1].length >= 2 && !/^(date|dated|original|duplicate|tax)$/i.test(m[1].trim())) {
-      invoiceNumber = m[1].trim();
+      invoiceNumber = m[1].replace(/\s*\/\s*/g, "/").replace(/\s*-\s*/g, "-").trim();
       break;
     }
   }
