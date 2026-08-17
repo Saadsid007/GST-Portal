@@ -304,52 +304,214 @@ export function extractInvoiceFromText(params: {
     }
   }
 
-  // 6. HSN / SAC Code & Description
-  let hsnCode = "";
-  let itemDescription = "Goods/Services";
+  // 6 & 7. Multi-Line Item & HSN Extraction
+  const isInterState = Boolean(supplierGstin && posCode && supplierGstin.slice(0, 2) !== posCode);
+  const lineItems: ExtractedLineItem[] = [];
 
-  const hsnMatch = text.match(/(?:HSN|SAC|HSN\s*\/|\bSAC\s*Code|\bHSN\s*Code)\s*[:#\s-]*(\d{4,8})/i);
-  const sacMatch = text.match(/\b(99\d{4})\b/);
-  const eazeMatch = text.match(/\d+\.\s*(\d{4,8})\s+([^\n\r]+)/i);
-  const tableHsnMatch = text.match(/\n\s*(\d{4,8})\s+\d{1,2}\s+\d+/);
+  // Strategy A: Pebble Crafts Multi-item Table (Column Grouped or Single Line)
+  const pebbleMatch = text.match(/Sr\.no\s*Description\s*of\s*goods\s*Hsn\s*code\s*GST\s*Rate\s*Quantity\s*Basic\s*Rate[^\n]*Amount[^\n]*\n([\s\S]*?)(?:TOTAL|\bSub\s*total|Bank\s*Account)/i);
+  if (pebbleMatch?.[1]) {
+    const rawLines = pebbleMatch[1].split("\n").map((l) => l.trim()).filter((l) => l && l !== "`");
+    let countN = 0;
+    while (countN < rawLines.length && /^\d+$/.test(rawLines[countN]!) && parseInt(rawLines[countN]!) === countN + 1) {
+      countN++;
+    }
 
-  if (hsnMatch?.[1]) {
-    hsnCode = hsnMatch[1].trim();
-    itemDescription = `Goods supplied under HSN ${hsnCode}`;
-  } else if (sacMatch?.[1]) {
-    hsnCode = sacMatch[1].trim();
-    itemDescription = `Services supplied under SAC ${hsnCode}`;
-  } else if (eazeMatch?.[1]) {
-    hsnCode = eazeMatch[1].trim();
-    itemDescription = eazeMatch[2]?.trim() || `Software services under SAC ${hsnCode}`;
-  } else if (tableHsnMatch?.[1]) {
-    hsnCode = tableHsnMatch[1].trim();
-    itemDescription = `Goods supplied under HSN ${hsnCode}`;
-  } else {
-    hsnCode = "4419";
-    itemDescription = `Goods supplied under HSN 4419`;
+    if (countN > 0) {
+      const descs: string[] = [];
+      const hsns: string[] = [];
+      const gstRates: number[] = [];
+      const quantities: number[] = [];
+      const amounts: number[] = [];
+
+      let hsnStart = -1;
+      for (let i = countN; i <= rawLines.length - (5 * countN); i++) {
+        let allHsn = true;
+        for (let j = 0; j < countN; j++) {
+          if (!/^\d{4,8}$/.test(rawLines[i + j]!)) {
+            allHsn = false;
+            break;
+          }
+        }
+        if (allHsn) {
+          hsnStart = i;
+          break;
+        }
+      }
+
+      if (hsnStart !== -1) {
+        const descTokens = rawLines.slice(countN, hsnStart);
+        if (descTokens.length === countN) {
+          descs.push(...descTokens);
+        } else {
+          for (let i = 0; i < countN; i++) {
+            descs.push(descTokens[i] || `Wooden Handicraft Item ${i + 1}`);
+          }
+        }
+
+        for (let i = 0; i < countN; i++) {
+          hsns.push(rawLines[hsnStart + i]!);
+          gstRates.push(parseFloat(rawLines[hsnStart + countN + i]!) || gstRate || 5);
+          quantities.push(parseFloat(rawLines[hsnStart + 2 * countN + i]!) || 1);
+          amounts.push(parseFloat(rawLines[hsnStart + 4 * countN + i]!) || 0);
+        }
+
+        for (let i = 0; i < countN; i++) {
+          const itemTaxable = amounts[i]!;
+          const itemRate = gstRates[i]!;
+          const itemTaxAmt = r2(itemTaxable * (itemRate / 100));
+          const igst = isInterState ? itemTaxAmt : 0;
+          const cgst = isInterState ? 0 : r2(itemTaxAmt / 2);
+          const sgst = isInterState ? 0 : r2(itemTaxAmt / 2);
+
+          lineItems.push({
+            itemDescription: descs[i] || "Wooden Handicrafts",
+            hsnCode: hsns[i] || "4419",
+            uqc: (hsns[i] || "").startsWith("99") ? "OTH" : "NOS",
+            quantity: quantities[i]!,
+            rate: itemRate,
+            taxableValue: itemTaxable,
+            igstRate: isInterState ? itemRate : 0,
+            cgstRate: isInterState ? 0 : itemRate / 2,
+            sgstRate: isInterState ? 0 : itemRate / 2,
+            cessRate: 0,
+            igstAmount: igst,
+            cgstAmount: cgst,
+            sgstAmount: sgst,
+            cessAmount: 0,
+            totalAmount: r2(itemTaxable + itemTaxAmt),
+          });
+        }
+      }
+    }
+
+    if (lineItems.length === 0) {
+      const singleTokens = rawLines.filter((l) => l !== "`");
+      const trailingNums = singleTokens[singleTokens.length - 1]?.match(/(\d{4,8})\s+(\d{1,2})\s+(\d+)\s+([\d.]+)\s+([\d.]+)/);
+      if (trailingNums) {
+        const desc = singleTokens.slice(0, singleTokens.length - 1).join(" ").replace(/^\d+\s*/, "").trim();
+        const hsn = trailingNums[1]!;
+        const rate = parseFloat(trailingNums[2]!) || gstRate || 5;
+        const qty = parseFloat(trailingNums[3]!) || 1;
+        const itemTaxable = parseFloat(trailingNums[5]!) || taxableValue;
+        const itemTaxAmt = r2(itemTaxable * (rate / 100));
+        const igst = isInterState ? itemTaxAmt : 0;
+        const cgst = isInterState ? 0 : r2(itemTaxAmt / 2);
+        const sgst = isInterState ? 0 : r2(itemTaxAmt / 2);
+
+        lineItems.push({
+          itemDescription: desc || "Wooden Handicrafts",
+          hsnCode: hsn,
+          uqc: "NOS",
+          quantity: qty,
+          rate,
+          taxableValue: itemTaxable,
+          igstRate: isInterState ? rate : 0,
+          cgstRate: isInterState ? 0 : rate / 2,
+          sgstRate: isInterState ? 0 : rate / 2,
+          cessRate: 0,
+          igstAmount: igst,
+          cgstAmount: cgst,
+          sgstAmount: sgst,
+          cessAmount: 0,
+          totalAmount: r2(itemTaxable + itemTaxAmt),
+        });
+      }
+    }
   }
 
-  // 7. Line Item Extraction
-  const lineItems: ExtractedLineItem[] = [
-    {
-      itemDescription,
-      hsnCode,
-      uqc: hsnCode.startsWith("99") ? "OTH" : "NOS",
+  // Strategy B: Craftykart D2C Invoices Item Blocks
+  if (lineItems.length === 0) {
+    const craftykartBlocks = text.split(/\n(?=\d+\n[^\n]+\nHSN:\s*\d+)/);
+    if (craftykartBlocks.length > 1) {
+      for (let i = 1; i < craftykartBlocks.length; i++) {
+        const blk = craftykartBlocks[i]!;
+        const descMatch = blk.match(/^\d+\n([^\n]+(?:\n[^\n]+)?)\nHSN:\s*(\d{4,8})/i);
+        const numMatch = blk.match(/(\d+)\s+[\d.]+\s+[\d.]+\s+([\d.]+)\s+[\d.]+\s+(?:IGST|CGST|SGST|GST)[:\s]*([\d.]+)%?\s+(?:IGST|CGST|SGST)[:\s]*([\d.]+)\s+([\d.]+)/i);
+
+        if (descMatch && numMatch) {
+          const hsn = descMatch[2]!;
+          const desc = descMatch[1]!.replace(/\n/g, " ").trim();
+          const qty = parseInt(numMatch[1]!) || 1;
+          const itemTaxable = parseFloat(numMatch[2]!) || 0;
+          const rate = parseFloat(numMatch[3]!) || gstRate || 5;
+          const taxAmt = parseFloat(numMatch[4]!) || 0;
+          const total = parseFloat(numMatch[5]!) || itemTaxable + taxAmt;
+
+          lineItems.push({
+            itemDescription: desc,
+            hsnCode: hsn,
+            uqc: "NOS",
+            quantity: qty,
+            rate,
+            taxableValue: itemTaxable,
+            igstRate: isInterState ? rate : 0,
+            cgstRate: isInterState ? 0 : rate / 2,
+            sgstRate: isInterState ? 0 : rate / 2,
+            cessRate: 0,
+            igstAmount: isInterState ? taxAmt : 0,
+            cgstAmount: isInterState ? 0 : r2(taxAmt / 2),
+            sgstAmount: isInterState ? 0 : r2(taxAmt / 2),
+            cessAmount: 0,
+            totalAmount: total,
+          });
+        }
+      }
+    }
+  }
+
+  // Strategy C: Eazeship Software Subscription Charges
+  if (lineItems.length === 0) {
+    const eazeLine = text.match(/\d+\.\s*(\d{4,8})\s+([\s\S]*?)(?:₹|\bSGST|\bCGST|\bIGST)/i);
+    if (eazeLine) {
+      const hsn = eazeLine[1]!;
+      const desc = eazeLine[2]!.replace(/\n/g, " ").trim();
+      lineItems.push({
+        itemDescription: desc || "Software Subscription Charges",
+        hsnCode: hsn,
+        uqc: "OTH",
+        quantity: 1,
+        rate: 18,
+        taxableValue,
+        igstRate: isInterState ? 18 : 0,
+        cgstRate: isInterState ? 0 : 9,
+        sgstRate: isInterState ? 0 : 9,
+        cessRate: 0,
+        igstAmount,
+        cgstAmount,
+        sgstAmount,
+        cessAmount,
+        totalAmount: totalInvoiceValue,
+      });
+    }
+  }
+
+  // Strategy D: Fallback Single Line Item
+  if (lineItems.length === 0) {
+    let fallbackHsn = "4419";
+    const hsnMatch = text.match(/(?:HSN|SAC|HSN\s*\/|\bSAC\s*Code|\bHSN\s*Code)\s*[:#\s-]*(\d{4,8})/i);
+    const sacMatch = text.match(/\b(99\d{4})\b/);
+    if (hsnMatch?.[1]) fallbackHsn = hsnMatch[1].trim();
+    else if (sacMatch?.[1]) fallbackHsn = sacMatch[1].trim();
+
+    lineItems.push({
+      itemDescription: `Goods/Services supplied under HSN ${fallbackHsn}`,
+      hsnCode: fallbackHsn,
+      uqc: fallbackHsn.startsWith("99") ? "OTH" : "NOS",
       quantity: 1,
       rate: gstRate,
       taxableValue,
-      igstRate,
-      cgstRate,
-      sgstRate,
+      igstRate: isInterState ? gstRate : 0,
+      cgstRate: isInterState ? 0 : gstRate / 2,
+      sgstRate: isInterState ? 0 : gstRate / 2,
       cessRate: 0,
       igstAmount,
       cgstAmount,
       sgstAmount,
       cessAmount,
       totalAmount: totalInvoiceValue,
-    },
-  ];
+    });
+  }
 
   // 8. Buyer & Supplier Names
   let supplierName = "";

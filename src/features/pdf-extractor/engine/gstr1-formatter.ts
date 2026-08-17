@@ -64,11 +64,16 @@ export function formatGstr1BatchResult(invoices: ExtractedInvoice[]): PdfExtract
     // Line items HSN aggregation
     for (const item of inv.lineItems) {
       const hsnKey = `${item.hsnCode}|${item.rate}`;
+      let standardDesc = item.itemDescription;
+      if (item.hsnCode === "4419") standardDesc = "Wood tableware and kitchenware";
+      else if (item.hsnCode === "4421") standardDesc = "Other articles of wood";
+      else if (item.hsnCode === "997331") standardDesc = "Software Subscription Charges";
+
       if (!hsnMap.has(hsnKey)) {
         hsnMap.set(hsnKey, {
-          hsnCode: item.hsnCode || "441990",
-          description: item.itemDescription || "General goods",
-          uqc: item.uqc || "NOS",
+          hsnCode: item.hsnCode || "4419",
+          description: standardDesc || "General goods",
+          uqc: item.uqc || (item.hsnCode.startsWith("99") ? "OTH" : "NOS"),
           totalQuantity: item.quantity || 1,
           totalValue: item.totalAmount || inv.totalInvoiceValue,
           rate: item.rate || inv.gstRate,
