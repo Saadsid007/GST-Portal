@@ -31,6 +31,7 @@ const PLATFORM_IMAGE_MAP: Record<string, string> = {
   shopdeck: "/platforms/shopdeck.png",
   snapdeal: "/platforms/snapdeal.webp",
   custom: "/platforms/custom.svg",
+  offline: "/platforms/offline.svg",
 };
 
 /** Initials from the display name — "JioMart Partner" becomes "JM". */
