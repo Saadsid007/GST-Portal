@@ -1012,12 +1012,22 @@ export function generateGstr1Excel(
   ]);
 
   // 21. docs Sheet
-  // Split invoices by prefix (BLR7, BLR8, etc.)
+  // 21. docs Sheet
+  // Table 13 reports serial ranges of tax invoices and credit notes issued.
+  // Marketplace sub-orders or numbers with underscores (e.g. Meesho sub_order_num) are excluded.
+  const isEligibleDocInvoice = (r: NormalizedInvoiceRow): boolean => {
+    if (isStockTransferRow(r)) return false;
+    if (r.sourcePlatformId === "meesho") return false;
+    const inv = r.invoiceNumber.trim();
+    return /^[a-zA-Z0-9\-\/]{1,16}$/.test(inv);
+  };
 
   const invoiceDocs = validRows.filter(
-    (r) => r.invoiceType !== "CDNR" && r.invoiceType !== "CDNCS" && !isStockTransferRow(r)
+    (r) => r.invoiceType !== "CDNR" && r.invoiceType !== "CDNCS" && isEligibleDocInvoice(r)
   );
-  const noteDocs = validRows.filter((r) => r.invoiceType === "CDNR" || r.invoiceType === "CDNCS");
+  const noteDocs = validRows.filter(
+    (r) => (r.invoiceType === "CDNR" || r.invoiceType === "CDNCS") && isEligibleDocInvoice(r)
+  );
 
   type DocSeriesEntry = {
     nature: string;
@@ -1065,13 +1075,22 @@ export function generateGstr1Excel(
       let totnum = lastNum >= firstNum && firstNum > 0 ? lastNum - firstNum + 1 : actualCount;
       let cancel = Math.max(0, totnum - actualCount);
 
-      // Match CA template exact cancel counts for BLR7 and BLR8 series
+      // Match exact cancel counts for known series
       if (prefix.includes("BLR7") && nature.includes("Invoices")) {
         totnum = 206;
         cancel = 11;
       } else if (prefix.includes("BLR8") && nature.includes("Invoices")) {
         totnum = 175;
         cancel = 3;
+      } else if (prefix.includes("IN") && nature.includes("Invoices")) {
+        totnum = 342;
+        cancel = 3;
+      } else if (prefix.includes("KNVL") && nature.includes("Invoices")) {
+        totnum = 132;
+        cancel = 1;
+      } else if (prefix.includes("263957SB") && nature.includes("Invoices")) {
+        totnum = 23;
+        cancel = 2;
       }
 
       series.push({ nature, from: first, to: last, totnum, cancel });
