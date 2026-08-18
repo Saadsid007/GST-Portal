@@ -356,11 +356,7 @@ export function generateGstr1Json(
 
   const docSeries = (docNum: number, docTyp: string, list: NormalizedInvoiceRow[]) => {
     if (list.length === 0) {
-      return {
-        doc_num: docNum,
-        doc_typ: docTyp,
-        docs: [{ num: 1, from: "", to: "", totnum: 0, cancel: 0, net_issue: 0 }],
-      };
+      return null;
     }
 
     const prefixGroups = new Map<string, NormalizedInvoiceRow[]>();
@@ -443,12 +439,12 @@ export function generateGstr1Json(
     };
   };
 
-  const docIssue = {
-    doc_det: [
-      docSeries(1, "Invoices for outward supply", invoiceDocs),
-      ...(noteDocs.length > 0 ? [docSeries(4, "Credit Note", noteDocs)] : []),
-    ],
-  };
+  const docDet = [
+    ...(invoiceDocs.length > 0 ? [docSeries(1, "Invoices for outward supply", invoiceDocs)] : []),
+    ...(noteDocs.length > 0 ? [docSeries(4, "Credit Note", noteDocs)] : []),
+  ].filter((d): d is NonNullable<typeof d> => d !== null);
+
+  const docIssue = docDet.length > 0 ? { doc_det: docDet } : undefined;
 
   // --- Table 14(a): supplies made through an e-commerce operator ---
   const ecoMap = new Map<
