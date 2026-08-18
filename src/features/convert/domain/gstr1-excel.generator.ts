@@ -1032,9 +1032,18 @@ export function generateGstr1Excel(
 
     const prefixGroups = new Map<string, string[]>();
     for (const r of list) {
-      const inv = r.invoiceNumber;
+      const inv = r.invoiceNumber.trim();
+      const lastSlash = inv.lastIndexOf("/");
       const lastDash = inv.lastIndexOf("-");
-      const prefix = lastDash > 0 ? inv.substring(0, lastDash) : inv;
+      let prefix = inv;
+      if (lastSlash > 0) {
+        prefix = inv.substring(0, lastSlash);
+      } else if (lastDash > 0) {
+        prefix = inv.substring(0, lastDash);
+      } else {
+        const matchLetter = inv.match(/^[A-Za-z0-9]*[A-Za-z]+/);
+        if (matchLetter) prefix = matchLetter[0];
+      }
       if (!prefixGroups.has(prefix)) prefixGroups.set(prefix, []);
       prefixGroups.get(prefix)!.push(inv);
     }
@@ -1093,13 +1102,13 @@ export function generateGstr1Excel(
     { ecoName: string; txval: number; iamt: number; camt: number; samt: number; csamt: number }
   >();
   validRows
-    .filter((r) => !isStockTransferRow(r))
+    .filter((r) => !isStockTransferRow(r) && r.sourcePlatformId !== "offline" && Boolean(r.ecoGstin))
     .forEach((r) => {
-      const etin = r.ecoGstin || "29AAICA3918J1CP"; // Default Amazon TCS GSTIN
+      const etin = r.ecoGstin!;
       const isCreditNote = r.invoiceType === "CDNR" || r.invoiceType === "CDNCS";
       const sign = isCreditNote ? -1 : 1;
       if (!ecoAgg.has(etin)) {
-        ecoAgg.set(etin, { ecoName: "", txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0 });
+        ecoAgg.set(etin, { ecoName: r.ecoName || "", txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0 });
       }
       const b = ecoAgg.get(etin)!;
       b.txval = r2(b.txval + Math.abs(r.taxableValue) * sign);

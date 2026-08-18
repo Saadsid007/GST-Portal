@@ -176,7 +176,7 @@ export class MeeshoAdapter {
       const hsnCode = transformHsn(row["hsn_code"] || row["HSN Code"] || row["HSN"]);
 
       // ECO GSTIN
-      const ecoGstin = (row["eco_tcs_gstin"] || row["ECO GSTIN"] || "09AARCM9332R1CM").trim();
+      const ecoGstin = (context.fallbackEcoGstin || row["eco_tcs_gstin"] || row["ECO GSTIN"] || "09AAICA3918J1CR").trim();
 
       // Quantity
       const quantity = parseInt(row["quantity"] || row["Qty"] || "1", 10) || 1;

@@ -35,6 +35,50 @@ export class PlatformDetector {
       matchedKeywords: [],
     };
 
+    // ── Early exit: GST Extracted Invoices (Offline / Direct Invoices) ─────────
+    if (
+      normFile.includes("gstextractedinvoices") ||
+      normFile.includes("offline") ||
+      normSheet.includes("invoicelineitems") ||
+      normSheet.includes("allextracted")
+    ) {
+      if (normFile.includes("gstextractedinvoices") && !normSheet.includes("invoicelineitems")) {
+        return {
+          platformId: "offline",
+          platformName: "Offline & Direct Invoices",
+          fileTypeId: "offline_summary_ref",
+          parserVersion: "v1",
+          confidence: 90,
+          matchedKeywords: ["File: Offline summary sheet (skipped in favor of line items)"],
+        };
+      }
+      if (
+        normSheet.includes("hsn") ||
+        normSheet.includes("b2cs") ||
+        normSheet.includes("docs") ||
+        normSheet.includes("help") ||
+        normSheet.includes("master")
+      ) {
+        return {
+          platformId: "offline",
+          platformName: "Offline & Direct Invoices",
+          fileTypeId: "offline_summary_ref",
+          parserVersion: "v1",
+          confidence: 90,
+          matchedKeywords: ["File: Offline summary sheet (skipped)"],
+        };
+      }
+
+      return {
+        platformId: "offline",
+        platformName: "Offline & Direct Invoices",
+        fileTypeId: "offline_invoices",
+        parserVersion: "v1",
+        confidence: 95,
+        matchedKeywords: ["File: GST Extracted Invoices (Offline / Direct)"],
+      };
+    }
+
     // ── Early exit: Amazon GSTR-1 reference file ─────────────────────────────
     // Amazon's auto-generated GSTR-1 exports follow the pattern:
     //   GSTR1-<MONTH>-<YEAR>-<ID>-<GSTIN>.xlsx

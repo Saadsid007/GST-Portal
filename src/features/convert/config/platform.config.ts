@@ -302,6 +302,30 @@ export const PLATFORMS_CONFIG: PlatformConfig[] = [
       },
     ],
   },
+  {
+    id: "offline",
+    name: "Offline & Direct Invoices",
+    description: "PDF Extracted Invoices, B2B wholesale bills, and direct offline retail sheets",
+    iconName: "Receipt",
+    badge: "Offline / Direct",
+    accentColor: "from-emerald-600 to-teal-700",
+    files: [
+      {
+        id: "offline_invoices",
+        name: "Extracted / Offline Invoices",
+        description: "GST Extracted Invoices Excel or line item bills",
+        required: true,
+        fileTypes: [".xlsx", ".xls", ".csv", ".pdf"],
+        headerKeywords: [
+          "invoice_line_items",
+          "all_extracted",
+          "hsn/sac code",
+          "taxable value (rs)",
+          "gst_extracted_invoices",
+        ],
+      },
+    ],
+  },
 ];
 
 export function getPlatformConfig(platformId: string): PlatformConfig {

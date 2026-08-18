@@ -50,10 +50,77 @@ import type {
 } from "@/features/convert/types/convert.types";
 import type { ColumnMappingDict } from "@/features/convert/engine/universal/canonical-fields";
 
+import { extractTextFromPdfBuffer } from "@/features/pdf-extractor/engine/pdf-text-parser";
+import { extractInvoiceFromText } from "@/features/pdf-extractor/engine/regex-invoice-extractor";
+
 export interface FileCustomMapping {
   platformId: string;
   fileTypeId: string;
   mapping: ColumnMappingDict;
+}
+
+async function loadFileTables(
+  fileItem: MultiUploadFileInput,
+  gstinNumber?: string
+): Promise<{ fileId: string; fileName: string; table: ReconstructedTable }[]> {
+  const isPdf = fileItem.fileName.toLowerCase().endsWith(".pdf");
+  const buffer = Buffer.from(await fileItem.file.arrayBuffer());
+
+  if (isPdf) {
+    const doc = await extractTextFromPdfBuffer(buffer);
+    const inv = extractInvoiceFromText({
+      text: doc.text,
+      fileName: fileItem.fileName,
+      fileSizeBytes: buffer.length,
+      pageCount: doc.pageCount,
+      knownSupplierGstin: gstinNumber,
+    });
+
+    const rows: Record<string, string>[] = inv.lineItems.map((it) => ({
+      "Invoice Number": inv.invoiceNumber,
+      "Invoice Date": inv.invoiceDate,
+      "Type": inv.classification,
+      "Buyer Name": inv.buyerName,
+      "Buyer GSTIN": inv.buyerGstin,
+      "Place of Supply": inv.placeOfSupplyStateName,
+      "HSN/SAC Code": it.hsnCode,
+      "Item Description": it.itemDescription,
+      "UQC": it.uqc,
+      "Quantity": String(it.quantity),
+      "GST Rate (%)": String(it.rate),
+      "Taxable Value (Rs)": String(it.taxableValue),
+      "IGST (Rs)": String(it.igstAmount),
+      "CGST (Rs)": String(it.cgstAmount),
+      "SGST (Rs)": String(it.sgstAmount),
+      "Total Amount (Rs)": String(it.totalAmount),
+      "File Name": fileItem.fileName,
+    }));
+
+    return [
+      {
+        fileId: fileItem.fileName,
+        fileName: fileItem.fileName,
+        table: {
+          sheetName: "Invoice_Line_Items",
+          headers: Object.keys(rows[0] || {}),
+          rows,
+          headerRowIndex: 0,
+          headerRowSpan: 1,
+          discarded: [],
+          score: 100,
+        },
+      },
+    ];
+  }
+
+  const tables = readWorkbook(buffer);
+  const result: { fileId: string; fileName: string; table: ReconstructedTable }[] = [];
+  for (const table of tables) {
+    if (table && table.rows.length > 0) {
+      result.push({ fileId: fileItem.fileName, fileName: fileItem.fileName, table });
+    }
+  }
+  return result;
 }
 
 /**
@@ -66,13 +133,8 @@ export async function evaluateWorkbooksAction(files: MultiUploadFileInput[], gst
 
   const rawTables: { fileId: string; fileName: string; table: ReconstructedTable }[] = [];
   for (const fileItem of files) {
-    const buffer = Buffer.from(await fileItem.file.arrayBuffer());
-    const tables = readWorkbook(buffer);
-    for (const table of tables) {
-      if (table && table.rows.length > 0) {
-        rawTables.push({ fileId: fileItem.fileName, fileName: fileItem.fileName, table });
-      }
-    }
+    const loaded = await loadFileTables(fileItem, gstinNumber);
+    rawTables.push(...loaded);
   }
 
   const sessionResult = await ImportSessionManager.processBatch(rawTables, gstinNumber);
@@ -144,13 +206,8 @@ export async function parseMultiPlatformFilesAction(
 
   const rawTables: { fileId: string; fileName: string; table: ReconstructedTable }[] = [];
   for (const fileItem of files) {
-    const buffer = Buffer.from(await fileItem.file.arrayBuffer());
-    const tables = readWorkbook(buffer);
-    for (const table of tables) {
-      if (table && table.rows.length > 0) {
-        rawTables.push({ fileId: fileItem.fileName, fileName: fileItem.fileName, table });
-      }
-    }
+    const loaded = await loadFileTables(fileItem, gstinNumber);
+    rawTables.push(...loaded);
   }
 
   const sessionResult = await ImportSessionManager.processBatch(

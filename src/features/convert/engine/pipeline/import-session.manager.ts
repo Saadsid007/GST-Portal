@@ -4,6 +4,7 @@ import { AmazonAdapter } from "@/features/convert/engine/adapters/amazon.adapter
 import { MeeshoAdapter } from "@/features/convert/engine/adapters/meesho.adapter";
 import { FlipkartAdapter } from "@/features/convert/engine/adapters/flipkart.adapter";
 import { StockTransferAdapter } from "@/features/convert/engine/adapters/stock-transfer.adapter";
+import { OfflineInvoicesAdapter } from "@/features/convert/engine/adapters/offline-invoices.adapter";
 import type { AdapterResult } from "@/features/convert/engine/adapters/types";
 import type { NormalizedInvoiceRow } from "@/features/convert/types/convert.types";
 
@@ -52,8 +53,11 @@ export class ImportSessionManager {
       // Skip GSTR-1 reference files entirely — they are uploaded for the comparison
       // tab in Step 8, not as data sources. Processing them as MTR data would cause
       // double-counting and column-mapping errors.
-      if (detection.fileTypeId === "amazon_gstr1_ref") {
-        continue; // silently skip — comparison is handled client-side via compareGstr1Action
+      if (
+        detection.fileTypeId === "amazon_gstr1_ref" ||
+        detection.fileTypeId === "offline_summary_ref"
+      ) {
+        continue; // silently skip — summary/reference sheets
       }
 
       if (
@@ -69,6 +73,8 @@ export class ImportSessionManager {
         result = MeeshoAdapter.adapt(table.rows, sourceContext);
       } else if (detection.platformId === "flipkart" && detection.confidence > 50) {
         result = FlipkartAdapter.adapt(table.rows, sourceContext);
+      } else if (detection.platformId === "offline" && detection.confidence > 50) {
+        result = OfflineInvoicesAdapter.adapt(table.rows, sourceContext);
       } else {
         // Platform is unknown or confidence is too low -> goes to Universal AI mapping
         unmappedFiles.push(table);
