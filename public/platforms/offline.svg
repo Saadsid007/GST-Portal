@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 40" fill="none">
+  <rect x="4" y="4" width="32" height="32" rx="8" fill="#0D9488"/>
+  <path d="M12 10h16v20l-4-2.5-4 2.5-4-2.5-4 2.5V10z" fill="#FFFFFF"/>
+  <path d="M15 14h10v2H15zm0 4h10v2H15zm0 4h6v2H15z" fill="#0D9488"/>
+  <text x="42" y="26" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="15" fill="#0F766E">Offline / PDF</text>
+</svg>
