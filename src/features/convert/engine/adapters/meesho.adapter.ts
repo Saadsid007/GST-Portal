@@ -9,6 +9,7 @@ import {
   transformDate,
   transformHsn,
 } from "@/features/convert/engine/transformation/transformers";
+import { resolveEcoGstin } from "@/features/convert/config/eco-registry";
 
 function round2(num: number): number {
   return Math.round((num + Number.EPSILON) * 100) / 100;
@@ -175,8 +176,13 @@ export class MeeshoAdapter {
       // HSN
       const hsnCode = transformHsn(row["hsn_code"] || row["HSN Code"] || row["HSN"]);
 
-      // ECO GSTIN
-      const ecoGstin = (context.fallbackEcoGstin || row["eco_tcs_gstin"] || row["ECO GSTIN"] || "09AAICA3918J1CR").trim();
+      // ECO GSTIN resolution
+      const eco = resolveEcoGstin({
+        platformId: "meesho",
+        supplierGstin: context.supplierGstin,
+        userFallbackGstin: context.fallbackEcoGstin,
+        rowGstin: row["eco_tcs_gstin"] || row["ECO GSTIN"],
+      });
 
       // Quantity
       const quantity = parseInt(row["quantity"] || row["Qty"] || "1", 10) || 1;
@@ -255,8 +261,8 @@ export class MeeshoAdapter {
         sgstAmount,
         cessAmount: 0,
 
-        ecoGstin,
-        ecoName: "Fashnear Technologies Private Limited (Meesho)",
+        ecoGstin: eco.ecoGstin,
+        ecoName: eco.ecoName,
 
         errors,
         reviews: [],

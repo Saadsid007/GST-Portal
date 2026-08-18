@@ -8,6 +8,7 @@ import {
   transformStateCode,
   transformDate,
 } from "@/features/convert/engine/transformation/transformers";
+import { resolveEcoGstin } from "@/features/convert/config/eco-registry";
 
 function round2(num: number): number {
   return Math.round((num + Number.EPSILON) * 100) / 100;
@@ -154,13 +155,17 @@ export class FlipkartAdapter {
         errorRows++;
         continue;
       }
+      // 6. ECO GSTIN Resolution
+      const eco = resolveEcoGstin({
+        platformId: "flipkart",
+        supplierGstin: context.supplierGstin,
+        userFallbackGstin: context.fallbackEcoGstin,
+        rowGstin:
+          row["TCS GSTIN"] ||
+          row["GSTIN of Flipkart.Com"] ||
+          row["ECO GSTIN"],
+      });
       validRows++;
-
-      const ecoGstin = (
-        row["GSTIN of Flipkart.Com"] ||
-        row["ECO GSTIN"] ||
-        defaultFlipkartEcoGstin
-      ).trim();
 
       const tx: NormalizedInvoiceRow = {
         id: crypto.randomUUID(),
@@ -197,8 +202,8 @@ export class FlipkartAdapter {
         sgstAmount,
         cessAmount,
 
-        ecoGstin,
-        ecoName: "Flipkart Internet Private Limited",
+        ecoGstin: eco.ecoGstin,
+        ecoName: eco.ecoName,
 
         errors,
         reviews: [],

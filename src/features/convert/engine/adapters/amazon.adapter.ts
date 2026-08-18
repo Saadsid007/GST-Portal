@@ -10,6 +10,7 @@ import {
   transformHsn,
   FALLBACK_HSN,
 } from "@/features/convert/engine/transformation/transformers";
+import { resolveEcoGstin } from "@/features/convert/config/eco-registry";
 
 function round2(num: number): number {
   return Math.round((num + Number.EPSILON) * 100) / 100;
@@ -356,10 +357,15 @@ export class AmazonAdapter {
         sgstRate,
         cessRate,
 
-        ecoGstin:
-          context.fallbackEcoGstin ??
-          (context.supplierGstin ? `${context.supplierGstin.slice(0, 2)}AARCM9332R1CM` : "09AARCM9332R1CM"),
-        ecoName: "Amazon",
+        ...(() => {
+          const eco = resolveEcoGstin({
+            platformId: "amazon",
+            supplierGstin: context.supplierGstin,
+            userFallbackGstin: context.fallbackEcoGstin,
+            rowGstin: row["eco_tcs_gstin"] || row["TCS GSTIN"],
+          });
+          return { ecoGstin: eco.ecoGstin, ecoName: eco.ecoName };
+        })(),
 
         originalInvoiceNumber,
         errors,

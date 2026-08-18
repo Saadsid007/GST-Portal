@@ -26,6 +26,7 @@ interface Props {
 export function EcoGstinFields({ gstinNumber, selectedPlatformIds }: Props) {
   const [values, setValues] = useState<Record<string, string>>({});
   const [savedValues, setSavedValues] = useState<Record<string, string>>({});
+  const [suggestions, setSuggestions] = useState<Record<string, string>>({});
   const [loaded, setLoaded] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
 
@@ -35,9 +36,10 @@ export function EcoGstinFields({ gstinNumber, selectedPlatformIds }: Props) {
 
     loadEcoOperatorsAction(gstinNumber)
       .then((res) => {
-        if (!mounted) return;
-        setValues(res.data);
-        setSavedValues(res.data);
+        if (!mounted || !res.success) return;
+        setValues(res.data.saved);
+        setSavedValues(res.data.saved);
+        setSuggestions(res.data.suggestions);
       })
       .finally(() => {
         if (mounted) setLoaded(true);
@@ -77,9 +79,9 @@ export function EcoGstinFields({ gstinNumber, selectedPlatformIds }: Props) {
           <h3 className="text-sm font-bold">E-Commerce Operator (ECO) GSTIN</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Required only if you want to generate GSTR-1 Table 14. If your report already contains
-            the operator GSTIN, GSTPilot detects it during processing and saves it automatically —
-            leave these blank and check back after the first run. Otherwise enter it once and it
-            will be reused for every future return. B2B and B2CS reporting works either way.
+            the operator GSTIN, GSTPilot detects it automatically. We have also preloaded verified
+            state-wise ECO GSTINs from official TCS registrations. You can customize or override them
+            anytime below.
           </p>
         </div>
       </div>
@@ -87,23 +89,37 @@ export function EcoGstinFields({ gstinNumber, selectedPlatformIds }: Props) {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {platforms.map((plat) => {
           const isSaved = Boolean(savedValues[plat.id]) && values[plat.id] === savedValues[plat.id];
+          const suggestion = suggestions[plat.id];
 
           return (
             <label key={plat.id} className="space-y-1">
-              <span className="flex items-center gap-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-                {plat.name}
-                <span
-                  title={`This is NOT your own GSTIN. Enter the GSTIN under which ${plat.name} is registered as the e-commerce operator in your state.`}
-                  className="cursor-help"
-                >
-                  <Info className="size-3" />
+              <span className="flex items-center justify-between text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+                <span className="flex items-center gap-1">
+                  {plat.name}
+                  <span
+                    title={`Enter the GSTIN under which ${plat.name} is registered as the e-commerce operator in your state.`}
+                    className="cursor-help"
+                  >
+                    <Info className="size-3" />
+                  </span>
                 </span>
+                {suggestion && !values[plat.id] ? (
+                  <span className="text-[10px] font-normal text-primary/80">
+                    Auto: {suggestion}
+                  </span>
+                ) : null}
               </span>
               <div className="relative">
                 <input
                   value={values[plat.id] ?? ""}
                   disabled={loading || !gstinNumber}
-                  placeholder={loading ? "Loading…" : "e.g. 27AAICA3918J1CX"}
+                  placeholder={
+                    loading
+                      ? "Loading…"
+                      : suggestion
+                        ? `Auto: ${suggestion}`
+                        : "e.g. 09AAICA3918J1ZG"
+                  }
                   onChange={(e) =>
                     setValues((prev) => ({ ...prev, [plat.id]: e.target.value.toUpperCase() }))
                   }

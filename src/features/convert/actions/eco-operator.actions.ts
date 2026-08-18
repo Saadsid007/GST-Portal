@@ -21,6 +21,8 @@ const saveSchema = z.object({
     }),
 });
 
+import { resolveEcoGstin } from "@/features/convert/config/eco-registry";
+
 /** The operator GSTINs this user has recorded for one of their own GSTINs, keyed by platform. */
 export async function loadEcoOperatorsAction(gstinNumber: string) {
   const session = await requireSession();
@@ -30,9 +32,22 @@ export async function loadEcoOperatorsAction(gstinNumber: string) {
     select: { platformId: true, ecoGstin: true },
   });
 
+  const saved: Record<string, string> = Object.fromEntries(rows.map((r) => [r.platformId, r.ecoGstin]));
+  const suggestions: Record<string, string> = {};
+
+  for (const plat of ["amazon", "meesho", "flipkart"]) {
+    const res = resolveEcoGstin({ platformId: plat, supplierGstin: gstinNumber, userFallbackGstin: saved[plat] });
+    if (res.ecoGstin) {
+      suggestions[plat] = res.ecoGstin;
+    }
+  }
+
   return {
     success: true as const,
-    data: Object.fromEntries(rows.map((r) => [r.platformId, r.ecoGstin])),
+    data: {
+      saved,
+      suggestions,
+    },
   };
 }
 
