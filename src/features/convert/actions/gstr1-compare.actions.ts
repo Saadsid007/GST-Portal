@@ -1,3 +1,5 @@
+"use server";
+
 import { requireSession } from "@/features/auth";
 import { parseGstr1Buffer } from "@/features/convert/engine/comparison/gstr1-template.parser";
 import { Gstr1Comparator } from "@/features/convert/engine/comparison/gstr1.comparator";
