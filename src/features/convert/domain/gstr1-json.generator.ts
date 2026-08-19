@@ -203,7 +203,9 @@ export function generateGstr1Json(
     bucket.samt = r2(bucket.samt + Math.abs(row.sgstAmount) * sign);
     bucket.csamt = r2(bucket.csamt + Math.abs(row.cessAmount) * sign);
   }
-  const b2cs = Array.from(b2csMap.values()).map((val) => {
+  const b2cs = Array.from(b2csMap.values())
+    .filter((val) => Math.abs(val.txval) > 0.001)
+    .map((val) => {
     const isInter = supplierState && val.pos !== supplierState;
     return {
       sply_ty: isInter ? "INTER" : "INTRA",

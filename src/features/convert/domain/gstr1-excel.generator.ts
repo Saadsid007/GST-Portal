@@ -372,7 +372,7 @@ export function generateGstr1Excel(
       b.camt = r2(b.camt + Math.abs(r.cgstAmount) * sign);
       b.samt = r2(b.samt + Math.abs(r.sgstAmount) * sign);
     });
-  const b2csValues = Array.from(b2csAgg.values());
+  const b2csValues = Array.from(b2csAgg.values()).filter((v) => Math.abs(v.txval) > 0.001);
   const b2csTotalTxVal = r2(b2csValues.reduce((s, v) => s + v.txval, 0));
 
   const b2csSheet: SheetData = [
