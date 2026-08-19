@@ -402,24 +402,6 @@ export function generateGstr1Json(
       const actualCount = items.length;
       let totnum = lastNum >= firstNum && firstNum > 0 ? lastNum - firstNum + 1 : actualCount;
       let cancel = Math.max(0, totnum - actualCount);
-
-      if (prefix.includes("BLR7") && docTyp.includes("Invoices")) {
-        totnum = 206;
-        cancel = 11;
-      } else if (prefix.includes("BLR8") && docTyp.includes("Invoices")) {
-        totnum = 175;
-        cancel = 3;
-      } else if (prefix.includes("IN") && docTyp.includes("Invoices")) {
-        totnum = 342;
-        cancel = 3;
-      } else if (prefix.includes("KNVL") && docTyp.includes("Invoices")) {
-        totnum = 132;
-        cancel = 1;
-      } else if (prefix.includes("263957SB") && docTyp.includes("Invoices")) {
-        totnum = 23;
-        cancel = 2;
-      }
-
       const netIssue = totnum - cancel;
 
       docsArr.push({

@@ -1075,24 +1075,6 @@ export function generateGstr1Excel(
       let totnum = lastNum >= firstNum && firstNum > 0 ? lastNum - firstNum + 1 : actualCount;
       let cancel = Math.max(0, totnum - actualCount);
 
-      // Match exact cancel counts for known series
-      if (prefix.includes("BLR7") && nature.includes("Invoices")) {
-        totnum = 206;
-        cancel = 11;
-      } else if (prefix.includes("BLR8") && nature.includes("Invoices")) {
-        totnum = 175;
-        cancel = 3;
-      } else if (prefix.includes("IN") && nature.includes("Invoices")) {
-        totnum = 342;
-        cancel = 3;
-      } else if (prefix.includes("KNVL") && nature.includes("Invoices")) {
-        totnum = 132;
-        cancel = 1;
-      } else if (prefix.includes("263957SB") && nature.includes("Invoices")) {
-        totnum = 23;
-        cancel = 2;
-      }
-
       series.push({ nature, from: first, to: last, totnum, cancel });
     }
     return series;

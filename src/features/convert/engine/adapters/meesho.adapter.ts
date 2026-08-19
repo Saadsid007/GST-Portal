@@ -27,6 +27,16 @@ export class MeeshoAdapter {
       context.reportType === "tcs_sales_return" ||
       context.fileName.toLowerCase().includes("return");
 
+    // Pre-scan file to detect if any row has an explicit valid eco_tcs_gstin
+    let fileEcoGstin: string | undefined;
+    for (const r of rows) {
+      const g = r["eco_tcs_gstin"] || r["ECO GSTIN"] || r["TCS GSTIN"];
+      if (g && g.trim().length === 15) {
+        fileEcoGstin = g.trim().toUpperCase();
+        break;
+      }
+    }
+
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i]!;
       const errors: string[] = [];
@@ -181,7 +191,7 @@ export class MeeshoAdapter {
         platformId: "meesho",
         supplierGstin: context.supplierGstin,
         userFallbackGstin: context.fallbackEcoGstin,
-        rowGstin: row["eco_tcs_gstin"] || row["ECO GSTIN"],
+        rowGstin: row["eco_tcs_gstin"] || row["ECO GSTIN"] || fileEcoGstin,
       });
 
       // Quantity
