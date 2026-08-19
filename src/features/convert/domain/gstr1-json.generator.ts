@@ -8,6 +8,7 @@ import type {
   NormalizedInvoiceRow,
   ConversionSummary,
 } from "@/features/convert/types/convert.types";
+import { ensureTcsGstin } from "@/features/convert/config/eco-registry";
 
 type HsnBucket = {
   hsn: string;
@@ -437,8 +438,8 @@ export function generateGstr1Json(
     if (!row.ecoGstin || row.sourcePlatformId === "offline") continue;
     if (row.invoiceType !== "B2CS" && row.invoiceType !== "CDNCS") continue;
 
-    let etin = row.ecoGstin.trim().toUpperCase();
-    if (!/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(etin) && etin.length !== 15) {
+    let etin = ensureTcsGstin(row.ecoGstin.trim().toUpperCase());
+    if (!/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}C[0-9A-Z]{1}$/.test(etin)) {
       const st = supplierState || "09";
       if (etin.includes("MEESHO")) {
         etin = `${st}AAICA3918J1CR`;

@@ -7,6 +7,7 @@
 import * as XLSX from "xlsx";
 import type { NormalizedInvoiceRow } from "@/features/convert/types/convert.types";
 import { getStateName } from "./state-codes";
+import { ensureTcsGstin } from "@/features/convert/config/eco-registry";
 
 function r2(n: number) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
@@ -1105,7 +1106,7 @@ export function generateGstr1Excel(
   validRows
     .filter((r) => !isStockTransferRow(r) && r.sourcePlatformId !== "offline" && Boolean(r.ecoGstin))
     .forEach((r) => {
-      const etin = r.ecoGstin!;
+      const etin = ensureTcsGstin(r.ecoGstin!);
       const isCreditNote = r.invoiceType === "CDNR" || r.invoiceType === "CDNCS";
       const sign = isCreditNote ? -1 : 1;
       if (!ecoAgg.has(etin)) {
