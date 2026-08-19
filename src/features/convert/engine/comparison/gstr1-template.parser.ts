@@ -306,6 +306,177 @@ function parseGovtTemplate(workbook: XLSX.WorkBook): ParsedGstr1Template {
   return { sourceType: "govt_template", b2b, b2cs, b2cl, cdnr, cdnur };
 }
 
+// ── GSTR-1 JSON Parser ────────────────────────────────────────────────────────
+
+export function parseGstr1Json(jsonStr: string): ParsedGstr1Template {
+  try {
+    const data = JSON.parse(jsonStr);
+
+    const b2b: TemplateB2bInvoice[] = [];
+    if (Array.isArray(data.b2b)) {
+      for (const item of data.b2b) {
+        const buyerGstin = String(item.ctin || "").trim();
+        if (Array.isArray(item.inv)) {
+          for (const inv of item.inv) {
+            const inum = String(inv.inum || "").trim();
+            const idt = String(inv.idt || "").trim();
+            const val = r2(Number(inv.val) || 0);
+            const pos = extractStateCode(String(inv.pos || ""));
+            const rchrg = String(inv.rchrg || "").toUpperCase() === "Y";
+            const invType = String(inv.inv_typ || "Regular B2B");
+            const ecoGstin = String(inv.etin || "").trim();
+
+            if (Array.isArray(inv.itms)) {
+              for (const itm of inv.itms) {
+                const itmDet = itm.itm_det || itm;
+                b2b.push({
+                  buyerGstin,
+                  invoiceNumber: inum,
+                  invoiceDate: idt,
+                  invoiceValue: val,
+                  placeOfSupply: pos,
+                  reverseCharge: rchrg,
+                  invoiceType: invType,
+                  ecoGstin,
+                  rate: parseRate(itmDet.rt),
+                  taxableValue: r2(Number(itmDet.txval) || 0),
+                  cessAmount: r2(Number(itmDet.csamt) || 0),
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+
+    const b2cs: TemplateB2csRow[] = [];
+    if (Array.isArray(data.b2cs)) {
+      for (const item of data.b2cs) {
+        b2cs.push({
+          type: String(item.typ || "OE"),
+          placeOfSupply: extractStateCode(String(item.pos || "")),
+          rate: parseRate(item.rt),
+          taxableValue: r2(Number(item.txval) || 0),
+          cessAmount: r2(Number(item.csamt) || 0),
+          ecoGstin: String(item.etin || "").trim(),
+        });
+      }
+    }
+
+    const b2cl: TemplateB2clInvoice[] = [];
+    if (Array.isArray(data.b2cl)) {
+      for (const group of data.b2cl) {
+        const pos = extractStateCode(String(group.pos || ""));
+        if (Array.isArray(group.inv)) {
+          for (const inv of group.inv) {
+            const inum = String(inv.inum || "").trim();
+            const idt = String(inv.idt || "").trim();
+            const val = r2(Number(inv.val) || 0);
+            const ecoGstin = String(inv.etin || "").trim();
+            if (Array.isArray(inv.itms)) {
+              for (const itm of inv.itms) {
+                const itmDet = itm.itm_det || itm;
+                b2cl.push({
+                  invoiceNumber: inum,
+                  invoiceDate: idt,
+                  invoiceValue: val,
+                  placeOfSupply: pos,
+                  rate: parseRate(itmDet.rt),
+                  taxableValue: r2(Number(itmDet.txval) || 0),
+                  cessAmount: r2(Number(itmDet.csamt) || 0),
+                  ecoGstin,
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+
+    const cdnr: TemplateCdnrEntry[] = [];
+    if (Array.isArray(data.cdnr)) {
+      for (const item of data.cdnr) {
+        const buyerGstin = String(item.ctin || "").trim();
+        if (Array.isArray(item.nt)) {
+          for (const nt of item.nt) {
+            const noteNumber = String(nt.nt_num || "").trim();
+            const noteDate = String(nt.nt_dt || "").trim();
+            const noteType = String(nt.ntty || "C").toUpperCase() === "D" ? "D" : "C";
+            const pos = extractStateCode(String(nt.pos || ""));
+            const rchrg = String(nt.rchrg || "").toUpperCase() === "Y";
+            const noteSupplyType = String(nt.typ || "Regular B2B");
+            const noteValue = r2(Number(nt.val) || 0);
+            if (Array.isArray(nt.itms)) {
+              for (const itm of nt.itms) {
+                const itmDet = itm.itm_det || itm;
+                cdnr.push({
+                  buyerGstin,
+                  noteNumber,
+                  noteDate,
+                  noteType,
+                  placeOfSupply: pos,
+                  reverseCharge: rchrg,
+                  noteSupplyType,
+                  noteValue,
+                  rate: parseRate(itmDet.rt),
+                  taxableValue: r2(Number(itmDet.txval) || 0),
+                  cessAmount: r2(Number(itmDet.csamt) || 0),
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+
+    const cdnur: TemplateCdnurEntry[] = [];
+    if (Array.isArray(data.cdnur)) {
+      for (const nt of data.cdnur) {
+        const noteNumber = String(nt.nt_num || "").trim();
+        const noteDate = String(nt.nt_dt || "").trim();
+        const noteType = String(nt.ntty || "C").toUpperCase() === "D" ? "D" : "C";
+        const pos = extractStateCode(String(nt.pos || ""));
+        const urType = String(nt.typ || "").trim();
+        const noteValue = r2(Number(nt.val) || 0);
+        if (Array.isArray(nt.itms)) {
+          for (const itm of nt.itms) {
+            const itmDet = itm.itm_det || itm;
+            cdnur.push({
+              urType,
+              noteNumber,
+              noteDate,
+              noteType,
+              placeOfSupply: pos,
+              noteValue,
+              rate: parseRate(itmDet.rt),
+              taxableValue: r2(Number(itmDet.txval) || 0),
+              cessAmount: r2(Number(itmDet.csamt) || 0),
+            });
+          }
+        }
+      }
+    }
+
+    return {
+      sourceType: "govt_template",
+      b2b,
+      b2cs,
+      b2cl,
+      cdnr,
+      cdnur,
+    };
+  } catch {
+    return {
+      sourceType: "unknown",
+      b2b: [],
+      b2cs: [],
+      b2cl: [],
+      cdnr: [],
+      cdnur: [],
+    };
+  }
+}
+
 // ── Auto-detecting Parser ─────────────────────────────────────────────────────
 
 /**
@@ -329,4 +500,20 @@ export function parseGstr1File(workbook: XLSX.WorkBook): ParsedGstr1Template {
 
   // Fallback: try govt template parser (most common uploaded format)
   return { ...parseGovtTemplate(workbook), sourceType: "unknown" };
+}
+
+/**
+ * Detects whether buffer is JSON or XLSX, then parses accordingly.
+ */
+export function parseGstr1Buffer(buffer: Buffer, fileName?: string): ParsedGstr1Template {
+  const isJson =
+    fileName?.toLowerCase().endsWith(".json") ||
+    buffer.toString("utf8", 0, Math.min(100, buffer.length)).trim().startsWith("{");
+
+  if (isJson) {
+    return parseGstr1Json(buffer.toString("utf8"));
+  }
+
+  const workbook = XLSX.read(buffer, { type: "buffer", raw: true });
+  return parseGstr1File(workbook);
 }

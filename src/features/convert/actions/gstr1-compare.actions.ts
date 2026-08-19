@@ -1,8 +1,5 @@
-"use server";
-
-import * as XLSX from "xlsx";
 import { requireSession } from "@/features/auth";
-import { parseGstr1File } from "@/features/convert/engine/comparison/gstr1-template.parser";
+import { parseGstr1Buffer } from "@/features/convert/engine/comparison/gstr1-template.parser";
 import { Gstr1Comparator } from "@/features/convert/engine/comparison/gstr1.comparator";
 import type { NormalizedInvoiceRow } from "@/features/convert/types/convert.types";
 
@@ -12,6 +9,7 @@ import type { NormalizedInvoiceRow } from "@/features/convert/types/convert.type
  * Supported reference formats:
  *   - Amazon's auto-generated GSTR-1 Excel (GSTR1-*.xlsx)
  *   - Government's GSTR-1 Excel Workbook Template V2.1
+ *   - Government/Tax Software GSTR-1 JSON export (GSTR1_*.json)
  *
  * The reference file is NEVER merged with our data — it is used only for comparison.
  * This enforces the rule: MTR is primary; GSTR-1 reference is validation-only.
@@ -20,9 +18,7 @@ export async function compareGstr1Action(ourRows: NormalizedInvoiceRow[], refere
   await requireSession();
 
   const buffer = Buffer.from(await referenceFile.arrayBuffer());
-  const workbook = XLSX.read(buffer, { type: "buffer", raw: true });
-
-  const parsedRef = parseGstr1File(workbook);
+  const parsedRef = parseGstr1Buffer(buffer, referenceFile.name);
 
   const b2bCount = parsedRef.b2b.length;
   const b2csCount = parsedRef.b2cs.length;
