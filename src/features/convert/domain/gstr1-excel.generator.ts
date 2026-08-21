@@ -637,27 +637,15 @@ export async function generateGstr1Excel(
   invoiceGroups.forEach((invNumbers, name) => {
     if (invNumbers.length === 0) return;
 
-    invNumbers.sort((a, b) =>
+    const uniqueInvoices = Array.from(new Set(invNumbers));
+    uniqueInvoices.sort((a, b) =>
       a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" })
     );
 
-    const from = invNumbers[0]!;
-    const to = invNumbers[invNumbers.length - 1]!;
-
-    const mFrom = from.match(/(\d+)$/);
-    const mTo = to.match(/(\d+)$/);
-
-    let totnum = invNumbers.length;
-    let cancel = 0;
-
-    if (mFrom && mTo) {
-      const firstNum = parseInt(mFrom[1]!, 10);
-      const lastNum = parseInt(mTo[1]!, 10);
-      if (lastNum >= firstNum) {
-        totnum = lastNum - firstNum + 1;
-        cancel = Math.max(0, totnum - invNumbers.length);
-      }
-    }
+    const from = uniqueInvoices[0]!;
+    const to = uniqueInvoices[uniqueInvoices.length - 1]!;
+    const totnum = uniqueInvoices.length;
+    const cancel = 0;
 
     docRowsData.push({
       name,
