@@ -50,7 +50,7 @@ export function softwareApplicationSchema(): JsonLd {
       "@type": "Offer",
       price: "0",
       priceCurrency: "INR",
-      description: "Free tier with paid conversion credits",
+      description: "30-Day Free Trial with 7 GSTINs, paid subscriptions from ₹79/month with unlimited GSTR-1 generation",
     },
   };
 }
