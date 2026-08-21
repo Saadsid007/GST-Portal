@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   Users,
-  Wallet,
   FileSpreadsheet,
-  Coins,
   ArrowRight,
-  TrendingUp,
   ShieldCheck,
+  CreditCard,
+  Sliders,
+  TrendingUp,
+  Sparkles,
 } from "lucide-react";
 import { requireAdmin } from "@/features/auth";
 import prisma from "@/lib/prisma";
@@ -32,26 +33,49 @@ export const metadata: Metadata = { title: "Admin overview" };
 export default async function AdminOverviewPage() {
   await requireAdmin();
 
-  // One round-trip for the whole overview rather than eight sequential reads.
-  const [userCount, adminCount, conversionCount, walletAgg, recentUsers, recentTx] =
-    await Promise.all([
-      prisma.user.count(),
-      prisma.user.count({ where: { role: "ADMIN" } }),
-      prisma.conversionHistory.count(),
-      prisma.wallet.aggregate({ _sum: { balance: true } }),
-      prisma.user.findMany({
-        orderBy: { createdAt: "desc" },
-        take: 5,
-        select: { id: true, name: true, email: true, role: true, createdAt: true },
-      }),
-      prisma.walletTransaction.findMany({
-        orderBy: { createdAt: "desc" },
-        take: 6,
-        select: { id: true, type: true, creditAmount: true, createdAt: true, walletId: true },
-      }),
-    ]);
+  const [
+    userCount,
+    adminCount,
+    conversionCount,
+    activeSubsCount,
+    trialSubsCount,
+    capacityAgg,
+    paymentsAgg,
+    recentUsers,
+    recentPayments,
+  ] = await Promise.all([
+    prisma.user.count(),
+    prisma.user.count({ where: { role: "ADMIN" } }),
+    prisma.conversionHistory.count(),
+    prisma.subscription.count({ where: { status: "ACTIVE" } }),
+    prisma.subscription.count({ where: { status: "TRIALING" } }),
+    prisma.gSTINCapacity.aggregate({ _sum: { effectiveCapacity: true } }),
+    prisma.payment.aggregate({
+      where: { status: { in: ["SUCCESS", "PAID"] } },
+      _sum: { amount: true },
+    }),
+    prisma.user.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      select: { id: true, name: true, email: true, role: true, createdAt: true },
+    }),
+    prisma.payment.findMany({
+      where: { status: { in: ["SUCCESS", "PAID"] } },
+      orderBy: { createdAt: "desc" },
+      take: 6,
+      select: {
+        id: true,
+        amount: true,
+        paymentType: true,
+        planSlug: true,
+        createdAt: true,
+        providerPaymentId: true,
+      },
+    }),
+  ]);
 
-  const outstandingCredits = walletAgg._sum.balance ?? 0;
+  const totalRevenue = paymentsAgg._sum.amount ?? 0;
+  const totalSlots = capacityAgg._sum.effectiveCapacity ?? 0;
 
   const stats = [
     {
@@ -62,25 +86,25 @@ export default async function AdminOverviewPage() {
       href: "/admin/users",
     },
     {
-      label: "Returns generated",
-      value: conversionCount.toLocaleString("en-IN"),
-      hint: "Across every GSTIN",
-      icon: FileSpreadsheet,
-      href: "/history",
+      label: "Active Subscriptions",
+      value: activeSubsCount.toLocaleString("en-IN"),
+      hint: `${trialSubsCount} on 30-day free trial`,
+      icon: CreditCard,
+      href: "/admin/subscriptions",
     },
     {
-      label: "Credits outstanding",
-      value: outstandingCredits.toLocaleString("en-IN"),
-      hint: `≈ ${formatCurrency(outstandingCredits)} of unspent balance`,
-      icon: Coins,
-      href: "/admin/wallets",
+      label: "GSTIN Slots Capacity",
+      value: totalSlots.toLocaleString("en-IN"),
+      hint: "Platform-wide client capacity",
+      icon: Sliders,
+      href: "/admin/subscriptions",
     },
     {
-      label: "Ledger entries",
-      value: recentTx.length > 0 ? "Active" : "Quiet",
-      hint: "Most recent wallet movements below",
+      label: "Total Revenue",
+      value: formatCurrency(totalRevenue),
+      hint: `${conversionCount.toLocaleString("en-IN")} returns generated`,
       icon: TrendingUp,
-      href: "/admin/wallets",
+      href: "/admin/subscriptions",
     },
   ];
 
@@ -91,7 +115,7 @@ export default async function AdminOverviewPage() {
       <PageHeader
         eyebrow="Administration"
         title="Admin overview"
-        description="Platform health, recent activity and every configuration module in one place."
+        description="Platform health, subscription capacity, recent payments, and system configuration in one place."
         actions={
           <Badge variant="primary" size="md">
             <ShieldCheck className="size-3" aria-hidden />
@@ -115,7 +139,7 @@ export default async function AdminOverviewPage() {
         ))}
       </div>
 
-      {/* Module launcher — mirrors the sidebar for anyone who lands here first. */}
+      {/* Module launcher */}
       <section className="space-y-4">
         <h2 className="text-base font-semibold tracking-tight">Configuration modules</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -144,7 +168,12 @@ export default async function AdminOverviewPage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="space-y-3">
-          <h2 className="text-base font-semibold tracking-tight">Newest accounts</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold tracking-tight">Newest accounts</h2>
+            <Link href="/admin/users" className="text-xs font-semibold text-primary-ink hover:underline">
+              View all
+            </Link>
+          </div>
           <TableWrapper>
             <Table>
               <TableHeader>
@@ -179,34 +208,35 @@ export default async function AdminOverviewPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-base font-semibold tracking-tight">Recent wallet activity</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold tracking-tight">Recent payments &amp; subscriptions</h2>
+            <Link href="/admin/subscriptions" className="text-xs font-semibold text-primary-ink hover:underline">
+              Manage
+            </Link>
+          </div>
           <TableWrapper>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Type</TableHead>
-                  <TableHead align="right">Credits</TableHead>
+                  <TableHead>Item / Type</TableHead>
+                  <TableHead align="right">Amount</TableHead>
                   <TableHead align="right">When</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {recentTx.length === 0 ? (
-                  <TableEmptyRow colSpan={3}>No wallet movements yet.</TableEmptyRow>
+                {recentPayments.length === 0 ? (
+                  <TableEmptyRow colSpan={3}>No payments yet.</TableEmptyRow>
                 ) : (
-                  recentTx.map((t) => (
-                    <TableRow key={t.id}>
-                      <TableCell className="text-xs font-medium">{t.type}</TableCell>
-                      <TableCell
-                        align="right"
-                        className={`text-xs font-semibold tabular-nums ${
-                          t.creditAmount >= 0 ? "text-success-ink" : "text-destructive-ink"
-                        }`}
-                      >
-                        {t.creditAmount >= 0 ? "+" : ""}
-                        {t.creditAmount}
+                  recentPayments.map((p) => (
+                    <TableRow key={p.id}>
+                      <TableCell className="text-xs font-medium capitalize">
+                        {p.planSlug ? p.planSlug.replace("_", " ") : p.paymentType}
+                      </TableCell>
+                      <TableCell align="right" className="text-xs font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                        ₹{p.amount}
                       </TableCell>
                       <TableCell align="right" className="text-2xs text-muted-foreground">
-                        {t.createdAt.toLocaleDateString("en-IN")}
+                        {p.createdAt.toLocaleDateString("en-IN")}
                       </TableCell>
                     </TableRow>
                   ))
@@ -218,10 +248,9 @@ export default async function AdminOverviewPage() {
       </div>
 
       <Card variant="subtle" className="flex items-start gap-3 p-4">
-        <Wallet className="mt-0.5 size-4 flex-shrink-0 text-muted-foreground" aria-hidden />
+        <ShieldCheck className="mt-0.5 size-4 flex-shrink-0 text-primary-ink" aria-hidden />
         <p className="text-xs text-muted-foreground">
-          Every change made in these modules is written to the audit log with the acting
-          administrator, and each admin action re-checks your role server-side.
+          Every plan change, capacity grant, and subscription override is recorded to the compliance audit log with admin actor details.
         </p>
       </Card>
     </div>

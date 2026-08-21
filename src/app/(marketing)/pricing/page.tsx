@@ -1,114 +1,79 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Check, Sparkles, Wallet, Building2, Calculator } from "lucide-react";
+import { ArrowRight, Check, Sparkles, Building2, Zap, ShieldCheck, HelpCircle } from "lucide-react";
 import { Badge, Button, Card } from "@/components/ui";
-import { calculateBonus } from "@/features/billing/domain/bonus-calculator";
-import { getPricingConfig } from "@/features/billing/services/config.service";
-import { CA_PLANS, FREE_TRIAL_LIMITS } from "@/features/billing/constants/billing.constants";
-import { SITE } from "@/config/site";
-import { JsonLd } from "@/components/json-ld";
-import { faqPageSchema, productSchema } from "@/lib/seo/structured-data";
 import { PageHero } from "@/app/(marketing)/_components/page-hero";
 import {
-  PackCard,
+  MarketingPlanCard,
   PlanComparison,
   TrustStrip,
   type ComparisonRow,
 } from "@/app/(marketing)/_components/pricing-blocks";
-import { cn } from "@/lib/utils";
+import { ALL_PLANS, PLANS } from "@/features/billing/config/pricing.config";
 import { buildPageMetadata } from "@/lib/seo/metadata";
+import { JsonLd } from "@/components/json-ld";
+import { faqPageSchema, productSchema } from "@/lib/seo/structured-data";
 
 export const metadata: Metadata = buildPageMetadata({
-  title: "Pricing — pay per return, no subscription",
+  title: "Pricing & Plans — Unlimited GSTR-1 Generation | GSTPilot",
   description:
-    "Recharge your GSTPilot wallet and pay only for the returns you file. 1 credit = ₹1, one GSTR-1 costs 6 credits. Bigger recharges earn bonus credits, and credits never expire.",
+    "GSTPilot offers simple, GSTIN-based subscription pricing. Unlimited GSTR-1 generations, 30-day free trial with 7 GSTINs, and plans starting at ₹79/month.",
   path: "/pricing",
 });
 
-const CA_FEATURES: Record<string, string[]> = {
-  CA_PRO: [
-    "Unlimited client GSTINs",
-    "Bulk upload & bulk generation",
-    "ZIP downloads",
-    "Priority processing queue",
-    "No watermark on any output",
-    "AI Auto Fix",
-    "Client dashboard & history",
-    "Full validation reports",
-  ],
-  CA_ELITE: [
-    "Everything in CA Pro",
-    "White label reports",
-    "Your firm's branding",
-    "Team members",
-    "API ready",
-    "Dedicated support",
-  ],
-};
-
-const COMPARISON: ComparisonRow[] = [
-  { feature: "GSTIN profiles", wallet: "Unlimited", caPro: "Unlimited", caElite: "Unlimited" },
-  { feature: "Cost model", wallet: "Per return", caPro: "Monthly", caElite: "Monthly" },
-  { feature: "All 10 marketplace parsers", wallet: true, caPro: true, caElite: true },
-  { feature: "Net sales engine (sales − returns)", wallet: true, caPro: true, caElite: true },
-  { feature: "TCS section 52 reconciliation", wallet: true, caPro: true, caElite: true },
-  { feature: "GSTR-1 JSON + Excel output", wallet: true, caPro: true, caElite: true },
-  { feature: "Watermark-free output", wallet: "After recharge", caPro: true, caElite: true },
-  { feature: "Bulk upload & generation", wallet: false, caPro: true, caElite: true },
-  { feature: "Priority processing queue", wallet: false, caPro: true, caElite: true },
-  { feature: "Client dashboard", wallet: false, caPro: true, caElite: true },
-  { feature: "White label & firm branding", wallet: false, caPro: false, caElite: true },
-  { feature: "Team members", wallet: false, caPro: false, caElite: true },
-  { feature: "API access", wallet: false, caPro: false, caElite: true },
+const COMPARISON_ROWS: ComparisonRow[] = [
+  { feature: "Included Client GSTINs", starter: "10 GSTINs", growth: "15 GSTINs", business: "30 GSTINs", caFirm: "200 GSTINs" },
+  { feature: "GSTR-1 Generation Limit", starter: "Unlimited", growth: "Unlimited", business: "Unlimited", caFirm: "Unlimited" },
+  { feature: "Per-return charge", starter: "₹0", growth: "₹0", business: "₹0", caFirm: "₹0" },
+  { feature: "All 10 Marketplace Parsers", starter: true, growth: true, business: true, caFirm: true },
+  { feature: "Official GSTN JSON v3.0 + Multi-Sheet Excel", starter: true, growth: true, business: true, caFirm: true },
+  { feature: "Place of Supply & Tax Validation Engine", starter: true, growth: true, business: true, caFirm: true },
+  { feature: "Table 14 ECO & Section 52 TCS Reconciliation", starter: false, growth: true, business: true, caFirm: true },
+  { feature: "One-Click AI Error Auto-Fixers", starter: false, growth: true, business: true, caFirm: true },
+  { feature: "Advanced Multi-Marketplace Merge", starter: false, growth: true, business: true, caFirm: true },
+  { feature: "Multi-client Batch Processing & ZIP Export", starter: false, growth: false, business: true, caFirm: true },
+  { feature: "Team Members & Staff Access", starter: false, growth: false, business: false, caFirm: true },
+  { feature: "White Label & Firm Branding Reports", starter: false, growth: false, business: false, caFirm: true },
+  { feature: "Additional GSTIN Add-ons", starter: "₹6/mo each", growth: "₹6/mo each", business: "₹6/mo each", caFirm: "₹6/mo each" },
 ];
 
 const FAQS = [
   {
-    q: "What exactly is a credit?",
-    a: "1 credit equals ₹1. Generating one GSTR-1 return costs a fixed number of credits, shown on this page. You buy credits by recharging your wallet, and they are only spent when you generate.",
+    q: "How does GSTPilot billing work?",
+    a: "GSTPilot uses a transparent subscription model based purely on the number of client GSTINs you manage and your subscription tier. All GSTR-1 return generations inside an active plan or 30-day free trial are 100% UNLIMITED with zero per-report fees.",
   },
   {
-    q: "Do credits expire?",
-    a: "No. Credits stay in your wallet indefinitely, so a quiet month never costs you anything.",
+    q: "What is included in the 30-Day Free Trial?",
+    a: "Every new account receives a full 30-Day Free Trial with 7 GSTIN client capacity. You can generate unlimited, watermark-free GSTR-1 JSON and Excel files without entering any credit card details.",
   },
   {
-    q: "Is there a subscription for sellers?",
-    a: "No. Sellers pay per return out of wallet credits. Monthly plans exist only for CA firms filing at volume across many client GSTINs.",
+    q: "Can I add more GSTINs beyond my plan quota?",
+    a: "Yes! You can purchase extra GSTIN capacity packs at any time for just ₹6 per GSTIN per month. When purchased mid-cycle, the charge is automatically prorated server-side based on the exact remaining days.",
   },
   {
-    q: "How do bonus credits work?",
-    a: "Larger recharges earn a percentage of bonus credits on top. The slab is applied automatically at the moment of recharge, and the exact bonus for each pack is shown above.",
+    q: "Do multiple marketplace files for the same GSTIN cost extra slots?",
+    a: "No. 1 GSTIN profile = 1 client slot. You can merge files from Amazon, Flipkart, Meesho, Myntra, JioMart and offline sales under the same GSTIN without consuming additional slots.",
   },
   {
-    q: "How do I pay?",
-    a: "By UPI. We generate a QR for the exact amount that you scan with GPay, PhonePe, Paytm, BHIM or your bank's app. No card details are entered or stored.",
+    q: "Will my data or reports be deleted if my subscription expires?",
+    a: "Never. Your clients, GSTIN profiles, uploaded files, and historical returns remain permanently safe and accessible in your account. You only need an active plan to generate new filing returns.",
   },
   {
-    q: "Can I try it before paying?",
-    a: `Yes. Every new account gets ${FREE_TRIAL_LIMITS.maxGenerations} free returns on ${FREE_TRIAL_LIMITS.maxGstins} GSTIN. Output is watermarked until you recharge. You can also run the interactive demo on the homepage without signing up.`,
+    q: "What payment methods are supported?",
+    a: "We support instant, secure payments via Razorpay including UPI (Google Pay, PhonePe, Paytm, BHIM), Net Banking, Debit/Credit Cards, and Corporate accounts.",
   },
 ];
 
-// Prices come from `billing_config`, so this must not be baked in at build time —
-// an admin slab edit has to show up on the public page without a redeploy.
-export const revalidate = 60;
+export const revalidate = 300;
 
 export default async function PricingPage() {
-  const { generationCost, slabs, packs, campaign } = await getPricingConfig();
-  const priced = packs.map((pack) => ({
-    ...pack,
-    breakdown: calculateBonus(pack.amount, slabs, campaign),
-  }));
-  const caPlans = CA_PLANS.filter((plan) => plan.id !== "FREE");
-  const minBonusAmount = slabs.find((slab) => slab.bonusPercent > 0)?.minAmount ?? 99;
-
   const jsonLd = [
     faqPageSchema(FAQS.map((f) => ({ question: f.q, answer: f.a }))),
     productSchema(
-      caPlans.map((plan) => ({
+      ALL_PLANS.map((plan) => ({
         name: plan.name,
         price: plan.monthlyPrice,
-        description: `${plan.name} subscription, billed monthly.`,
+        description: `${plan.name} plan with ${plan.includedGSTINs} GSTIN capacity and unlimited GSTR-1 returns.`,
       }))
     ),
   ];
@@ -118,190 +83,90 @@ export default async function PricingPage() {
       <JsonLd schema={jsonLd} />
 
       <PageHero
-        eyebrow="Pricing"
-        title="Pay per return, not per month"
-        description={
-          <>
-            1 credit = ₹1. One GSTR-1 costs{" "}
-            <span className="font-semibold text-foreground">{generationCost} credits</span>. Credits
-            never expire, and every new account starts with {FREE_TRIAL_LIMITS.maxGenerations} free
-            returns.
-          </>
-        }
+        eyebrow="Subscription Plans"
+        title="Unlimited GSTR-1 Generation. Simple GSTIN-Based Pricing."
+        description="Every active plan includes unlimited return filings, authentic Excel/JSON exports, and automated reconciliation. Pay only for the client capacity you need."
       >
-        {campaign?.isActive && (
-          <div className="mx-auto flex w-fit items-center gap-2 rounded-full border border-warning/25 bg-warning/10 px-4 py-2 text-xs font-semibold text-warning-ink">
-            <Sparkles className="size-3.5" aria-hidden />
-            {campaign.name} — extra bonus credits on every recharge
-          </div>
-        )}
+        <div className="mx-auto flex w-fit items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+          <Sparkles className="size-3.5" aria-hidden />
+          Start Free Today — 30 Days Trial • 7 Client GSTINs • No Card Required
+        </div>
       </PageHero>
 
-      <div className="mx-auto max-w-6xl space-y-20 px-6 pt-8">
-        {/* Recharge packs */}
+      <div className="mx-auto max-w-7xl space-y-20 px-6 pt-8">
+        {/* All Plans Grid */}
         <section className="space-y-6">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            {priced.map((pack) => (
-              <PackCard
-                key={pack.id}
-                pack={pack}
-                generationCost={generationCost}
-                featured={pack.popular}
-              />
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {ALL_PLANS.map((plan) => (
+              <MarketingPlanCard key={plan.slug} plan={plan} featured={plan.isPopular} />
             ))}
           </div>
-
-          <p className="text-center text-xs text-muted-foreground">
-            Custom recharges from ₹20 are supported too — bonus credits start at ₹
-            {minBonusAmount.toLocaleString("en-IN")}.
-          </p>
-
-          <TrustStrip />
         </section>
 
-        {/* Free trial */}
-        <section>
-          <Card variant="accent" className="flex flex-col items-center gap-5 p-8 text-center">
-            <span className="flex size-12 items-center justify-center rounded-2xl bg-primary/12 text-primary-ink ring-1 ring-primary/25">
-              <Wallet className="size-6" aria-hidden />
+        {/* Extra GSTIN Add-on Callout */}
+        <Card variant="subtle" className="flex flex-col justify-between gap-6 p-8 md:flex-row md:items-center">
+          <div className="space-y-1.5 max-w-2xl">
+            <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary-ink uppercase tracking-wider">
+              Flexible Scaling
             </span>
-            <div>
-              <h2 className="text-xl font-bold tracking-tight">
-                Start with {FREE_TRIAL_LIMITS.maxGenerations} free returns
-              </h2>
-              <p className="mx-auto mt-1.5 max-w-lg text-sm text-muted-foreground">
-                No card, no recharge. Convert real files on {FREE_TRIAL_LIMITS.maxGstins} GSTIN and
-                see the output before you spend anything — it is watermarked until you top up.
-              </p>
-            </div>
-            <Button asChild variant="brand" size="lg">
-              <Link href="/register">
-                Create a free account
-                <ArrowRight />
-              </Link>
-            </Button>
-          </Card>
-        </section>
+            <h3 className="text-xl font-bold text-foreground">
+              Need extra GSTIN slots for new clients?
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Add individual GSTIN capacity packs to any plan at just <span className="font-bold text-foreground">₹6 / GSTIN / month</span>. Automatically prorated for remaining days in your billing cycle.
+            </p>
+          </div>
+          <Button asChild variant="brand" size="md" className="shrink-0">
+            <Link href="/register">
+              Get Started Now
+              <ArrowRight className="size-4 ml-1.5" />
+            </Link>
+          </Button>
+        </Card>
 
-        {/* CA plans */}
-        <section className="space-y-8">
-          <div className="mx-auto max-w-2xl space-y-2 text-center">
-            <Badge variant="primary" size="md">
-              <Building2 className="size-3" aria-hidden />
-              For CA firms
-            </Badge>
-            <h2 className="text-3xl font-bold tracking-tight text-balance">
-              Filing for many clients?
+        {/* Feature Comparison Matrix */}
+        <section className="space-y-6">
+          <div className="text-center space-y-1">
+            <span className="text-xs font-bold tracking-wider text-primary-ink uppercase">
+              Full Feature Comparison
+            </span>
+            <h2 className="text-2xl font-black text-foreground">
+              Compare Plan Capabilities
             </h2>
-            <p className="text-sm text-muted-foreground">
-              Monthly plans for anyone filing across many client GSTINs — no per-return credits
-              needed.
+            <p className="text-xs text-muted-foreground">
+              Choose the right tier for individual sellers, growing e-commerce merchants, and large CA firms.
             </p>
           </div>
 
-          <div className="mx-auto grid max-w-4xl gap-5 md:grid-cols-2">
-            {caPlans.map((plan) => {
-              const isPro = plan.id === "CA_PRO";
-              return (
-                <Card
-                  key={plan.id}
-                  variant={isPro ? "accent" : "solid"}
-                  className={cn("flex flex-col p-7", isPro && "ring-2 ring-primary/25")}
-                >
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-bold">{plan.name}</h3>
-                    {isPro && <Badge variant="solid">Recommended</Badge>}
-                  </div>
-
-                  <div className="mt-3 flex items-baseline gap-1.5">
-                    <span className="text-4xl font-bold tracking-tight tabular-nums">
-                      ₹{plan.monthlyPrice.toLocaleString("en-IN")}
-                    </span>
-                    <span className="text-xs text-muted-foreground">per month</span>
-                  </div>
-
-                  <ul className="mt-5 flex-1 space-y-2.5 border-t border-border pt-5 text-xs">
-                    {CA_FEATURES[plan.id]?.map((feature) => (
-                      <li key={feature} className="flex items-start gap-2">
-                        <Check className="mt-0.5 size-3.5 flex-shrink-0 text-success" aria-hidden />
-                        <span className="text-muted-foreground">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  <Button
-                    asChild
-                    variant={isPro ? "brand" : "outline"}
-                    size="md"
-                    block
-                    className="mt-6"
-                  >
-                    <Link href="/contact">
-                      Talk to us
-                      <ArrowRight />
-                    </Link>
-                  </Button>
-                </Card>
-              );
-            })}
-          </div>
+          <PlanComparison rows={COMPARISON_ROWS} />
         </section>
 
-        {/* Comparison */}
-        <section className="space-y-6">
-          <div className="mx-auto max-w-2xl space-y-2 text-center">
-            <Badge variant="primary" size="md">
-              <Calculator className="size-3" aria-hidden />
-              Compare
-            </Badge>
-            <h2 className="text-3xl font-bold tracking-tight text-balance">
-              What you get on each plan
+        {/* Trust & Guarantee Strip */}
+        <TrustStrip />
+
+        {/* FAQ Section */}
+        <section className="space-y-8">
+          <div className="text-center space-y-1">
+            <span className="text-xs font-bold tracking-wider text-primary-ink uppercase">
+              Frequently Asked Questions
+            </span>
+            <h2 className="text-2xl font-black text-foreground">
+              Everything You Need to Know About Billing
             </h2>
           </div>
-          <PlanComparison rows={COMPARISON} />
-        </section>
 
-        {/* FAQ */}
-        <section className="space-y-6">
-          <div className="mx-auto max-w-2xl space-y-2 text-center">
-            <h2 className="text-3xl font-bold tracking-tight text-balance">Pricing questions</h2>
-          </div>
-          <div className="mx-auto max-w-3xl divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
-            {FAQS.map((faq) => (
-              <details key={faq.q} className="group">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-sm font-semibold transition-colors hover:bg-accent/40 [&::-webkit-details-marker]:hidden">
-                  {faq.q}
-                  <span
-                    aria-hidden
-                    className="flex size-5 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground transition-transform duration-200 group-open:rotate-45"
-                  >
-                    +
-                  </span>
-                </summary>
-                <p className="px-5 pb-4 text-xs leading-relaxed text-muted-foreground">{faq.a}</p>
-              </details>
+          <div className="grid gap-4 md:grid-cols-2">
+            {FAQS.map((faq, idx) => (
+              <Card key={idx} variant="solid" className="p-6 space-y-2">
+                <p className="flex items-start gap-2 text-sm font-bold text-foreground">
+                  <HelpCircle className="size-4 text-primary-ink shrink-0 mt-0.5" />
+                  <span>{faq.q}</span>
+                </p>
+                <p className="text-xs text-muted-foreground leading-relaxed pl-6">
+                  {faq.a}
+                </p>
+              </Card>
             ))}
-          </div>
-        </section>
-
-        {/* Closing */}
-        <section>
-          <div className="relative overflow-hidden rounded-3xl brand-gradient px-8 py-12 text-center shadow-xl">
-            <div aria-hidden className="absolute inset-0 grid-lines opacity-20 mix-blend-overlay" />
-            <div className="relative space-y-4">
-              <h2 className="text-2xl font-bold tracking-tight text-primary-foreground sm:text-3xl">
-                Try it before you pay a rupee
-              </h2>
-              <p className="mx-auto max-w-lg text-sm text-primary-foreground/80">
-                {FREE_TRIAL_LIMITS.maxGenerations} free returns, then top up only when you file.
-              </p>
-              <Button asChild size="xl" className="bg-background text-foreground hover:bg-card">
-                <Link href="/register">
-                  Start free on {SITE.name}
-                  <ArrowRight />
-                </Link>
-              </Button>
-            </div>
           </div>
         </section>
       </div>

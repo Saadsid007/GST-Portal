@@ -18,6 +18,7 @@ import {
   Inbox,
   BookOpen,
   Megaphone as MegaphoneIcon,
+  CreditCard,
 } from "lucide-react";
 
 export interface NavItem {
@@ -112,6 +113,12 @@ export const NAV_GROUPS: NavGroup[] = [
         description: "Platform health and key numbers",
       },
       {
+        label: "Subscriptions",
+        href: "/admin/subscriptions",
+        icon: CreditCard,
+        description: "Manage plans, user status and GSTIN capacity",
+      },
+      {
         label: "Users",
         href: "/admin/users",
         icon: Users,
@@ -121,7 +128,7 @@ export const NAV_GROUPS: NavGroup[] = [
         label: "Pricing",
         href: "/admin/pricing",
         icon: Tags,
-        description: "Generation cost, bonus slabs and recharge packs",
+        description: "Subscription tiers and additional GSTIN pricing",
       },
       {
         label: "Wallets",

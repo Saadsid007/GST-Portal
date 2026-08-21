@@ -1,118 +1,117 @@
 import Link from "next/link";
-import { ArrowRight, Check, Minus, ShieldCheck, Lock, RefreshCw, Sparkles } from "lucide-react";
+import { ArrowRight, Check, Minus, ShieldCheck, Lock, RefreshCw, Sparkles, Zap, Building2 } from "lucide-react";
 import { Badge, Button, Card } from "@/components/ui";
 import { cn } from "@/lib/utils";
-import type { BonusBreakdown, RechargePack } from "@/features/billing/types/billing.types";
+import type { PlanDefinition } from "@/features/billing/config/pricing.config";
 
-export type PricedPack = RechargePack & { breakdown: BonusBreakdown };
-
-/**
- * One recharge card, shared by the homepage preview and the pricing page so the
- * two can never drift into showing different numbers for the same pack.
- */
-export function PackCard({
-  pack,
-  generationCost,
+export function MarketingPlanCard({
+  plan,
   featured,
 }: {
-  pack: PricedPack;
-  generationCost: number;
+  plan: PlanDefinition;
   featured?: boolean;
 }) {
-  const returns = Math.floor(pack.breakdown.totalCredits / generationCost);
-  const effective = pack.amount / Math.max(returns, 1);
-  const hasBonus = pack.breakdown.bonusCredits > 0;
+  const isTrial = plan.slug === "free_trial";
+  const isPopular = plan.isPopular;
 
   return (
     <Card
-      variant={pack.popular ? "accent" : "solid"}
+      variant={isPopular ? "accent" : "solid"}
       className={cn(
-        "relative flex flex-col p-6 transition-transform duration-200",
-        pack.popular && "ring-2 ring-primary/25",
+        "relative flex flex-col justify-between p-6 transition-all duration-200",
+        isPopular && "ring-2 ring-primary/40 shadow-xl",
         featured && "md:-translate-y-2"
       )}
     >
-      {pack.popular && (
-        <Badge variant="solid" className="absolute -top-2.5 left-1/2 -translate-x-1/2 shadow-sm">
-          <Sparkles className="size-3" aria-hidden />
-          Most popular
+      {isPopular && (
+        <Badge variant="solid" className="absolute -top-3 left-1/2 -translate-x-1/2 shadow-sm font-extrabold uppercase tracking-wider text-[10px]">
+          <Sparkles className="size-2.5 mr-1" aria-hidden />
+          Recommended
         </Badge>
       )}
 
-      <p className="text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
-        {pack.label}
-      </p>
+      <div>
+        <div className="space-y-1">
+          <p className="text-2xs font-extrabold tracking-wider text-muted-foreground uppercase">
+            {plan.name}
+          </p>
+          <p className="text-xs text-muted-foreground min-h-[32px]">{plan.description}</p>
+        </div>
 
-      <div className="mt-2 flex items-baseline gap-1.5">
-        <span className="text-3xl font-bold tracking-tight tabular-nums">
-          ₹{pack.amount.toLocaleString("en-IN")}
-        </span>
-        <span className="text-xs text-muted-foreground">one-time</span>
+        <div className="my-4 border-y border-border py-4">
+          <div className="flex items-baseline gap-1">
+            <span className="text-3xl font-black text-foreground">
+              {isTrial ? "₹0" : `₹${plan.monthlyPrice}`}
+            </span>
+            <span className="text-xs font-semibold text-muted-foreground">
+              {isTrial ? "/ 30 days" : "/ month"}
+            </span>
+          </div>
+
+          <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+            <span className="inline-flex items-center rounded-md bg-emerald-500/10 px-2 py-0.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+              <Zap className="size-3 mr-1" /> Unlimited GSTR-1
+            </span>
+            <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary-ink">
+              {plan.includedGSTINs} GSTINs Included
+            </span>
+          </div>
+        </div>
+
+        <div className="space-y-2 text-xs">
+          <p className="text-[10px] font-extrabold tracking-wider text-muted-foreground uppercase">
+            Included Capabilities
+          </p>
+          <ul className="space-y-2">
+            {plan.features.map((feat, idx) => (
+              <li key={idx} className="flex items-start gap-2 text-foreground/90 text-xs">
+                <Check className="mt-0.5 size-3.5 flex-shrink-0 text-emerald-500" />
+                <span>{feat}</span>
+              </li>
+            ))}
+            {!isTrial && (
+              <li className="flex items-start gap-2 font-semibold text-primary-ink text-xs">
+                <Check className="mt-0.5 size-3.5 flex-shrink-0 text-primary-ink" />
+                <span>Extra GSTINs @ ₹6/mo each</span>
+              </li>
+            )}
+          </ul>
+        </div>
       </div>
 
-      {/* The number that actually decides the purchase. */}
-      <p className="mt-3 rounded-lg bg-muted px-3 py-2 text-center text-sm font-semibold">
-        ≈ {returns} return{returns === 1 ? "" : "s"}
-      </p>
-      <p className="mt-1.5 text-center text-2xs text-muted-foreground">
-        about ₹{effective.toFixed(0)} per return
-      </p>
-
-      <dl className="mt-4 space-y-1.5 border-t border-border pt-4 text-xs">
-        <div className="flex justify-between">
-          <dt className="text-muted-foreground">Credits</dt>
-          <dd className="font-semibold tabular-nums">{pack.breakdown.baseCredits}</dd>
-        </div>
-        <div className="flex justify-between">
-          <dt className="text-muted-foreground">Bonus</dt>
-          <dd
-            className={cn(
-              "font-semibold tabular-nums",
-              hasBonus ? "text-success-ink" : "text-muted-foreground"
-            )}
-          >
-            {hasBonus ? `+${pack.breakdown.bonusCredits} (${pack.breakdown.bonusPercent}%)` : "—"}
-          </dd>
-        </div>
-        <div className="flex justify-between border-t border-border pt-1.5">
-          <dt className="font-semibold">Total credits</dt>
-          <dd className="font-bold tabular-nums">{pack.breakdown.totalCredits}</dd>
-        </div>
-      </dl>
-
-      <Button asChild variant={pack.popular ? "brand" : "outline"} size="sm" block className="mt-5">
-        <Link href="/register">
-          Get {pack.breakdown.totalCredits} credits
-          <ArrowRight />
-        </Link>
-      </Button>
+      <div className="mt-6 pt-4 border-t border-border">
+        <Button asChild variant={isPopular ? "brand" : "outline"} size="sm" block>
+          <Link href="/register">
+            {isTrial ? "Start 30-Day Free Trial" : `Choose ${plan.name}`}
+            <ArrowRight className="size-3.5 ml-1" />
+          </Link>
+        </Button>
+      </div>
     </Card>
   );
 }
 
-/** Trust strip. Money questions are trust questions. */
+/** Trust strip for money and subscription transparency. */
 export function TrustStrip() {
   const items = [
-    { icon: RefreshCw, label: "Credits never expire", detail: "Use them next month or next year" },
-    { icon: Lock, label: "No subscription", detail: "Top up only when you file" },
-    { icon: ShieldCheck, label: "Encrypted payments", detail: "UPI via Razorpay, no card stored" },
+    { icon: Zap, label: "Unlimited GSTR-1 generation", detail: "Zero per-return deduction on active plans" },
+    { icon: Building2, label: "GSTIN capacity scaling", detail: "Add extra client GSTINs for ₹6/month each" },
+    { icon: ShieldCheck, label: "Official GSTN JSON & Excel", detail: "100% compliant with Offline Tool v3.0" },
+    { icon: Lock, label: "100% Secure Checkout", detail: "Encrypted payments via Razorpay UPI & Cards" },
   ];
 
   return (
-    <div className="grid gap-3 sm:grid-cols-3">
-      {items.map((i) => (
-        <div
-          key={i.label}
-          className="flex items-start gap-3 rounded-xl border border-border bg-card p-4"
-        >
-          <span className="flex size-8 flex-shrink-0 items-center justify-center rounded-lg bg-success/10 text-success-ink ring-1 ring-success/20">
-            <i.icon className="size-4" aria-hidden />
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {items.map((item) => (
+        <Card key={item.label} variant="subtle" className="flex items-start gap-3 p-4">
+          <span className="flex size-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary-ink">
+            <item.icon className="size-4" aria-hidden />
           </span>
-          <span className="min-w-0">
-            <span className="block text-xs font-semibold">{i.label}</span>
-            <span className="block text-2xs text-muted-foreground">{i.detail}</span>
-          </span>
-        </div>
+          <div className="min-w-0">
+            <p className="text-xs font-bold text-foreground">{item.label}</p>
+            <p className="mt-0.5 text-2xs text-muted-foreground">{item.detail}</p>
+          </div>
+        </Card>
       ))}
     </div>
   );
@@ -120,46 +119,48 @@ export function TrustStrip() {
 
 export interface ComparisonRow {
   feature: string;
-  wallet: string | boolean;
-  caPro: string | boolean;
-  caElite: string | boolean;
+  starter: string | boolean;
+  growth: string | boolean;
+  business: string | boolean;
+  caFirm: string | boolean;
 }
 
-/** Plan comparison. Booleans render as a tick or a dash, strings render as-is. */
 export function PlanComparison({ rows }: { rows: ComparisonRow[] }) {
-  const cell = (value: string | boolean) =>
-    typeof value === "boolean" ? (
-      value ? (
-        <Check className="mx-auto size-4 text-success" aria-label="Included" />
-      ) : (
-        <Minus className="mx-auto size-4 text-muted-foreground/50" aria-label="Not included" />
-      )
-    ) : (
-      <span className="text-xs">{value}</span>
-    );
-
   return (
-    <div className="overflow-x-auto rounded-2xl border border-border bg-card shadow-sm">
-      <table className="w-full min-w-[640px] text-sm">
-        <thead>
-          <tr className="border-b border-border bg-subtle text-2xs tracking-wide text-muted-foreground uppercase">
-            <th className="px-5 py-3.5 text-left font-semibold">Feature</th>
-            <th className="px-5 py-3.5 text-center font-semibold">Wallet</th>
-            <th className="px-5 py-3.5 text-center font-semibold text-primary-ink">CA Pro</th>
-            <th className="px-5 py-3.5 text-center font-semibold">CA Elite</th>
+    <div className="overflow-x-auto rounded-2xl border border-border bg-card">
+      <table className="w-full text-left text-xs">
+        <thead className="border-b border-border bg-secondary/30 text-muted-foreground font-bold">
+          <tr>
+            <th className="p-4">Feature</th>
+            <th className="p-4">Starter (₹79)</th>
+            <th className="p-4 bg-primary/5 text-primary-ink">Growth (₹129)</th>
+            <th className="p-4">Business (₹199)</th>
+            <th className="p-4">CA Firm (₹799)</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
-          {rows.map((row) => (
-            <tr key={row.feature} className="transition-colors hover:bg-accent/40">
-              <td className="px-5 py-3 text-xs font-medium">{row.feature}</td>
-              <td className="px-5 py-3 text-center text-muted-foreground">{cell(row.wallet)}</td>
-              <td className="px-5 py-3 text-center">{cell(row.caPro)}</td>
-              <td className="px-5 py-3 text-center">{cell(row.caElite)}</td>
+          {rows.map((row, idx) => (
+            <tr key={idx} className="hover:bg-accent/30 transition">
+              <td className="p-4 font-semibold text-foreground">{row.feature}</td>
+              <td className="p-4"><Cell val={row.starter} /></td>
+              <td className="p-4 bg-primary/5"><Cell val={row.growth} /></td>
+              <td className="p-4"><Cell val={row.business} /></td>
+              <td className="p-4"><Cell val={row.caFirm} /></td>
             </tr>
           ))}
         </tbody>
       </table>
     </div>
   );
+}
+
+function Cell({ val }: { val: string | boolean }) {
+  if (typeof val === "boolean") {
+    return val ? (
+      <Check className="size-4 text-emerald-500" />
+    ) : (
+      <Minus className="size-4 text-muted-foreground/40" />
+    );
+  }
+  return <span className="font-semibold text-foreground">{val}</span>;
 }

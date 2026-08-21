@@ -178,7 +178,7 @@ export default function LandingPage() {
               <Button asChild variant="brand" size="xl" className="w-full sm:w-auto">
                 <Link href="/register">
                   <Zap />
-                  Start free — 2 returns
+                  Start 30-Day Free Trial
                 </Link>
               </Button>
               <Button asChild variant="outline" size="xl" className="w-full sm:w-auto">
@@ -190,7 +190,7 @@ export default function LandingPage() {
             </div>
 
             <p className="text-2xs text-muted-foreground">
-              No card required · Your first two returns are free
+              No card required · 7 Client GSTINs included · Unlimited GSTR-1 returns
             </p>
           </div>
 

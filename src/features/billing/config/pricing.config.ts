@@ -352,15 +352,17 @@ export function getPlanDefinition(slug: string | null | undefined): PlanDefiniti
   return PLANS[normalized] ?? PLANS.free_trial;
 }
 
+export const ALL_PLANS: PlanDefinition[] = [
+  PLANS.free_trial,
+  PLANS.starter,
+  PLANS.growth,
+  PLANS.business,
+  PLANS.ca_pro,
+  PLANS.ca_firm,
+];
+
 export function getAllPlans(): PlanDefinition[] {
-  return [
-    PLANS.free_trial,
-    PLANS.starter,
-    PLANS.growth,
-    PLANS.business,
-    PLANS.ca_pro,
-    PLANS.ca_firm,
-  ];
+  return ALL_PLANS;
 }
 
 export function isPaidPlan(slug: string | null | undefined): boolean {

@@ -279,11 +279,11 @@ export const FAQS = [
   },
   {
     q: "How much does it cost?",
-    a: "There is no subscription for sellers. You recharge a wallet where 1 credit equals ₹1, and one GSTR-1 generation costs 6 credits. Larger recharges earn bonus credits, and credits never expire. CA firms filing at volume can move to a monthly plan.",
+    a: "GSTPilot uses simple, GSTIN-based subscription pricing starting at ₹79/month for 10 GSTINs. All GSTR-1 return generations on active plans are 100% UNLIMITED with zero per-report charges.",
   },
   {
     q: "Can I try it before paying?",
-    a: "Every new account gets two free returns with one GSTIN. The output is watermarked until you recharge. You can also run the interactive demo on this page without signing up at all.",
+    a: "Yes! Every new account starts with a full 30-Day Free Trial including 7 GSTIN client capacity and unlimited, watermark-free GSTR-1 JSON and Excel generation without entering any credit card.",
   },
   {
     q: "What happens to my sales data?",
@@ -334,13 +334,13 @@ export function ClosingCta() {
             File your next GSTR-1 in minutes
           </h2>
           <p className="mx-auto max-w-xl text-sm text-primary-foreground/80">
-            Two free returns to start. No card, no subscription, no spreadsheet surgery.
+            30-day free trial with 7 GSTINs. Unlimited returns, no card required, no spreadsheet surgery.
           </p>
           <div className="flex flex-col items-center justify-center gap-3 pt-1 sm:flex-row">
             <Button asChild size="xl" className="bg-background text-foreground hover:bg-card">
               <Link href="/register">
                 <Zap />
-                Start free
+                Start 30-Day Free Trial
                 <ArrowRight />
               </Link>
             </Button>
