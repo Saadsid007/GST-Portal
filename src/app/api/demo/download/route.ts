@@ -133,7 +133,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const bytes =
       file === "excel"
-        ? generateGstr1Excel(DEMO_ROWS, gstin, returnPeriod, WATERMARK)
+        ? await generateGstr1Excel(DEMO_ROWS, gstin, returnPeriod, WATERMARK)
         : await generateCaReviewReport(DEMO_ROWS, gstin, returnPeriod, undefined, WATERMARK);
 
     const suffix = file === "excel" ? "GSTR1_Workbook" : "CA_Review_Report";

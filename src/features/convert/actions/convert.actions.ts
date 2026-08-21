@@ -509,7 +509,7 @@ export async function generateGstr1ExcelAction(
   // Resolved server-side on every download — a watermark flag sent from the
   // browser could simply be flipped to false.
   const watermark = await shouldWatermark(session.user.id);
-  const buffer = generateGstr1Excel(rows, gstin, period, watermark);
+  const buffer = await generateGstr1Excel(rows, gstin, period, watermark);
   return { success: true as const, data: { buffer: Array.from(buffer) } };
 }
 
