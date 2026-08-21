@@ -101,6 +101,20 @@ export async function getOrCreateSubscription(
     billingLogger.info({ userId, subId: sub.id }, "30-day free trial provisioned with 7 GSTINs");
   }
 
+  // Self-heal trial record if start and end dates were initialized identically during initial migration
+  if (sub && sub.planSlug === "free_trial" && sub.endDate.getTime() <= sub.startDate.getTime()) {
+    const startDate = now;
+    const endDate = new Date(startDate.getTime() + FREE_TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000);
+    sub = await prisma.subscription.update({
+      where: { id: sub.id },
+      data: {
+        status: "TRIALING",
+        startDate,
+        endDate,
+      },
+    });
+  }
+
   // Check for expiration
   const currentSub = sub!;
   let status = currentSub.status as SubscriptionStatusSummary["status"];
