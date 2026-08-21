@@ -4,7 +4,6 @@ import { useState } from "react";
 import { toast } from "sonner";
 import type { MultiConvertState } from "@/features/convert/presentation/convert-workbench";
 import {
-  generateCaReviewReportAction,
   generateGstr1ExcelAction,
   saveConversionAction,
 } from "@/features/convert/actions/convert.actions";
@@ -17,7 +16,6 @@ import {
   CheckCircle2,
   RefreshCw,
   Loader2,
-  Sparkles,
 } from "lucide-react";
 
 interface Props {
@@ -26,7 +24,7 @@ interface Props {
 }
 
 export function Step10Download({ state, onReset }: Props) {
-  const [downloading, setDownloading] = useState<"gstn" | "review" | null>(null);
+  const [downloading, setDownloading] = useState(false);
   const [savingHistory, setSavingHistory] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -53,18 +51,10 @@ export function Step10Download({ state, onReset }: Props) {
     toast.success("GSTR-1 JSON downloaded!");
   }
 
-  async function downloadWorkbook(kind: "gstn" | "review") {
-    setDownloading(kind);
+  async function downloadExcel() {
+    setDownloading(true);
     try {
-      const res =
-        kind === "gstn"
-          ? await generateGstr1ExcelAction(state.rows, state.gstinNumber, state.returnPeriod)
-          : await generateCaReviewReportAction(
-              state.rows,
-              state.gstinNumber,
-              state.returnPeriod,
-              statement ?? undefined
-            );
+      const res = await generateGstr1ExcelAction(state.rows, state.gstinNumber, state.returnPeriod);
       if (!res.success) {
         toast.error("Failed to generate Excel file");
         return;
@@ -76,17 +66,14 @@ export function Step10Download({ state, onReset }: Props) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      const prefix = kind === "gstn" ? "GSTR1" : "GSTR1_Review";
-      a.download = `${prefix}_${state.gstinNumber}_${state.returnPeriod}.xlsx`;
+      a.download = `GSTR1_${state.gstinNumber}_${state.returnPeriod}.xlsx`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success(
-        kind === "gstn" ? "GSTN upload workbook downloaded!" : "CA Review Report downloaded!"
-      );
+      toast.success("Official GSTR-1 Excel Workbook downloaded!");
     } catch {
       toast.error("Error downloading Excel");
     } finally {
-      setDownloading(null);
+      setDownloading(false);
     }
   }
 
@@ -155,44 +142,27 @@ export function Step10Download({ state, onReset }: Props) {
         </div>
       </div>
 
-      <div className="mx-auto grid max-w-4xl grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="space-y-4 rounded-2xl border border-border bg-card p-6 text-center shadow-sm transition hover:border-primary/50">
-          <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary-ink">
-            <FileJson className="size-6" />
-          </div>
-          <div>
-            <h3 className="text-base font-bold">GSTN Government JSON</h3>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Official v3.0+ JSON format for direct GST Portal upload
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={downloadJson}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90"
-          >
-            <Download className="size-4" /> Download JSON
-          </button>
-        </div>
-
-        <div className="space-y-4 rounded-2xl border border-border bg-card p-6 text-center shadow-sm transition hover:border-primary/50">
-          <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-success/10 text-success">
-            <FileSpreadsheet className="size-6" />
-          </div>
-          <div>
-            <h3 className="text-base font-bold">GSTN Upload File</h3>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Plain B2B, B2CL, B2CS, CDNR, HSN, ECO & DOCS sheets — formatted for the GSTN offline
-              tool
-            </p>
+      <div className="mx-auto grid max-w-3xl grid-cols-1 gap-6 sm:grid-cols-2">
+        {/* Card 1: Official Excel Workbook */}
+        <div className="flex flex-col justify-between space-y-4 rounded-2xl border border-border bg-card p-6 text-center shadow-sm transition hover:border-success/50">
+          <div className="space-y-3">
+            <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-success/10 text-success">
+              <FileSpreadsheet className="size-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold">GSTR-1 Excel Workbook</h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Official GSTN Offline Template v2.1 (32 sheets) with B2B, B2CS, CDNR, HSN, ECO & DOCS
+              </p>
+            </div>
           </div>
           <button
             type="button"
-            onClick={() => downloadWorkbook("gstn")}
-            disabled={downloading !== null}
+            onClick={downloadExcel}
+            disabled={downloading}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-success px-4 py-2.5 font-bold text-success-foreground shadow-sm transition hover:bg-success/90 disabled:opacity-50"
           >
-            {downloading === "gstn" ? (
+            {downloading ? (
               <Loader2 className="size-4 animate-spin" />
             ) : (
               <Download className="size-4" />
@@ -201,29 +171,25 @@ export function Step10Download({ state, onReset }: Props) {
           </button>
         </div>
 
-        <div className="space-y-4 rounded-2xl border border-border bg-card p-6 text-center shadow-sm transition hover:border-primary/50">
-          <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary-ink">
-            <Sparkles className="size-6" />
-          </div>
-          <div>
-            <h3 className="text-base font-bold">CA Review Report</h3>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Styled workbook with overview, invoice register, state, HSN & Table 14 — for review,
-              not upload
-            </p>
+        {/* Card 2: Official GSTN JSON */}
+        <div className="flex flex-col justify-between space-y-4 rounded-2xl border border-border bg-card p-6 text-center shadow-sm transition hover:border-primary/50">
+          <div className="space-y-3">
+            <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary-ink">
+              <FileJson className="size-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold">GSTN Government JSON</h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Official GSTN v3.1.6 JSON format for 1-click direct upload to the GST Portal
+              </p>
+            </div>
           </div>
           <button
             type="button"
-            onClick={() => downloadWorkbook("review")}
-            disabled={downloading !== null}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:opacity-50"
+            onClick={downloadJson}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90"
           >
-            {downloading === "review" ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Download className="size-4" />
-            )}
-            Download Report
+            <Download className="size-4" /> Download JSON
           </button>
         </div>
       </div>
