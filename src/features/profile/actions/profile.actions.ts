@@ -1,7 +1,7 @@
 "use server";
 
 import { requireSession } from "@/features/auth";
-import { canAddGstin } from "@/features/billing/services/entitlement.service";
+import { canCreateGstin } from "@/features/billing/services/capacity.service";
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -29,7 +29,7 @@ export async function addGstinProfileAction(input: {
   const parsed = addSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message };
 
-  const gate = await canAddGstin(session.user.id);
+  const gate = await canCreateGstin(session.user.id);
   if (!gate.allowed) return { success: false, error: gate.reason };
 
   const { gstinNumber, legalName, tradeName, businessType, isDefault } = parsed.data;

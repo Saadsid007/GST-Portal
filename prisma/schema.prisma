@@ -40,6 +40,10 @@ model User {
   referralsMade      Referral[]             @relation("Referrer")
   referralReceived   Referral?              @relation("Referee")
   subscription       Subscription?
+  gstinCapacity      GSTINCapacity?
+  gstinPurchases     AdditionalGSTINPurchase[]
+  payments           Payment[]
+  billingAuditLogs   BillingAuditLog[]
   auditLogs          AuditLog[]
   creditCodesCreated CreditCode[]
   codeRedemptions    CreditCodeRedemption[]
@@ -414,22 +418,126 @@ model BillingConfig {
 }
 
 // -----------------------------------------------------------------------------
-// Billing — CA Subscription Plans
+// Billing — Subscriptions & GSTIN Capacity
 // -----------------------------------------------------------------------------
 
 model Subscription {
   id                     String    @id @default(uuid()) @db.Uuid
   userId                 String    @unique @map("user_id")
-  plan                   String    @default("FREE") // "FREE", "CA_PRO", "CA_ELITE"
-  status                 String    @default("ACTIVE") // "ACTIVE", "CANCELLED", "EXPIRED"
+  plan                   String?   @default("FREE")
+  planSlug               String    @default("free_trial") @map("plan_slug") // "free_trial", "starter", "growth", "business", "ca_pro", "ca_firm"
+  status                 String    @default("TRIALING") // "TRIALING", "ACTIVE", "PAST_DUE", "CANCELLED", "EXPIRED"
+  startDate              DateTime  @default(now()) @map("start_date") @db.Timestamptz
+  endDate                DateTime  @default(now()) @map("end_date") @db.Timestamptz
+  autoRenew              Boolean   @default(true) @map("auto_renew")
+  scheduledPlanSlug      String?   @map("scheduled_plan_slug") // For downgrades scheduled at renewal
+  provider               String    @default("RAZORPAY")
+  providerSubscriptionId String?   @map("provider_subscription_id")
   currentPeriodEnd       DateTime? @map("current_period_end") @db.Timestamptz
-  razorpaySubscriptionId String?   @map("razorpay_subscription_id")
   createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz
   updatedAt              DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
+  user   User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events SubscriptionEvent[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("subscription")
+}
+
+model GSTINCapacity {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @unique @map("user_id")
+  includedGSTINs    Int      @default(7) @map("included_gstins")
+  additionalGSTINs  Int      @default(0) @map("additional_gstins")
+  usedGSTINs        Int      @default(0) @map("used_gstins")
+  effectiveCapacity Int      @default(7) @map("effective_capacity")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@map("subscription")
+  @@map("gstin_capacity")
+}
+
+model AdditionalGSTINPurchase {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @map("user_id")
+  quantity          Int
+  pricePerGSTIN     Int      @default(6) @map("price_per_gstin")
+  amount            Int // Rupees charged (prorated)
+  startDate         DateTime @default(now()) @map("start_date") @db.Timestamptz
+  endDate           DateTime @map("end_date") @db.Timestamptz
+  providerPaymentId String?  @map("provider_payment_id")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("additional_gstin_purchase")
+}
+
+model Payment {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @map("user_id")
+  provider          String   @default("RAZORPAY")
+  providerOrderId   String?  @unique @map("provider_order_id")
+  providerPaymentId String?  @unique @map("provider_payment_id")
+  amount            Int // In rupees
+  currency          String   @default("INR")
+  status            String   @default("CREATED") // "CREATED", "SUCCESS", "FAILED", "REFUNDED"
+  paymentType       String   @map("payment_type") // "SUBSCRIPTION", "ADDITIONAL_GSTIN", "UPGRADE", "RENEWAL"
+  planSlug          String?  @map("plan_slug")
+  metadata          Json?
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@map("payment")
+}
+
+model PaymentEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  provider    String   @default("RAZORPAY")
+  eventId     String   @unique @map("event_id")
+  eventType   String   @map("event_type")
+  payloadHash String?  @map("payload_hash")
+  processedAt DateTime @default(now()) @map("processed_at") @db.Timestamptz
+  status      String   @default("PROCESSED")
+
+  @@index([eventId])
+  @@map("payment_event")
+}
+
+model SubscriptionEvent {
+  id             String   @id @default(uuid()) @db.Uuid
+  subscriptionId String   @map("subscription_id") @db.Uuid
+  eventType      String   @map("event_type") // "TRIAL_STARTED", "PLAN_ACTIVATED", "PLAN_UPGRADED", "DOWNGRADE_SCHEDULED", "EXPIRED", "RENEWED", "CANCELLED"
+  metadata       Json?
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId])
+  @@map("subscription_event")
+}
+
+model BillingAuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id")
+  action    String
+  actorId   String   @map("actor_id")
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([action])
+  @@map("billing_audit_log")
 }
 
 // -----------------------------------------------------------------------------

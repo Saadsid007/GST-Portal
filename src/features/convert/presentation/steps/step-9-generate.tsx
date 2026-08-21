@@ -7,8 +7,6 @@ import {
   consumeGenerationCreditAction,
   getGenerationQuoteAction,
 } from "@/features/billing/actions/metering.actions";
-import { PaywallScreen } from "@/features/billing/presentation/paywall-screen";
-import type { WalletSummary } from "@/features/billing/types/billing.types";
 import {
   ArrowLeft,
   ArrowRight,
@@ -18,8 +16,10 @@ import {
   Square,
   AlertTriangle,
   Loader2,
-  Wallet,
+  ShieldCheck,
+  Zap,
 } from "lucide-react";
+import Link from "next/link";
 
 interface Props {
   state: MultiConvertState;
@@ -27,20 +27,27 @@ interface Props {
   onBack: () => void;
 }
 
+interface QuoteData {
+  planSlug: string;
+  planName: string;
+  isActive: boolean;
+  isTrial: boolean;
+  daysRemaining: number;
+  watermark: boolean;
+}
+
 export function Step9Generate({ state, onNext, onBack }: Props) {
   const [confirmed, setConfirmed] = useState(false);
-  const [quote, setQuote] = useState<WalletSummary | null>(null);
+  const [quote, setQuote] = useState<QuoteData | null>(null);
   const [gateError, setGateError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
     void getGenerationQuoteAction().then((result) => {
-      if (result.success) setQuote(result.data);
+      if (result.success && result.data) setQuote(result.data);
     });
   }, []);
 
-  // Credits are charged here, not on the download buttons — a user re-downloading
-  // a workbook they already paid for must never be billed twice.
   function handleGenerate() {
     setGateError(null);
     startTransition(async () => {
@@ -48,7 +55,7 @@ export function Step9Generate({ state, onNext, onBack }: Props) {
       if (!result.success) {
         setGateError(result.error);
         const refreshed = await getGenerationQuoteAction();
-        if (refreshed.success) setQuote(refreshed.data);
+        if (refreshed.success && refreshed.data) setQuote(refreshed.data);
         return;
       }
       onNext(result.data.watermark);
@@ -58,14 +65,7 @@ export function Step9Generate({ state, onNext, onBack }: Props) {
   const statement = state.statement;
   if (!statement) return null;
 
-  const blocked =
-    quote !== null &&
-    quote.plan === "FREE" &&
-    (quote.isFrozen ||
-      (quote.freeGenerationsRemaining === 0 && quote.balance < quote.generationCost));
-
-  // Generators only write rows that passed validation. Leaving that implicit means a user who
-  // skipped the error centre files a return that is quietly missing sales.
+  const blocked = quote !== null && !quote.isActive;
   const excludedRows = state.rows.filter((r) => r.errors.length > 0);
   const ecoWarnings = statement.issues.filter((i) => i.field === "ecoGstin").length;
 
@@ -115,14 +115,14 @@ export function Step9Generate({ state, onNext, onBack }: Props) {
               <FileJson className="size-4 text-primary-ink" /> GSTN Offline Tool v3.0 JSON Payload
             </p>
             <p className="flex items-center gap-2 font-semibold text-foreground">
-              <FileSpreadsheet className="size-4 text-success" /> Multi-Sheet Excel (B2B, B2CL,
-              B2CS, CDNR, HSN, ECO, DOCS)
+              <FileSpreadsheet className="size-4 text-emerald-600 dark:text-emerald-400" />{" "}
+              Official Multi-Sheet Excel (B2B, B2CL, B2CS, CDNR, HSN, ECO, DOCS)
             </p>
           </div>
 
           <div className="space-y-1 rounded-xl border border-border bg-background p-4 text-xs">
             <p className="font-mono font-bold text-muted-foreground">GST Compliance Checks:</p>
-            <p className="font-semibold text-success">
+            <p className="font-semibold text-emerald-600 dark:text-emerald-400">
               ✓ {statement.validInvoices} / {statement.totalInvoices} Invoices Validated
             </p>
             <p className="text-muted-foreground">✓ Place of supply & state codes verified</p>
@@ -139,8 +139,7 @@ export function Step9Generate({ state, onNext, onBack }: Props) {
               <p className="mt-0.5 text-xs text-muted-foreground">
                 Nothing has been deleted — these rows still have errors, so{" "}
                 {formatCurrency(excludedRows.reduce((s, r) => s + Math.abs(r.taxableValue), 0))} of
-                taxable value stays out of the return until they are fixed. Go back to the error
-                centre to resolve them.
+                taxable value stays out of the return until they are fixed.
               </p>
             </div>
           </div>
@@ -154,34 +153,49 @@ export function Step9Generate({ state, onNext, onBack }: Props) {
                 Table 14 cannot be generated — no operator GSTIN for {ecoWarnings} row(s)
               </p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Table 14 reports supplies on which the marketplace collected TCS, so it needs the
-                operator&apos;s own GSTIN — not yours. Most exports omit it. Go back to the
-                Marketplaces step to enter it once per platform; B2B and B2CS reporting is
-                unaffected either way.
+                Table 14 reports supplies on which the marketplace collected TCS. Go back to
+                Marketplaces step to map operator GSTINs.
               </p>
             </div>
           </div>
         )}
 
         {quote && !blocked && (
-          <div className="mt-3 flex items-center justify-between rounded-xl border border-border bg-background px-4 py-3 text-xs">
-            <span className="flex items-center gap-2 font-semibold text-muted-foreground">
-              <Wallet className="size-4 text-primary-ink" />
-              {quote.isOnFreeTrial
-                ? `Free trial — ${quote.freeGenerationsRemaining} of ${quote.freeGenerationsUsed + quote.freeGenerationsRemaining} generations left`
-                : quote.plan === "FREE"
-                  ? `This generation costs ${quote.generationCost} credits`
-                  : "Included in your plan"}
+          <div className="mt-3 flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-4 py-3 text-xs">
+            <span className="flex items-center gap-2 font-semibold text-emerald-700 dark:text-emerald-400">
+              <ShieldCheck className="size-4 text-emerald-600 dark:text-emerald-400" />
+              {quote.isTrial
+                ? `30-Day Free Trial — Unlimited GSTR-1 Generations (${quote.daysRemaining} days left)`
+                : `${quote.planName} Plan — Unlimited GSTR-1 Generations`}
             </span>
-            {quote.plan === "FREE" && (
-              <span className="font-mono font-bold">
-                {quote.isOnFreeTrial
-                  ? quote.watermarkApplies
-                    ? "Watermarked output"
-                    : "No charge"
-                  : `Balance ${quote.balance} → ${quote.balance - quote.generationCost}`}
-              </span>
-            )}
+            <span className="flex items-center gap-1.5 font-bold text-primary-ink">
+              <Zap className="size-3.5" /> Instant Generation
+            </span>
+          </div>
+        )}
+
+        {blocked && (
+          <div className="mt-3 rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm">
+            <div className="flex items-start gap-2.5">
+              <AlertTriangle className="mt-0.5 size-5 shrink-0 text-destructive" />
+              <div>
+                <p className="font-bold text-foreground">
+                  Your Free Trial / Subscription has Expired
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Upgrade your plan to unlock unlimited GSTR-1 generations. Your client data, GSTINs,
+                  and historical reports remain safe and accessible.
+                </p>
+                <div className="mt-3">
+                  <Link
+                    href="/billing"
+                    className="inline-flex items-center gap-1.5 rounded-lg brand-gradient px-4 py-1.5 text-xs font-bold text-white shadow transition hover:brightness-110"
+                  >
+                    View Plans &amp; Upgrade
+                  </Link>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -207,8 +221,6 @@ export function Step9Generate({ state, onNext, onBack }: Props) {
           </div>
         </button>
       </div>
-
-      {blocked && quote && <PaywallScreen summary={quote} reason={gateError} />}
 
       {!blocked && gateError && (
         <div className="flex items-start gap-2.5 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm">

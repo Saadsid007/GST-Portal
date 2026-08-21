@@ -1,34 +1,41 @@
 import { NextResponse } from "next/server";
 import { billingLogger } from "@/features/billing/services/billing.logger";
 import { verifyWebhookSignature } from "@/features/billing/services/razorpay.service";
-import { markRechargeFailed, settleRecharge } from "@/features/billing/services/recharge.service";
-
-/**
- * Razorpay's authoritative settlement path. Razorpay carries no session cookie,
- * so this route is whitelisted in `middleware.ts` and authenticated purely by
- * the HMAC over the raw body.
- */
+import { activatePaidPlan } from "@/features/billing/services/subscription.service";
+import { addGstinCapacity } from "@/features/billing/services/capacity.service";
+import type { PlanSlug } from "@/features/billing/config/pricing.config";
+import prisma from "@/lib/prisma";
 
 interface RazorpayWebhookPayload {
   event?: string;
   payload?: {
     payment?: {
-      entity?: { id?: string; order_id?: string };
+      entity?: {
+        id?: string;
+        order_id?: string;
+        amount?: number;
+        currency?: string;
+        status?: string;
+        notes?: Record<string, string>;
+      };
     };
-    qr_code?: {
-      entity?: { id?: string };
+    order?: {
+      entity?: {
+        id?: string;
+        amount?: number;
+        status?: string;
+        notes?: Record<string, string>;
+      };
     };
   };
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
-  // Must read the raw text before any JSON parse — re-serialising the body
-  // changes whitespace and breaks the signature.
   const rawBody = await request.text();
   const signature = request.headers.get("x-razorpay-signature");
 
   if (!signature || !verifyWebhookSignature(rawBody, signature)) {
-    billingLogger.warn("Rejected Razorpay webhook with an invalid signature");
+    billingLogger.warn("Rejected Razorpay webhook with invalid signature");
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
@@ -39,56 +46,74 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "Malformed payload" }, { status: 400 });
   }
 
-  const entity = payload.payload?.payment?.entity;
-  const orderId = entity?.order_id;
-  const paymentId = entity?.id;
-  const qrCodeId = payload.payload?.qr_code?.entity?.id;
+  const paymentEntity = payload.payload?.payment?.entity;
+  const orderEntity = payload.payload?.order?.entity;
 
-  // A QR payment carries no order_id — the QR code entity is the locator.
-  if (payload.event === "qr_code.credited" && qrCodeId && paymentId) {
-    try {
-      const eventId = request.headers.get("x-razorpay-event-id") ?? `qr:${paymentId}`;
-      const result = await settleRecharge({
-        razorpayQrCodeId: qrCodeId,
-        razorpayPaymentId: paymentId,
-        eventId,
-      });
-      billingLogger.info(
-        { qrCodeId, credited: result.credited },
-        "Webhook settled UPI QR recharge"
-      );
-    } catch (error) {
-      billingLogger.error({ qrCodeId, err: error }, "Failed to settle UPI QR recharge");
-      // 500 makes Razorpay retry, which is what we want for a transient failure.
-      return NextResponse.json({ error: "Settlement failed" }, { status: 500 });
-    }
-    return NextResponse.json({ received: true });
+  const orderId = paymentEntity?.order_id ?? orderEntity?.id;
+  const paymentId = paymentEntity?.id;
+  const notes = paymentEntity?.notes ?? orderEntity?.notes ?? {};
+  const amountPaise = paymentEntity?.amount ?? orderEntity?.amount ?? 0;
+  const amountRupees = Math.round(amountPaise / 100);
+
+  const eventId =
+    request.headers.get("x-razorpay-event-id") ??
+    `evt_${paymentId ?? orderId ?? Date.now().toString(36)}`;
+
+  // 1. Idempotency check: process each event exactly once
+  const existingEvent = await prisma.paymentEvent.findUnique({
+    where: { eventId },
+  });
+
+  if (existingEvent) {
+    billingLogger.info({ eventId }, "Webhook event already processed (idempotent skip)");
+    return NextResponse.json({ received: true, idempotent: true });
   }
 
-  if (!orderId || !paymentId) {
-    // Events we don't handle (subscriptions, refunds, settlements) are acknowledged
-    // so Razorpay stops retrying them.
-    return NextResponse.json({ received: true });
-  }
+  const eventType = payload.event ?? "unknown";
 
-  try {
-    if (payload.event === "payment.captured" || payload.event === "order.paid") {
-      // Razorpay's delivery id is the natural idempotency key; the payment id is a
-      // stable fallback when the header is absent.
-      const eventId = request.headers.get("x-razorpay-event-id") ?? `payment:${paymentId}`;
-      const result = await settleRecharge({
-        razorpayOrderId: orderId,
-        razorpayPaymentId: paymentId,
-        eventId,
-      });
-      billingLogger.info({ orderId, credited: result.credited }, "Webhook settled recharge");
-    } else if (payload.event === "payment.failed") {
-      await markRechargeFailed({ razorpayOrderId: orderId });
+  if (eventType === "payment.captured" || eventType === "order.paid") {
+    const userId = notes.userId;
+    const paymentType = notes.type; // "SUBSCRIPTION" | "ADDITIONAL_GSTIN"
+
+    if (userId && paymentId) {
+      try {
+        if (paymentType === "SUBSCRIPTION" && notes.planSlug) {
+          await activatePaidPlan({
+            userId,
+            planSlug: notes.planSlug as PlanSlug,
+            paymentId,
+            providerOrderId: orderId,
+            amountRupees,
+          });
+          billingLogger.info({ userId, planSlug: notes.planSlug }, "Webhook activated subscription");
+        } else if (paymentType === "ADDITIONAL_GSTIN" && notes.quantity) {
+          const qty = parseInt(notes.quantity, 10);
+          if (qty > 0) {
+            await addGstinCapacity({
+              userId,
+              quantity: qty,
+              amountRupees,
+              paymentId,
+              providerOrderId: orderId,
+            });
+            billingLogger.info({ userId, qty }, "Webhook added GSTIN capacity");
+          }
+        }
+
+        // Record successful event processing
+        await prisma.paymentEvent.create({
+          data: {
+            provider: "RAZORPAY",
+            eventId,
+            eventType,
+            status: "PROCESSED",
+          },
+        });
+      } catch (error) {
+        billingLogger.error({ orderId, eventId, err: error }, "Failed to process payment webhook");
+        return NextResponse.json({ error: "Processing failed" }, { status: 500 });
+      }
     }
-  } catch (error) {
-    billingLogger.error({ orderId, err: error }, "Webhook settlement failed");
-    // A 500 makes Razorpay retry, which is safe because settlement is idempotent.
-    return NextResponse.json({ error: "Settlement failed" }, { status: 500 });
   }
 
   return NextResponse.json({ received: true });
