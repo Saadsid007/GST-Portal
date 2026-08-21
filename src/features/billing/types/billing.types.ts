@@ -94,7 +94,7 @@ export interface WalletSummary {
   freeGenerationsRemaining: number;
   isOnFreeTrial: boolean;
   watermarkApplies: boolean;
-  plan: CaPlanId;
+  plan: string;
 }
 
 export interface LedgerEntry {
