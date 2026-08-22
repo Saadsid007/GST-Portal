@@ -108,8 +108,8 @@ export function AppShell({ children, user, isAdmin = false, credits }: AppShellP
           onOpenMobileNav={() => setDrawerOpen(true)}
           onToggleCollapse={toggleCollapse}
         />
-        <main className="flex-1">
-          <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">{children}</div>
+        <main className="flex-1 min-w-0 bg-background">
+          <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 w-full">{children}</div>
         </main>
       </div>
     </div>

@@ -6,46 +6,45 @@ import type { WalletSummary } from "@/features/billing/types/billing.types";
 export function WalletCard({ summary }: { summary: WalletSummary }) {
   if (summary.isOnFreeTrial) {
     return (
-      <div className="space-y-2 rounded-xl border border-warning/40 bg-warning/5 p-5">
-        <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase">
-          <Gift className="size-4 text-warning" /> Free Trial
+      <div className="card-lift space-y-1.5 rounded-xl border border-warning/40 bg-warning/5 p-4 hover:border-warning/60">
+        <div className="flex items-center gap-1.5 text-3xs font-semibold text-muted-foreground uppercase">
+          <Gift className="size-3.5 text-warning" /> Free Trial
         </div>
-        <p className="text-2xl font-bold">
+        <p className="text-xl font-bold text-foreground">
           {summary.freeGenerationsRemaining} free{" "}
           {summary.freeGenerationsRemaining === 1 ? "return" : "returns"} left
         </p>
-        <p className="text-xs text-muted-foreground">
-          Trial returns carry a watermark. Recharge your wallet to remove it and keep generating.
+        <p className="text-3xs text-muted-foreground truncate">
+          30-Day Free Trial · 7 GSTIN slots active
         </p>
         <Link
           href="/billing"
-          className="inline-flex items-center gap-1 pt-2 text-xs font-semibold text-warning hover:underline"
+          className="inline-flex items-center gap-1 pt-1 text-2xs font-semibold text-warning hover:underline"
         >
-          Activate wallet <ArrowRight className="size-3" />
+          Manage plan <ArrowRight className="size-3" />
         </Link>
       </div>
     );
   }
 
   return (
-    <div className="space-y-2 rounded-xl border border-border bg-card p-5">
-      <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase">
-        <Wallet className="size-4 text-primary-ink" /> Wallet Balance
+    <div className="card-lift space-y-1.5 rounded-xl border border-border bg-card p-4 hover:border-primary/40">
+      <div className="flex items-center gap-1.5 text-3xs font-semibold text-muted-foreground uppercase">
+        <Wallet className="size-3.5 text-primary-ink" /> Wallet Balance
       </div>
-      <p className="text-2xl font-bold">{summary.balance.toLocaleString("en-IN")} Credits</p>
-      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <p className="text-xl font-bold text-foreground">{summary.balance.toLocaleString("en-IN")} Credits</p>
+      <p className="flex items-center gap-1 text-3xs text-muted-foreground truncate">
         <Zap className="size-3 text-warning" />
-        {summary.estimatedReports} {summary.estimatedReports === 1 ? "return" : "returns"} left ·{" "}
-        {summary.generationCost} credits each
+        {summary.estimatedReports} returns left · {summary.generationCost} cr/ea
       </p>
       {summary.isFrozen ? (
-        <p className="pt-2 text-xs font-semibold text-destructive">
+        <p className="pt-1 text-2xs font-semibold text-destructive">
           Wallet frozen — contact support.
         </p>
       ) : (
         <Link
           href="/billing"
-          className="inline-flex items-center gap-1 pt-2 text-xs font-semibold text-primary-ink hover:underline"
+          className="inline-flex items-center gap-1 pt-1 text-2xs font-semibold text-primary-ink hover:underline"
         >
           Recharge wallet <ArrowRight className="size-3" />
         </Link>

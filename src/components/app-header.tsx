@@ -53,7 +53,7 @@ export function AppHeader({
   const group = NAV_GROUPS.find((g) => g.items.some((i) => i.href === current?.href));
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 flex-shrink-0 items-center gap-3 border-b border-border bg-background/85 px-4 backdrop-blur-xl sm:px-6">
+    <header className="sticky top-0 z-30 flex h-16 flex-shrink-0 items-center gap-3 border-b border-border bg-background/85 px-4 backdrop-blur-xl sm:px-6 lg:px-8">
       {/* Mobile drawer trigger */}
       <Button
         variant="ghost"

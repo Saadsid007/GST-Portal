@@ -61,7 +61,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
       <OfferStrip announcements={announcements} />
 
       <header className="sticky top-0 z-50 border-b border-border/70 bg-background/80 backdrop-blur-xl">
-        <div className="relative mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6">
+        <div className="relative mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
           <Link
             href="/"
             className="group flex min-w-0 items-center gap-2.5 transition-transform hover:opacity-95"
@@ -73,10 +73,10 @@ export default async function MarketingLayout({ children }: { children: React.Re
         </div>
       </header>
 
-      <main className="flex-1">{children}</main>
+      <main className="flex-1 w-full">{children}</main>
 
       <footer className="border-t border-border bg-subtle">
-        <div className="mx-auto max-w-7xl px-6 py-16">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
           <div className="grid grid-cols-2 gap-10 md:grid-cols-6">
             <div className="col-span-2 space-y-4">
               <div className="flex items-center">

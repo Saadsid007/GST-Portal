@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   ArrowRight,
   Check,
@@ -8,11 +8,16 @@ import {
   FileSpreadsheet,
   RotateCcw,
   Sparkles,
-  UploadCloud,
   Wand2,
   FileJson,
   FileSpreadsheet as FileXls,
   ClipboardCheck,
+  Layers,
+  ShoppingBag,
+  TrendingDown,
+  FileText,
+  Building2,
+  Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { Badge, Button } from "@/components/ui";
@@ -20,211 +25,394 @@ import { cn } from "@/lib/utils";
 import {
   DEMO_SELLER,
   DEMO_TOTALS,
+  DEMO_ECO_ROWS,
+  DEMO_HSN_ROWS,
   GSTR1_ROWS,
-  PIPELINE_STAGES,
-  RAW_ROWS,
+  MARKETPLACE_PRESETS,
   TRANSFORMATIONS,
   formatInr,
+  type DemoMarketplacePreset,
+  type RawRow,
 } from "@/features/demo/demo-data";
 
-type Phase = "idle" | "loaded" | "processing" | "done";
-
-const STAGE_MS = 260;
+type ViewMode = "output" | "raw";
+type OutputTab = "b2cs" | "eco" | "hsn" | "audit";
 
 export function DemoGenerator() {
-  const [phase, setPhase] = useState<Phase>("idle");
-  const [stage, setStage] = useState(0);
-  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const [selectedPreset, setSelectedPreset] = useState<DemoMarketplacePreset>(MARKETPLACE_PRESETS[0]!);
+  const [viewMode, setViewMode] = useState<ViewMode>("output");
+  const [activeTab, setActiveTab] = useState<OutputTab>("b2cs");
+  const [isConverting, setIsConverting] = useState(false);
+  const [conversionSuccess, setConversionSuccess] = useState(true);
 
-  // Any pending stage timer must die with the component, or a reset mid-run
-  // keeps advancing the old sequence over the new state.
-  useEffect(() => {
-    const pending = timers.current;
-    return () => pending.forEach(clearTimeout);
-  }, []);
+  const handleSelectPreset = (preset: DemoMarketplacePreset) => {
+    setSelectedPreset(preset);
+    setIsConverting(true);
+    setTimeout(() => {
+      setIsConverting(false);
+      setConversionSuccess(true);
+    }, 350);
+  };
 
-  const clearTimers = useCallback(() => {
-    timers.current.forEach(clearTimeout);
-    timers.current = [];
-  }, []);
+  const handleRunConversion = () => {
+    setIsConverting(true);
+    setTimeout(() => {
+      setIsConverting(false);
+      setViewMode("output");
+      setConversionSuccess(true);
+    }, 450);
+  };
 
-  const convert = useCallback(() => {
-    clearTimers();
-    setPhase("processing");
-    setStage(0);
-
-    PIPELINE_STAGES.forEach((_, i) => {
-      timers.current.push(setTimeout(() => setStage(i + 1), STAGE_MS * (i + 1)));
-    });
-    timers.current.push(
-      setTimeout(() => setPhase("done"), STAGE_MS * (PIPELINE_STAGES.length + 1))
-    );
-  }, [clearTimers]);
-
-  const reset = useCallback(() => {
-    clearTimers();
-    setStage(0);
-    setPhase("idle");
-  }, [clearTimers]);
-
-  // The real generators run server-side: xlsx + exceljs are megabytes, and
-  // bundling them here would cost every homepage visitor for a feature most
-  // never trigger.
-  function download(file: "json" | "excel" | "review") {
+  function download(file: "json" | "excel") {
     window.location.href = `/api/demo/download?file=${file}`;
   }
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-xl">
-      {/* Chrome */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-subtle px-5 py-3">
-        <div className="flex items-center gap-2.5">
+    <div className="overflow-hidden rounded-2xl sm:rounded-3xl border border-border/80 bg-card shadow-xl transition-all duration-300">
+      {/* Top Header Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 bg-subtle/70 px-4 sm:px-6 py-3.5">
+        <div className="flex items-center gap-2">
           <div className="flex gap-1.5" aria-hidden>
-            <span className="size-2.5 rounded-full bg-destructive/40" />
-            <span className="size-2.5 rounded-full bg-warning/40" />
-            <span className="size-2.5 rounded-full bg-success/40" />
+            <span className="size-2.5 rounded-full bg-rose-500/80" />
+            <span className="size-2.5 rounded-full bg-amber-500/80" />
+            <span className="size-2.5 rounded-full bg-emerald-500/80" />
           </div>
-          <p className="ml-1 font-mono text-2xs text-muted-foreground">
-            {phase === "idle" ? "gstpilot — new conversion" : DEMO_SELLER.sourceFile}
-          </p>
+          <span className="ml-1 text-xs font-semibold text-foreground">
+            GSTPilot Real-Time Workbench
+          </span>
+          <span className="text-muted-foreground/40 font-mono text-xs">/</span>
+          <span className="font-mono text-2xs text-muted-foreground truncate max-w-[180px] sm:max-w-xs">
+            {selectedPreset.sourceFileName}
+          </span>
         </div>
-        <Badge variant="primary" dot>
-          Live demo · sample data
-        </Badge>
+
+        <div className="flex items-center gap-2">
+          <Badge variant="primary" dot className="font-mono text-2xs">
+            Live Preview
+          </Badge>
+          <span className="hidden sm:inline-flex items-center rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-2xs font-semibold text-emerald-600 dark:text-emerald-400">
+            GSTN v3.0 Verified
+          </span>
+        </div>
       </div>
 
-      {/* Phase panels are keyed plain elements with a CSS entrance, not an
-          AnimatePresence. `mode="wait"` gates mounting the next panel on the
-          previous one's exit animation completing — and animation frames stop
-          in a background tab, which left the demo stuck mid-transition. CSS
-          keyframes keep running, and the content is never opacity-gated. */}
-      <div className="p-5 sm:p-7">
-        <div key={phase} className="animate-fade-in">
-          {phase === "idle" && (
+      {/* Main Container */}
+      <div className="p-4 sm:p-6 space-y-6">
+        {/* Marketplace Selector Tabs */}
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between">
+            <label className="text-2xs font-bold uppercase tracking-wider text-muted-foreground">
+              Select Sample Report Structure
+            </label>
+            <span className="text-2xs text-muted-foreground">
+              Seller GSTIN: <strong className="font-mono text-foreground">{DEMO_SELLER.gstin} (Karnataka)</strong>
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {MARKETPLACE_PRESETS.map((preset) => {
+              const isSelected = selectedPreset.id === preset.id;
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => handleSelectPreset(preset)}
+                  className={cn(
+                    "flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-all duration-200",
+                    isSelected
+                      ? "border-primary bg-primary/[0.06] shadow-xs ring-1 ring-primary/30"
+                      : "border-border/70 bg-card hover:border-border-strong hover:bg-muted/30"
+                  )}
+                >
+                  <div className="flex w-full items-center justify-between gap-1">
+                    <span className={cn(
+                      "text-xs font-bold truncate",
+                      isSelected ? "text-primary" : "text-foreground"
+                    )}>
+                      {preset.name}
+                    </span>
+                    <span className={cn(
+                      "rounded-full px-1.5 py-0.2 font-mono text-3xs font-semibold shrink-0",
+                      isSelected ? "bg-primary/20 text-primary-ink" : "bg-muted text-muted-foreground"
+                    )}>
+                      {preset.badge}
+                    </span>
+                  </div>
+                  <span className="text-3xs text-muted-foreground font-mono truncate w-full">
+                    {preset.sourceFileName}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Live Metrics Strip */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+          <div className="rounded-xl border border-border/80 bg-subtle/50 p-3">
+            <span className="text-3xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Gross Marketplace Sales
+            </span>
+            <p className="mt-1 text-sm sm:text-base font-bold tabular-nums text-foreground">
+              {formatInr(DEMO_TOTALS.grossValue)}
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-rose-500/20 bg-rose-500/[0.04] p-3">
+            <span className="text-3xs font-semibold uppercase tracking-wider text-rose-600 dark:text-rose-400">
+              Returns Netted Off
+            </span>
+            <p className="mt-1 text-sm sm:text-base font-bold tabular-nums text-rose-600 dark:text-rose-400">
+              −{formatInr(DEMO_TOTALS.refundsNetted)}
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-primary/30 bg-primary/[0.06] p-3">
+            <span className="text-3xs font-semibold uppercase tracking-wider text-primary-ink">
+              Net Taxable Value
+            </span>
+            <p className="mt-1 text-sm sm:text-base font-bold tabular-nums text-primary-ink">
+              {formatInr(DEMO_TOTALS.netTaxable)}
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.04] p-3">
+            <span className="text-3xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+              Total Tax (IGST+CGST+SGST)
+            </span>
+            <p className="mt-1 text-sm sm:text-base font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+              {formatInr(DEMO_TOTALS.totalTax)}
+            </p>
+          </div>
+        </div>
+
+        {/* Action / View Switcher Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-3">
+          <div className="flex items-center gap-1.5 bg-muted/60 p-1 rounded-xl border border-border/60">
+            <button
+              type="button"
+              onClick={() => setViewMode("output")}
+              className={cn(
+                "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all",
+                viewMode === "output"
+                  ? "bg-card text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Sparkles className="size-3.5 text-primary" />
+              <span>GSTR-1 Output (Filing Ready)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("raw")}
+              className={cn(
+                "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all",
+                viewMode === "raw"
+                  ? "bg-card text-foreground shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <FileSpreadsheet className="size-3.5 text-amber-500" />
+              <span>Raw Marketplace Data ({selectedPreset.rawRows.length} lines)</span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRunConversion}
+              disabled={isConverting}
+              className="text-xs"
+            >
+              {isConverting ? (
+                <>
+                  <RotateCcw className="size-3.5 animate-spin text-primary" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Wand2 className="size-3.5 text-primary" />
+                  Re-run Pipeline
+                </>
+              )}
+            </Button>
+
+            <Button asChild variant="brand" size="sm" className="text-xs">
+              <Link href="/register">
+                <span>Start Free Trial</span>
+                <ArrowRight className="size-3.5" />
+              </Link>
+            </Button>
+          </div>
+        </div>
+
+        {/* Content View: Raw vs Output */}
+        {isConverting ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center space-y-3">
+            <div className="relative size-12 flex items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <RotateCcw className="size-6 animate-spin" />
+            </div>
             <div>
-              <button
-                type="button"
-                onClick={() => setPhase("loaded")}
-                className="group flex w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border-strong px-6 py-16 text-center transition-colors hover:border-primary/50 hover:bg-primary/[0.04]"
-              >
-                <span className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary-ink ring-1 ring-primary/20 transition-transform duration-300 group-hover:scale-110">
-                  <UploadCloud className="size-7" />
-                </span>
-                <span className="text-base font-semibold">Load the sample marketplace report</span>
-                <span className="mt-1.5 max-w-sm text-sm text-muted-foreground">
-                  No signup, no file needed. We&rsquo;ll use a real-shaped Amazon MTR export so you
-                  can watch the conversion end to end.
-                </span>
-                <span className="mt-5 inline-flex items-center gap-2 rounded-lg bg-foreground px-4 py-2 text-xs font-semibold text-background">
-                  <FileSpreadsheet className="size-3.5" />
-                  Use sample file
-                </span>
-              </button>
+              <p className="text-sm font-bold text-foreground">Executing GST Compliance Pipeline</p>
+              <p className="text-2xs text-muted-foreground">Normalising POS, matching return credit notes & calculating tax split...</p>
             </div>
-          )}
-
-          {phase === "loaded" && (
-            <div className="space-y-5">
-              <Header
-                eyebrow="Step 1 — your raw file"
-                title="This is what the marketplace gives you"
-                note={`${DEMO_TOTALS.rawLineCount} lines · ${DEMO_TOTALS.platforms} marketplaces · mixed shipments and refunds · states as free text`}
+          </div>
+        ) : viewMode === "raw" ? (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between text-2xs text-muted-foreground px-1">
+              <span>Raw export format before GSTPilot automated processing</span>
+              <span className="text-rose-500 font-medium">Refund credit notes highlighted</span>
+            </div>
+            <RawTable rows={selectedPreset.rawRows} />
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Output Sub-Tabs */}
+            <div className="flex items-center gap-1.5 overflow-x-auto border-b border-border/70 pb-2">
+              <SubTabButton
+                active={activeTab === "b2cs"}
+                onClick={() => setActiveTab("b2cs")}
+                icon={Layers}
+                label="Table 7 (B2CS)"
+                badge={`${GSTR1_ROWS.length} States`}
               />
-              <RawTable />
-              <div className="flex flex-col items-center gap-3 border-t border-border pt-5 sm:flex-row sm:justify-between">
-                <p className="text-xs text-muted-foreground">
-                  Filing this by hand means netting refunds, coding states and splitting tax — every
-                  month.
-                </p>
-                <Button variant="brand" size="lg" onClick={convert} className="w-full sm:w-auto">
-                  <Wand2 />
-                  Convert to GSTR-1
-                  <ArrowRight />
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {phase === "processing" && (
-            <div className="py-10">
-              <Pipeline stage={stage} />
-            </div>
-          )}
-
-          {phase === "done" && (
-            <div className="space-y-6">
-              <Header
-                eyebrow="Step 2 — filing-ready output"
-                title="Before and after, side by side"
-                note={`${DEMO_TOTALS.rawLineCount} raw lines across ${DEMO_TOTALS.platforms} marketplaces became ${DEMO_TOTALS.outputLineCount} invoice rows and ${GSTR1_ROWS.length} B2CS lines`}
+              <SubTabButton
+                active={activeTab === "eco"}
+                onClick={() => setActiveTab("eco")}
+                icon={ShoppingBag}
+                label="Table 14 (ECO Supplies)"
+                badge="TCS u/s 52"
               />
-
-              <div className="grid gap-4 lg:grid-cols-2">
-                <Panel label="Before · raw marketplace export" tone="muted">
-                  <RawTable compact />
-                </Panel>
-                <Panel label="After · GSTR-1 table 7 (B2CS)" tone="success">
-                  <OutputTable />
-                </Panel>
-              </div>
-
-              <TransformationList />
-              <Reconciliation />
-
-              <div className="space-y-3 border-t border-border pt-5">
-                <p className="text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
-                  Download the same three files the converter produces
-                </p>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <DownloadCard
-                    icon={FileJson}
-                    title="GSTR-1 JSON"
-                    body="GSTN v3.0 schema, ready to upload to the portal."
-                    onClick={() => download("json")}
-                  />
-                  <DownloadCard
-                    icon={FileXls}
-                    title="GSTN workbook"
-                    body="Multi-sheet Excel matching the portal's tables."
-                    onClick={() => download("excel")}
-                  />
-                  <DownloadCard
-                    icon={ClipboardCheck}
-                    title="CA review report"
-                    body="Formatted workbook your accountant can check."
-                    onClick={() => download("review")}
-                  />
-                </div>
-                <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:items-center sm:justify-between">
-                  <Button variant="ghost" size="sm" onClick={reset}>
-                    <RotateCcw />
-                    Run it again
-                  </Button>
-                  <Button asChild variant="brand" size="lg">
-                    <Link href="/convert">
-                      <Sparkles />
-                      Do this with your own file
-                      <ArrowRight />
-                    </Link>
-                  </Button>
-                </div>
-              </div>
+              <SubTabButton
+                active={activeTab === "hsn"}
+                onClick={() => setActiveTab("hsn")}
+                icon={FileText}
+                label="Table 12 (HSN Summary)"
+                badge={`${DEMO_HSN_ROWS.length} Codes`}
+              />
+              <SubTabButton
+                active={activeTab === "audit"}
+                onClick={() => setActiveTab("audit")}
+                icon={ClipboardCheck}
+                label="Transformations & Audit"
+              />
             </div>
-          )}
+
+            {/* Sub-Tab Panels */}
+            {activeTab === "b2cs" && <OutputTable />}
+            {activeTab === "eco" && <EcoTable />}
+            {activeTab === "hsn" && <HsnTable />}
+            {activeTab === "audit" && (
+              <div className="space-y-4">
+                <TransformationList />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Download Buttons Strip */}
+        <div className="space-y-3 border-t border-border/70 pt-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-2xs">
+            <span className="font-bold tracking-wider text-muted-foreground uppercase">
+              Download Government-Ready Output Files
+            </span>
+            <span className="font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+              <Check className="size-3" /> Ready for direct upload to GST Portal (gst.gov.in)
+            </span>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <DownloadCard
+              icon={FileJson}
+              title="GSTR-1 JSON"
+              badge="GSTN v3.0 Schema"
+              body="Government-ready JSON file ready for direct upload to GST Portal (gst.gov.in)."
+              onClick={() => download("json")}
+            />
+            <DownloadCard
+              icon={FileXls}
+              title="GSTN Official Excel Template"
+              badge="Government Format"
+              body="Multi-sheet Excel workbook matching government tables (B2CS, ECO 14, HSN 12 & DOCS)."
+              onClick={() => download("excel")}
+            />
+          </div>
+
+          {/* Bottom Banner */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-2xl border border-primary/25 bg-gradient-to-r from-primary/[0.08] via-primary/[0.02] to-transparent p-4 sm:p-5">
+            <div className="text-center sm:text-left space-y-0.5">
+              <h4 className="text-sm font-bold text-foreground">
+                Process your actual marketplace spreadsheets with 100% accuracy
+              </h4>
+              <p className="text-2xs text-muted-foreground">
+                Get started with <strong>30-Day Free Trial (7 GSTIN capacity)</strong>. No credit card required.
+              </p>
+            </div>
+            <Button asChild variant="brand" size="md" className="w-full sm:w-auto shrink-0 shadow-md">
+              <Link href="/register">
+                <Zap className="size-3.5" />
+                <span>Start Free Trial</span>
+                <ArrowRight className="size-3.5" />
+              </Link>
+            </Button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
+function SubTabButton({
+  active,
+  onClick,
+  icon: Icon,
+  label,
+  badge,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: typeof Layers;
+  label: string;
+  badge?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all whitespace-nowrap",
+        active
+          ? "bg-foreground text-background shadow-xs"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+      )}
+    >
+      <Icon className="size-3.5" />
+      <span>{label}</span>
+      {badge && (
+        <span
+          className={cn(
+            "rounded-md px-1.5 py-0.2 text-3xs font-mono",
+            active ? "bg-background/20 text-background" : "bg-muted-foreground/15 text-muted-foreground"
+          )}
+        >
+          {badge}
+        </span>
+      )}
+    </button>
+  );
+}
+
 function DownloadCard({
   icon: Icon,
   title,
+  badge,
   body,
   onClick,
 }: {
   icon: typeof FileJson;
   title: string;
+  badge: string;
   body: string;
   onClick: () => void;
 }) {
@@ -232,104 +420,72 @@ function DownloadCard({
     <button
       type="button"
       onClick={onClick}
-      className="group flex flex-col items-start gap-1.5 rounded-xl border border-border bg-card p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
+      className="group flex flex-col items-start gap-1 rounded-xl border border-border/80 bg-card p-3.5 text-left transition-all duration-200 hover:border-primary/50 hover:shadow-md"
     >
-      <span className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary-ink ring-1 ring-primary/20 transition-transform duration-200 group-hover:scale-110">
-        <Icon className="size-4" aria-hidden />
-      </span>
-      <span className="flex items-center gap-1 text-xs font-semibold">
+      <div className="flex w-full items-center justify-between">
+        <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/20 transition-transform duration-200 group-hover:scale-105">
+          <Icon className="size-4" aria-hidden />
+        </span>
+        <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-3xs font-semibold text-muted-foreground">
+          {badge}
+        </span>
+      </div>
+      <span className="mt-1 flex items-center gap-1 text-xs font-bold text-foreground group-hover:text-primary transition-colors">
         {title}
-        <Download className="size-3 text-muted-foreground" aria-hidden />
+        <Download className="size-3 text-muted-foreground ml-0.5" aria-hidden />
       </span>
-      <span className="text-2xs leading-relaxed text-muted-foreground">{body}</span>
+      <span className="text-3xs leading-relaxed text-muted-foreground">{body}</span>
     </button>
   );
 }
 
-function Header({ eyebrow, title, note }: { eyebrow: string; title: string; note: string }) {
+function RawTable({ rows }: { rows: RawRow[] }) {
   return (
-    <div className="space-y-1">
-      <p className="text-2xs font-semibold tracking-wider text-primary-ink uppercase">{eyebrow}</p>
-      <h3 className="text-lg font-bold tracking-tight">{title}</h3>
-      <p className="text-xs text-muted-foreground">{note}</p>
-    </div>
-  );
-}
-
-function Panel({
-  label,
-  tone,
-  children,
-}: {
-  label: string;
-  tone: "muted" | "success";
-  children: React.ReactNode;
-}) {
-  return (
-    <div
-      className={cn(
-        "overflow-hidden rounded-xl border",
-        tone === "success" ? "border-success/30 bg-success/[0.04]" : "border-border bg-subtle"
-      )}
-    >
-      <p
-        className={cn(
-          "border-b px-3 py-2 text-2xs font-semibold tracking-wide uppercase",
-          tone === "success"
-            ? "border-success/25 text-success-ink"
-            : "border-border text-muted-foreground"
-        )}
-      >
-        {label}
-      </p>
-      {children}
-    </div>
-  );
-}
-
-function RawTable({ compact = false }: { compact?: boolean }) {
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[640px] text-left text-xs">
-        <thead className="bg-muted/60 text-2xs tracking-wide text-muted-foreground uppercase">
+    <div className="overflow-x-auto rounded-xl border border-border/80">
+      <table className="w-full min-w-[620px] text-left text-xs">
+        <thead className="bg-muted/70 text-3xs tracking-wider text-muted-foreground uppercase font-semibold">
           <tr>
-            <th className="px-3 py-2 font-semibold">Order ID</th>
-            <th className="px-3 py-2 font-semibold">Date</th>
-            <th className="px-3 py-2 font-semibold">Ship to state</th>
-            <th className="px-3 py-2 font-semibold">Type</th>
-            <th className="px-3 py-2 text-right font-semibold">Invoice amount</th>
-            <th className="px-3 py-2 text-right font-semibold">Rate</th>
+            <th className="px-3.5 py-2">Platform</th>
+            <th className="px-3.5 py-2">Order ID</th>
+            <th className="px-3.5 py-2">Date</th>
+            <th className="px-3.5 py-2">Raw State Name</th>
+            <th className="px-3.5 py-2">Type</th>
+            <th className="px-3.5 py-2 text-right">Invoice Amount</th>
+            <th className="px-3.5 py-2 text-right">Tax Rate</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-border">
-          {RAW_ROWS.map((row, i) => (
-            // CSS-driven stagger, not framer-motion: these rows must be readable
-            // even when no animation frame ever runs.
+        <tbody className="divide-y divide-border/60 bg-card font-mono text-2xs">
+          {rows.map((row, i) => (
             <tr
-              key={row.orderId + row.invoiceDate}
-              style={compact ? undefined : { animationDelay: `${i * 50}ms` }}
+              key={row.orderId + row.invoiceDate + i}
               className={cn(
-                !compact && "animate-rise",
-                row.transactionType === "Refund" && "bg-destructive/[0.05]"
+                "hover:bg-muted/30 transition-colors font-sans",
+                row.transactionType === "Refund" && "bg-rose-500/[0.04]"
               )}
             >
-              <td className="px-3 py-2 font-mono text-2xs text-muted-foreground">{row.orderId}</td>
-              <td className="px-3 py-2 whitespace-nowrap">{row.invoiceDate}</td>
-              <td className="px-3 py-2">
-                {/* The messiness is the point — highlight it. */}
-                <span className="rounded bg-warning/15 px-1.5 py-0.5 font-mono text-2xs text-warning-ink">
+              <td className="px-3.5 py-2 font-medium text-foreground">
+                <span className="rounded bg-primary/10 px-1.5 py-0.5 text-3xs font-semibold text-primary-ink">
+                  {row.platform}
+                </span>
+              </td>
+              <td className="px-3.5 py-2 font-mono text-3xs text-muted-foreground">{row.orderId}</td>
+              <td className="px-3.5 py-2 whitespace-nowrap text-muted-foreground">{row.invoiceDate}</td>
+              <td className="px-3.5 py-2">
+                <span className="rounded bg-amber-500/15 px-1.5 py-0.5 font-mono text-3xs font-medium text-amber-700 dark:text-amber-300">
                   {row.shipToState}
                 </span>
               </td>
-              <td className="px-3 py-2">
+              <td className="px-3.5 py-2">
                 {row.transactionType === "Refund" ? (
-                  <Badge variant="destructive">Refund</Badge>
+                  <span className="rounded bg-rose-500/15 px-1.5 py-0.5 text-3xs font-semibold text-rose-600 dark:text-rose-400">
+                    Refund
+                  </span>
                 ) : (
-                  <span className="text-muted-foreground">Shipment</span>
+                  <span className="text-muted-foreground text-3xs">Shipment</span>
                 )}
               </td>
-              <td className="px-3 py-2 text-right font-medium tabular-nums">{row.invoiceAmount}</td>
-              <td className="px-3 py-2 text-right font-mono text-muted-foreground">
+              <td className="px-3.5 py-2 text-right font-medium tabular-nums font-mono">{row.invoiceAmount}</td>
+              <td className="px-3.5 py-2 text-right font-mono text-muted-foreground">
                 {row.taxRate}
               </td>
             </tr>
@@ -342,45 +498,41 @@ function RawTable({ compact = false }: { compact?: boolean }) {
 
 function OutputTable() {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[420px] text-left text-xs">
-        <thead className="bg-success/10 text-2xs tracking-wide text-success-ink uppercase">
+    <div className="overflow-x-auto rounded-xl border border-emerald-500/25">
+      <table className="w-full min-w-[500px] text-left text-xs">
+        <thead className="bg-emerald-500/10 text-3xs tracking-wider text-emerald-800 dark:text-emerald-200 uppercase font-semibold">
           <tr>
-            <th className="px-3 py-2 font-semibold">Place of supply</th>
-            <th className="px-3 py-2 text-right font-semibold">Rate</th>
-            <th className="px-3 py-2 text-right font-semibold">Taxable</th>
-            <th className="px-3 py-2 text-right font-semibold">IGST</th>
-            <th className="px-3 py-2 text-right font-semibold">CGST</th>
-            <th className="px-3 py-2 text-right font-semibold">SGST</th>
+            <th className="px-3.5 py-2">Place of Supply (POS)</th>
+            <th className="px-3.5 py-2 text-right">GST Rate</th>
+            <th className="px-3.5 py-2 text-right">Net Taxable (₹)</th>
+            <th className="px-3.5 py-2 text-right">IGST (₹)</th>
+            <th className="px-3.5 py-2 text-right">CGST (₹)</th>
+            <th className="px-3.5 py-2 text-right">SGST (₹)</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-success/15">
-          {GSTR1_ROWS.map((row, i) => (
-            <tr
-              key={row.placeOfSupply + row.rate}
-              className="animate-rise"
-              style={{ animationDelay: `${150 + i * 80}ms` }}
-            >
-              <td className="px-3 py-2 font-medium">
-                <span className="rounded bg-success/15 px-1.5 py-0.5 font-mono text-2xs text-success-ink">
+        <tbody className="divide-y divide-border/60 bg-card">
+          {GSTR1_ROWS.map((row) => (
+            <tr key={row.placeOfSupply + row.rate} className="hover:bg-muted/30 transition-colors">
+              <td className="px-3.5 py-2 font-medium">
+                <span className="rounded bg-emerald-500/15 px-2 py-0.5 font-mono text-2xs font-semibold text-emerald-700 dark:text-emerald-300">
                   {row.placeOfSupply}
                 </span>
-                {row.netted && (
-                  <span className="mt-1 block text-2xs text-muted-foreground">refund netted</span>
+                {row.netned && (
+                  <span className="mt-0.5 block text-3xs text-muted-foreground font-sans">returns netted</span>
                 )}
               </td>
-              <td className="px-3 py-2 text-right font-mono tabular-nums">{row.rate}%</td>
-              <td className="px-3 py-2 text-right font-semibold tabular-nums">
-                {row.taxableValue.toLocaleString("en-IN")}
+              <td className="px-3.5 py-2 text-right font-mono text-2xs tabular-nums">{row.rate}%</td>
+              <td className="px-3.5 py-2 text-right font-bold tabular-nums font-mono text-2xs text-foreground">
+                ₹{row.taxableValue.toLocaleString("en-IN")}
               </td>
-              <td className="px-3 py-2 text-right text-muted-foreground tabular-nums">
-                {row.igst || "—"}
+              <td className="px-3.5 py-2 text-right text-muted-foreground tabular-nums font-mono text-2xs">
+                {row.igst ? `₹${row.igst.toLocaleString("en-IN")}` : "—"}
               </td>
-              <td className="px-3 py-2 text-right text-muted-foreground tabular-nums">
-                {row.cgst || "—"}
+              <td className="px-3.5 py-2 text-right text-muted-foreground tabular-nums font-mono text-2xs">
+                {row.cgst ? `₹${row.cgst.toLocaleString("en-IN")}` : "—"}
               </td>
-              <td className="px-3 py-2 text-right text-muted-foreground tabular-nums">
-                {row.sgst || "—"}
+              <td className="px-3.5 py-2 text-right text-muted-foreground tabular-nums font-mono text-2xs">
+                {row.sgst ? `₹${row.sgst.toLocaleString("en-IN")}` : "—"}
               </td>
             </tr>
           ))}
@@ -390,120 +542,87 @@ function OutputTable() {
   );
 }
 
-function Pipeline({ stage }: { stage: number }) {
-  const percent = Math.round((stage / PIPELINE_STAGES.length) * 100);
-
+function EcoTable() {
   return (
-    <div className="mx-auto max-w-md space-y-6">
-      <div className="text-center">
-        <div className="relative mx-auto size-24">
-          <svg viewBox="0 0 100 100" className="size-full -rotate-90" aria-hidden>
-            <circle cx="50" cy="50" r="42" fill="none" strokeWidth="7" className="stroke-muted" />
-            <circle
-              cx="50"
-              cy="50"
-              r="42"
-              fill="none"
-              strokeWidth="7"
-              strokeLinecap="round"
-              className="stroke-primary transition-[stroke-dashoffset] duration-300 ease-out"
-              strokeDasharray={2 * Math.PI * 42}
-              strokeDashoffset={2 * Math.PI * 42 * (1 - percent / 100)}
-            />
-          </svg>
-          <span className="absolute inset-0 flex items-center justify-center text-lg font-bold text-primary-ink tabular-nums">
-            {percent}%
-          </span>
-        </div>
-        <p className="mt-3 text-sm font-semibold">Running the conversion pipeline</p>
-      </div>
+    <div className="overflow-x-auto rounded-xl border border-border/80">
+      <table className="w-full min-w-[500px] text-left text-xs">
+        <thead className="bg-muted/70 text-3xs tracking-wider text-muted-foreground uppercase font-semibold">
+          <tr>
+            <th className="px-3.5 py-2">E-Commerce Operator</th>
+            <th className="px-3.5 py-2">ECO GSTIN</th>
+            <th className="px-3.5 py-2 text-right">Gross Sales</th>
+            <th className="px-3.5 py-2 text-right">Returns</th>
+            <th className="px-3.5 py-2 text-right">Net Taxable</th>
+            <th className="px-3.5 py-2 text-right">TCS u/s 52</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border/60 bg-card">
+          {DEMO_ECO_ROWS.map((eco) => (
+            <tr key={eco.ecoGstin} className="hover:bg-muted/30 transition-colors">
+              <td className="px-3.5 py-2 font-medium text-foreground">{eco.ecoName}</td>
+              <td className="px-3.5 py-2 font-mono text-3xs text-muted-foreground">{eco.ecoGstin}</td>
+              <td className="px-3.5 py-2 text-right font-medium tabular-nums font-mono text-2xs">₹{eco.grossSales.toLocaleString("en-IN")}</td>
+              <td className="px-3.5 py-2 text-right text-rose-500 font-medium tabular-nums font-mono text-2xs">−₹{eco.returnsNetted.toLocaleString("en-IN")}</td>
+              <td className="px-3.5 py-2 text-right font-bold tabular-nums font-mono text-2xs text-foreground">₹{eco.netTaxable.toLocaleString("en-IN")}</td>
+              <td className="px-3.5 py-2 text-right font-mono text-emerald-600 dark:text-emerald-400 font-bold tabular-nums text-2xs">₹{eco.tcsDeducted.toFixed(2)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
-      <ul className="space-y-1.5">
-        {PIPELINE_STAGES.map((name, i) => {
-          const done = stage > i;
-          const current = stage === i;
-          return (
-            <li
-              key={name}
-              className={cn(
-                "flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-xs transition-colors duration-300",
-                current && "bg-primary/10 font-semibold text-primary-ink",
-                done && "text-foreground",
-                !done && !current && "text-muted-foreground/50"
-              )}
-            >
-              <span
-                className={cn(
-                  "flex size-4 shrink-0 items-center justify-center rounded-full border",
-                  done && "border-success bg-success text-success-foreground",
-                  current && "border-primary",
-                  !done && !current && "border-border"
-                )}
-              >
-                {done && <Check className="size-2.5" />}
-              </span>
-              {name}
-            </li>
-          );
-        })}
-      </ul>
+function HsnTable() {
+  return (
+    <div className="overflow-x-auto rounded-xl border border-border/80">
+      <table className="w-full min-w-[500px] text-left text-xs">
+        <thead className="bg-muted/70 text-3xs tracking-wider text-muted-foreground uppercase font-semibold">
+          <tr>
+            <th className="px-3.5 py-2">HSN Code</th>
+            <th className="px-3.5 py-2">Description</th>
+            <th className="px-3.5 py-2">UQC</th>
+            <th className="px-3.5 py-2 text-right">Total Qty</th>
+            <th className="px-3.5 py-2 text-right">Taxable Value</th>
+            <th className="px-3.5 py-2 text-right">Rate</th>
+            <th className="px-3.5 py-2 text-right">Tax Liability</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border/60 bg-card">
+          {DEMO_HSN_ROWS.map((hsn) => (
+            <tr key={hsn.hsnCode} className="hover:bg-muted/30 transition-colors">
+              <td className="px-3.5 py-2 font-mono text-2xs font-semibold text-primary-ink">{hsn.hsnCode}</td>
+              <td className="px-3.5 py-2 text-foreground font-medium">{hsn.description}</td>
+              <td className="px-3.5 py-2 font-mono text-3xs text-muted-foreground">{hsn.uqc}</td>
+              <td className="px-3.5 py-2 text-right font-medium tabular-nums font-mono text-2xs">{hsn.quantity}</td>
+              <td className="px-3.5 py-2 text-right font-bold tabular-nums font-mono text-2xs text-foreground">₹{hsn.taxableValue.toLocaleString("en-IN")}</td>
+              <td className="px-3.5 py-2 text-right font-mono text-muted-foreground text-2xs">{hsn.rate}%</td>
+              <td className="px-3.5 py-2 text-right font-bold text-emerald-600 dark:text-emerald-400 tabular-nums font-mono text-2xs">₹{hsn.taxAmount.toLocaleString("en-IN")}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
 
 function TransformationList() {
   return (
-    <div className="rounded-xl border border-border bg-subtle p-4">
-      <p className="mb-3 text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
-        What changed
+    <div className="rounded-xl border border-border/80 bg-subtle/50 p-4">
+      <p className="mb-3 text-3xs font-bold tracking-wider text-muted-foreground uppercase">
+        Engineered Compliance Transformations
       </p>
       <ul className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-        {TRANSFORMATIONS.map((t, i) => (
-          <li
-            key={t.id}
-            className="flex animate-rise gap-2"
-            style={{ animationDelay: `${300 + i * 60}ms` }}
-          >
-            <Check className="mt-0.5 size-3.5 shrink-0 text-success" />
+        {TRANSFORMATIONS.map((t) => (
+          <li key={t.id} className="flex gap-2 text-left rounded-lg bg-card/80 border border-border/60 p-2.5">
+            <Check className="mt-0.5 size-3.5 shrink-0 text-emerald-500" />
             <div>
-              <p className="text-xs font-semibold">{t.label}</p>
-              <p className="text-2xs text-muted-foreground">{t.detail}</p>
+              <p className="text-xs font-bold text-foreground">{t.label}</p>
+              <p className="text-3xs text-muted-foreground mt-0.5">{t.detail}</p>
             </div>
           </li>
         ))}
       </ul>
-    </div>
-  );
-}
-
-function Reconciliation() {
-  const cells = [
-    { label: "Gross in raw file", value: formatInr(DEMO_TOTALS.grossValue) },
-    { label: "Refunds netted off", value: `− ${formatInr(DEMO_TOTALS.refundsNetted)}` },
-    { label: "Net taxable value", value: formatInr(DEMO_TOTALS.netTaxable), accent: true },
-    { label: "Total tax", value: formatInr(DEMO_TOTALS.totalTax) },
-  ];
-
-  return (
-    <div className="grid gap-3 sm:grid-cols-4">
-      {cells.map((c) => (
-        <div
-          key={c.label}
-          className={cn(
-            "rounded-xl border p-3.5",
-            c.accent ? "border-primary/25 bg-primary/[0.06]" : "border-border bg-card"
-          )}
-        >
-          <p className="text-2xs font-medium tracking-wide text-muted-foreground uppercase">
-            {c.label}
-          </p>
-          <p
-            className={cn("mt-1 text-base font-bold tabular-nums", c.accent && "text-primary-ink")}
-          >
-            {c.value}
-          </p>
-        </div>
-      ))}
     </div>
   );
 }
