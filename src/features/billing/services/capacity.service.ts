@@ -259,5 +259,28 @@ export async function addGstinCapacity(input: {
     "Additional GSTIN capacity purchased and activated"
   );
 
+  // Send payment receipt email in background
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, name: true },
+    });
+
+    if (user?.email) {
+      const { EmailService } = await import("@/features/email/services/email.service");
+      void EmailService.sendPaymentReceiptEmail({
+        to: user.email,
+        name: user.name,
+        orderId: providerOrderId || `addon_${Date.now().toString(36)}`,
+        paymentId,
+        amountRupees,
+        planName: `Extra GSTIN Capacity (+${quantity} slots)`,
+        gstinSlots: quantity,
+      });
+    }
+  } catch (err) {
+    billingLogger.error({ error: err }, "Failed to send additional GSTIN receipt email");
+  }
+
   return getGstinCapacity(userId, now);
 }

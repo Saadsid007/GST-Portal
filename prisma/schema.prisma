@@ -48,6 +48,7 @@ model User {
   creditCodesCreated CreditCode[]
   codeRedemptions    CreditCodeRedemption[]
   supportTickets     SupportTicket[]
+  marketingSubscriber MarketingSubscriber?
 
   @@map("user")
 }
@@ -682,3 +683,50 @@ model BlogPost {
   @@index([isFeatured])
   @@map("blog_post")
 }
+
+// -----------------------------------------------------------------------------
+// Marketing Audience & Campaign Broadcasts
+// -----------------------------------------------------------------------------
+
+model MarketingSubscriber {
+  id        String   @id @default(uuid()) @db.Uuid
+  email     String   @unique
+  name      String?
+  userId    String?  @unique @map("user_id")
+  source    String   @default("SIGNUP") // "SIGNUP" | "NEWSLETTER" | "LEAD_MAGNET" | "ADMIN_IMPORT"
+  status    String   @default("SUBSCRIBED") // "SUBSCRIBED" | "UNSUBSCRIBED" | "BOUNCED"
+  planSlug  String   @default("free_trial") @map("plan_slug")
+  tags      String[] @default([])
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([email])
+  @@index([status])
+  @@index([planSlug])
+  @@map("marketing_subscriber")
+}
+
+model CampaignBroadcast {
+  id             String    @id @default(uuid()) @db.Uuid
+  subject        String
+  headline       String
+  previewText    String?   @map("preview_text")
+  contentHtml    String    @map("content_html") @db.Text
+  targetAudience String    @default("ALL") @map("target_audience") // "ALL" | "TRIAL" | "PAID" | "EXPIRED"
+  recipientCount Int       @default(0) @map("recipient_count")
+  sentCount      Int       @default(0) @map("sent_count")
+  failedCount    Int       @default(0) @map("failed_count")
+  status         String    @default("DRAFT") // "DRAFT" | "SENDING" | "SENT" | "FAILED"
+  adminId        String?   @map("admin_id")
+  sentAt         DateTime? @map("sent_at") @db.Timestamptz
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("campaign_broadcast")
+}
+

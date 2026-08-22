@@ -13,6 +13,7 @@ import {
   type PlanSlug,
 } from "@/features/billing/config/pricing.config";
 import { billingLogger } from "@/features/billing/services/billing.logger";
+import { EmailService } from "@/features/email/services/email.service";
 
 export interface SubscriptionStatusSummary {
   id: string;
@@ -317,6 +318,44 @@ export async function activatePaidPlan(input: {
   });
 
   billingLogger.info({ userId, planSlug: plan.slug }, "Paid subscription plan activated successfully");
+
+  // Send payment confirmation email and update marketing audience in background
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, name: true },
+    });
+
+    if (user?.email) {
+      void EmailService.sendPaymentReceiptEmail({
+        to: user.email,
+        name: user.name,
+        orderId: providerOrderId || `order_${Date.now().toString(36)}`,
+        paymentId,
+        amountRupees,
+        planName: plan.name,
+        gstinSlots: plan.includedGSTINs,
+      });
+
+      await prisma.marketingSubscriber.upsert({
+        where: { email: user.email },
+        create: {
+          email: user.email,
+          name: user.name,
+          userId,
+          planSlug: plan.slug,
+          tags: ["paid_customer", plan.slug],
+          status: "SUBSCRIBED",
+        },
+        update: {
+          planSlug: plan.slug,
+          tags: ["paid_customer", plan.slug],
+        },
+      });
+    }
+  } catch (err) {
+    billingLogger.error({ error: err }, "Failed to send payment receipt email or sync marketing audience");
+  }
 
   return getOrCreateSubscription(userId, now);
 }

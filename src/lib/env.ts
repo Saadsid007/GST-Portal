@@ -43,6 +43,15 @@ const envSchema = z.object({
 
   /** Where the deploy-time URL manifest lives. Overridden in CI so it can be cached. */
   SEO_MANIFEST_PATH: z.string().optional().default(".seo-cache/url-manifest.json"),
+
+  // Email Notification & SMTP Configuration
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.string().optional(),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  SMTP_SECURE: z.string().optional(),
+  EMAIL_FROM: z.string().default("GSTPilot <gstpilot.official@gmail.com>"),
+  RESEND_API_KEY: z.string().optional(),
 });
 
 export const env = envSchema.parse({
@@ -67,6 +76,13 @@ export const env = envSchema.parse({
   GROK_API_KEY: process.env["GROK_API_KEY"],
   GROK_MODEL: process.env["GROK_MODEL"],
   SEO_MANIFEST_PATH: process.env["SEO_MANIFEST_PATH"],
+  SMTP_HOST: process.env["SMTP_HOST"],
+  SMTP_PORT: process.env["SMTP_PORT"],
+  SMTP_USER: process.env["SMTP_USER"],
+  SMTP_PASS: process.env["SMTP_PASS"],
+  SMTP_SECURE: process.env["SMTP_SECURE"],
+  EMAIL_FROM: process.env["EMAIL_FROM"],
+  RESEND_API_KEY: process.env["RESEND_API_KEY"],
 });
 
 /**

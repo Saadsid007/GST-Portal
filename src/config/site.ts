@@ -13,5 +13,5 @@ export const SITE = {
     "Convert Amazon, Flipkart, Meesho, Myntra and JioMart seller reports into government-compatible GSTR-1 JSON and Excel in seconds. Automatic net sales calculation, column mapping and TCS reconciliation.",
   tagline: "Marketplace → GSTR-1",
   locale: "en_IN",
-  supportEmail: "support@gstpilot.cloud",
+  supportEmail: "gstpilot.official@gmail.com",
 } as const;
