@@ -91,52 +91,52 @@ export function renderPaymentReceiptEmailHtml(params: {
   const subject = `Payment Receipt: ₹${amountRupees} for ${planName} - GSTPilot`;
 
   const contentHtml = `
-    <p style="margin-top: 0;">${greeting}</p>
-    <p>
+    <p style="margin: 0 0 12px 0;">${greeting}</p>
+    <p style="margin: 0 0 16px 0;">
       Thank you for your payment. Your subscription to <strong>${planName}</strong> is active and your account capacity has been updated.
     </p>
 
     <!-- Receipt Table -->
-    <table width="100%" cellpadding="0" cellspacing="0" style="border: 1px solid #E2E8F0; border-radius: 12px; margin: 20px 0; overflow: hidden; font-size: 13px;">
+    <table border="0" width="100%" cellpadding="0" cellspacing="0" style="border: 1px solid #E2E8F0; border-radius: 12px; margin: 20px 0; background-color: #FFFFFF; font-size: 13px;">
       <tr style="background-color: #F8FAFC;">
-        <td style="padding: 12px 16px; font-weight: 700; color: #475569; border-bottom: 1px solid #E2E8F0;">Description</td>
-        <td style="padding: 12px 16px; font-weight: 700; color: #475569; text-align: right; border-bottom: 1px solid #E2E8F0;">Details</td>
+        <td style="padding: 10px 14px; font-weight: 700; color: #475569; border-bottom: 1px solid #E2E8F0;">Description</td>
+        <td style="padding: 10px 14px; font-weight: 700; color: #475569; text-align: right; border-bottom: 1px solid #E2E8F0;">Details</td>
       </tr>
       <tr>
-        <td style="padding: 12px 16px; color: #0F172A; font-weight: 600; border-bottom: 1px solid #F1F5F9;">Plan / Item</td>
-        <td style="padding: 12px 16px; color: #0F172A; text-align: right; border-bottom: 1px solid #F1F5F9;">${planName}</td>
+        <td style="padding: 10px 14px; color: #0F172A; font-weight: 600; border-bottom: 1px solid #F1F5F9;">Plan / Item</td>
+        <td style="padding: 10px 14px; color: #0F172A; font-weight: 700; text-align: right; border-bottom: 1px solid #F1F5F9;">${planName}</td>
       </tr>
       ${
         gstinSlots
           ? `<tr>
-        <td style="padding: 12px 16px; color: #0F172A; border-bottom: 1px solid #F1F5F9;">GSTIN Capacity</td>
-        <td style="padding: 12px 16px; color: #0F172A; text-align: right; border-bottom: 1px solid #F1F5F9;">${gstinSlots} GSTINs Included</td>
+        <td style="padding: 10px 14px; color: #475569; border-bottom: 1px solid #F1F5F9;">GSTIN Capacity</td>
+        <td style="padding: 10px 14px; color: #0F172A; text-align: right; border-bottom: 1px solid #F1F5F9;">${gstinSlots} GSTINs Included</td>
       </tr>`
           : ""
       }
       <tr>
-        <td style="padding: 12px 16px; color: #64748B; border-bottom: 1px solid #F1F5F9;">Payment ID</td>
-        <td style="padding: 12px 16px; color: #64748B; font-family: monospace; text-align: right; border-bottom: 1px solid #F1F5F9;">${paymentId}</td>
+        <td style="padding: 10px 14px; color: #64748B; border-bottom: 1px solid #F1F5F9;">Payment ID</td>
+        <td style="padding: 10px 14px; color: #0F172A; font-family: monospace; font-size: 12px; text-align: right; border-bottom: 1px solid #F1F5F9;">${paymentId}</td>
       </tr>
       <tr>
-        <td style="padding: 12px 16px; color: #64748B; border-bottom: 1px solid #F1F5F9;">Order Reference</td>
-        <td style="padding: 12px 16px; color: #64748B; font-family: monospace; text-align: right; border-bottom: 1px solid #F1F5F9;">${orderId}</td>
+        <td style="padding: 10px 14px; color: #64748B; border-bottom: 1px solid #F1F5F9;">Order ID</td>
+        <td style="padding: 10px 14px; color: #64748B; font-family: monospace; font-size: 12px; text-align: right; border-bottom: 1px solid #F1F5F9;">${orderId}</td>
       </tr>
       <tr>
-        <td style="padding: 12px 16px; color: #64748B; border-bottom: 1px solid #F1F5F9;">Date & Time</td>
-        <td style="padding: 12px 16px; color: #64748B; text-align: right; border-bottom: 1px solid #F1F5F9;">${date}</td>
+        <td style="padding: 10px 14px; color: #64748B; border-bottom: 1px solid #E2E8F0;">Date & Time</td>
+        <td style="padding: 10px 14px; color: #64748B; text-align: right; border-bottom: 1px solid #E2E8F0;">${date}</td>
       </tr>
       <tr style="background-color: #F8FAFC;">
-        <td style="padding: 14px 16px; font-weight: 800; font-size: 15px; color: #0F172A;">Total Paid</td>
-        <td style="padding: 14px 16px; font-weight: 800; font-size: 16px; color: #16A34A; text-align: right;">₹${amountRupees}</td>
+        <td style="padding: 12px 14px; font-weight: 800; font-size: 14px; color: #0F172A;">Total Paid</td>
+        <td style="padding: 12px 14px; font-weight: 800; font-size: 16px; color: #15803D; text-align: right;">₹${amountRupees}</td>
       </tr>
     </table>
 
-    <p style="text-align: center; margin: 24px 0 12px 0;">
-      <a href="${billingUrl}" class="btn">
+    <div style="text-align: center; margin: 28px 0 8px 0;">
+      <a href="${billingUrl}" class="btn" style="display: inline-block; background-color: #0F172A; color: #FFFFFF !important; text-decoration: none; font-weight: 700; font-size: 14px; padding: 12px 24px; border-radius: 10px;">
         Manage Subscription & Invoices &rarr;
       </a>
-    </p>
+    </div>
   `;
 
   const footerNote = `

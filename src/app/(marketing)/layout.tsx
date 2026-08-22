@@ -47,9 +47,14 @@ const FOOTER_COLUMNS = [
  * Server component. Only the header nav and theme toggle are client islands,
  * so marketing pages stream their content instead of blocking on hydration.
  */
+import { getServerSession } from "@/features/auth/infrastructure/session.service";
+
 export default async function MarketingLayout({ children }: { children: React.ReactNode }) {
   // Cached and tagged, so this costs no query until an admin edits the strip.
-  const announcements = await getActiveAnnouncements();
+  const [announcements, session] = await Promise.all([
+    getActiveAnnouncements(),
+    getServerSession(),
+  ]);
 
   return (
     <div className="flex min-h-screen flex-col bg-background font-sans text-foreground">
@@ -64,7 +69,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
             <AppLogo size="lg" priority />
           </Link>
 
-          <MarketingNav />
+          <MarketingNav initialSession={session ? { user: session.user } : null} />
         </div>
       </header>
 
