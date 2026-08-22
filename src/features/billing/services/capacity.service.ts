@@ -51,13 +51,18 @@ export async function getGstinCapacity(
   let cap = await prisma.gSTINCapacity.findUnique({ where: { userId } });
 
   if (!cap) {
-    cap = await prisma.gSTINCapacity.create({
-      data: {
+    cap = await prisma.gSTINCapacity.upsert({
+      where: { userId },
+      create: {
         userId,
         includedGSTINs: sub.includedGSTINs,
         additionalGSTINs: 0,
         usedGSTINs: actualUsedCount,
         effectiveCapacity: sub.includedGSTINs,
+      },
+      update: {
+        includedGSTINs: sub.includedGSTINs,
+        usedGSTINs: actualUsedCount,
       },
     });
   } else if (cap.usedGSTINs !== actualUsedCount || cap.includedGSTINs !== sub.includedGSTINs) {

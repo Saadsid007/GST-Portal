@@ -49,57 +49,72 @@ export async function getOrCreateSubscription(
     const startDate = now;
     const endDate = new Date(startDate.getTime() + FREE_TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000);
 
-    sub = await prisma.$transaction(async (tx) => {
-      const newSub = await tx.subscription.create({
-        data: {
-          userId,
-          planSlug: "free_trial",
-          status: "TRIALING",
-          startDate,
-          endDate,
-          autoRenew: false,
-        },
-      });
-
-      await tx.gSTINCapacity.upsert({
-        where: { userId },
-        create: {
-          userId,
-          includedGSTINs: FREE_TRIAL_GSTIN_LIMIT,
-          additionalGSTINs: 0,
-          usedGSTINs: 0,
-          effectiveCapacity: FREE_TRIAL_GSTIN_LIMIT,
-        },
-        update: {
-          includedGSTINs: FREE_TRIAL_GSTIN_LIMIT,
-          effectiveCapacity: FREE_TRIAL_GSTIN_LIMIT,
-        },
-      });
-
-      await tx.subscriptionEvent.create({
-        data: {
-          subscriptionId: newSub.id,
-          eventType: "TRIAL_STARTED",
-          metadata: {
-            durationDays: FREE_TRIAL_DURATION_DAYS,
-            gstinLimit: FREE_TRIAL_GSTIN_LIMIT,
+    try {
+      sub = await prisma.$transaction(async (tx) => {
+        const newSub = await tx.subscription.upsert({
+          where: { userId },
+          create: {
+            userId,
+            planSlug: "free_trial",
+            status: "TRIALING",
+            startDate,
+            endDate,
+            autoRenew: false,
           },
-        },
+          update: {},
+        });
+
+        await tx.gSTINCapacity.upsert({
+          where: { userId },
+          create: {
+            userId,
+            includedGSTINs: FREE_TRIAL_GSTIN_LIMIT,
+            additionalGSTINs: 0,
+            usedGSTINs: 0,
+            effectiveCapacity: FREE_TRIAL_GSTIN_LIMIT,
+          },
+          update: {},
+        });
+
+        const existingEvent = await tx.subscriptionEvent.findFirst({
+          where: { subscriptionId: newSub.id, eventType: "TRIAL_STARTED" },
+        });
+
+        if (!existingEvent) {
+          await tx.subscriptionEvent.create({
+            data: {
+              subscriptionId: newSub.id,
+              eventType: "TRIAL_STARTED",
+              metadata: {
+                durationDays: FREE_TRIAL_DURATION_DAYS,
+                gstinLimit: FREE_TRIAL_GSTIN_LIMIT,
+              },
+            },
+          });
+
+          await tx.billingAuditLog.create({
+            data: {
+              userId,
+              action: "TRIAL_PROVISIONED",
+              actorId: userId,
+              metadata: { planSlug: "free_trial", gstinLimit: FREE_TRIAL_GSTIN_LIMIT },
+            },
+          });
+        }
+
+        return newSub;
       });
 
-      await tx.billingAuditLog.create({
-        data: {
-          userId,
-          action: "TRIAL_PROVISIONED",
-          actorId: userId,
-          metadata: { planSlug: "free_trial", gstinLimit: FREE_TRIAL_GSTIN_LIMIT },
-        },
+      billingLogger.info(
+        { userId, subId: sub.id },
+        "30-day free trial provisioned with 7 GSTINs"
+      );
+    } catch {
+      // If a parallel concurrent request completed the creation first, fetch the record safely
+      sub = await prisma.subscription.findUnique({
+        where: { userId },
       });
-
-      return newSub;
-    });
-
-    billingLogger.info({ userId, subId: sub.id }, "30-day free trial provisioned with 7 GSTINs");
+    }
   }
 
   // Self-heal trial record if start and end dates were initialized identically during initial migration
