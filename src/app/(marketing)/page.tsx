@@ -222,18 +222,36 @@ export default function LandingPage() {
 
       {/* ── Interactive demo ─────────────────────────────────────────────── */}
       <section id="demo" className="mx-auto max-w-6xl scroll-mt-24 space-y-8 px-6">
-        <div className="mx-auto max-w-2xl space-y-2.5 text-center">
-          <Badge variant="primary" size="md">
-            <Sparkles className="size-3" aria-hidden />
-            Interactive demo
-          </Badge>
-          <h2 className="text-3xl font-bold tracking-tight text-balance">
-            Watch a real conversion, right here
+        <div className="mx-auto max-w-2xl space-y-3.5 text-center">
+          <div className="flex items-center justify-center gap-3">
+            <span
+              aria-hidden
+              className="h-px w-10 bg-gradient-to-r from-transparent to-border-strong"
+            />
+            <Badge variant="primary" size="md">
+              <Sparkles className="size-3" aria-hidden />
+              Interactive demo
+            </Badge>
+            <span
+              aria-hidden
+              className="h-px w-10 bg-gradient-to-l from-transparent to-border-strong"
+            />
+          </div>
+          <h2 className="text-3xl font-bold tracking-tight text-balance sm:text-4xl">
+            Watch a <span className="brand-text">real conversion</span>, right here
           </h2>
-          <p className="text-sm text-muted-foreground">
+          <p className="mx-auto max-w-xl text-sm leading-relaxed text-muted-foreground">
             Load a sample marketplace export, run it through the pipeline, and compare the raw file
-            against the filing-ready output. No signup, no upload.
+            against the filing-ready output.
           </p>
+          <ul className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 pt-0.5 text-xs font-medium text-muted-foreground">
+            {["No signup", "No upload", "GSTN v3.0 output"].map((item) => (
+              <li key={item} className="flex items-center gap-1.5">
+                <Check className="size-3.5 text-success" aria-hidden />
+                {item}
+              </li>
+            ))}
+          </ul>
         </div>
         <DemoGenerator />
       </section>
