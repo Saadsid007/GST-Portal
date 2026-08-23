@@ -114,6 +114,10 @@
   /* --- Type scale --------------------------------------------------------
      Display sizes tighten tracking as they grow; that optical correction is
      most of what separates a premium header from a default one. */
+  /* Micro step for uppercase labels, codes and table footnotes. Without this
+     entry every text-3xs silently fell back to the parent's font size. */
+  --text-3xs: 0.625rem;
+  --text-3xs--line-height: 0.875rem;
   --text-2xs: 0.6875rem;
   --text-2xs--line-height: 1rem;
   --text-xs: 0.75rem;
@@ -254,6 +258,11 @@
 }
 
 html {
+  /* Site-wide density: the whole design is rem-based, so dropping the root
+     font-size contracts every container, type step and spacing step together —
+     the equivalent of viewing at 90% zoom. Raise toward 95–100% if a surface
+     ever feels cramped. */
+  font-size: 90%;
   scroll-behavior: smooth;
   -webkit-tap-highlight-color: transparent;
 }

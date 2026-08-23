@@ -36,24 +36,15 @@ interface Props {
   onOpenMobileNav: () => void;
   onToggleCollapse: () => void;
   collapsed: boolean;
-  /** Wallet credits, shown as a live chip. Hidden when not yet known. */
-  credits?: number | null;
 }
 
-export function AppHeader({
-  user,
-  isAdmin,
-  onOpenMobileNav,
-  onToggleCollapse,
-  collapsed,
-  credits,
-}: Props) {
+export function AppHeader({ user, isAdmin, onOpenMobileNav, onToggleCollapse, collapsed }: Props) {
   const pathname = usePathname();
   const current = findNavItem(pathname);
   const group = NAV_GROUPS.find((g) => g.items.some((i) => i.href === current?.href));
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 flex-shrink-0 items-center gap-3 border-b border-border bg-background/85 px-4 backdrop-blur-xl sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-30 flex h-13 flex-shrink-0 items-center gap-2.5 border-b border-border bg-background/85 px-3.5 backdrop-blur-xl sm:h-14 sm:px-5">
       {/* Mobile drawer trigger */}
       <Button
         variant="ghost"
@@ -97,18 +88,6 @@ export function AppHeader({
       <div className="flex flex-shrink-0 items-center gap-1.5">
         <GlobalSearch isAdmin={isAdmin} />
 
-        {typeof credits === "number" && (
-          <Link
-            href="/billing"
-            className="hidden items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-2xs font-semibold transition-colors hover:border-primary/40 sm:inline-flex"
-            title="Wallet balance"
-          >
-            <Wallet className="size-3.5 text-primary-ink" aria-hidden />
-            <span className="tabular-nums">{credits.toLocaleString("en-IN")}</span>
-            <span className="text-muted-foreground">credits</span>
-          </Link>
-        )}
-
         {/* Rewards are a growth surface, so they get a permanent home in the
             chrome rather than living inside the wallet page. */}
         <Button
@@ -116,7 +95,7 @@ export function AppHeader({
           variant="outline"
           size="sm"
           className="hidden lg:inline-flex"
-          title="Refer & earn free credits"
+          title="Refer GSTPilot to a friend"
         >
           <Link href="/refer">
             <Gift />
@@ -124,7 +103,7 @@ export function AppHeader({
           </Link>
         </Button>
 
-        <NotificationsMenu credits={credits} />
+        <NotificationsMenu />
         <ThemeToggle />
         <UserMenu user={user} isAdmin={isAdmin} />
       </div>
@@ -433,19 +412,12 @@ function Kbd({ children }: { children: React.ReactNode }) {
   );
 }
 
-function NotificationsMenu({ credits }: { credits?: number | null }) {
-  // Derived, not fetched: a low balance is the one thing that actually blocks
-  // the user mid-task, so it is worth surfacing here.
-  const lowBalance = typeof credits === "number" && credits < 12;
-
+function NotificationsMenu() {
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
-        <Button variant="ghost" size="icon-sm" className="relative" aria-label="Notifications">
+        <Button variant="ghost" size="icon-sm" aria-label="Notifications">
           <Bell />
-          {lowBalance && (
-            <span className="absolute top-1 right-1 size-2 rounded-full bg-primary ring-2 ring-background" />
-          )}
         </Button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
@@ -457,24 +429,9 @@ function NotificationsMenu({ credits }: { credits?: number | null }) {
           <p className="px-2 py-1.5 text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
             Notifications
           </p>
-          {lowBalance ? (
-            <Link
-              href="/billing"
-              className="flex gap-2.5 rounded-lg p-2.5 transition-colors hover:bg-accent"
-            >
-              <Wallet className="mt-0.5 size-4 flex-shrink-0 text-primary-ink" aria-hidden />
-              <span>
-                <span className="block text-xs font-semibold">Wallet running low</span>
-                <span className="block text-2xs text-muted-foreground">
-                  {credits} credits left — not enough for another return. Top up to keep filing.
-                </span>
-              </span>
-            </Link>
-          ) : (
-            <p className="px-2.5 py-6 text-center text-xs text-muted-foreground">
-              You&rsquo;re all caught up.
-            </p>
-          )}
+          <p className="px-2.5 py-6 text-center text-xs text-muted-foreground">
+            You&rsquo;re all caught up.
+          </p>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>
@@ -556,8 +513,8 @@ function UserMenu({ user, isAdmin }: { user: { name: string; email: string }; is
 
           <DropdownMenu.Separator className="my-1 h-px bg-border" />
 
-          <MenuLink href="/profile" icon={User} label="GST profile" />
-          <MenuLink href="/billing" icon={Wallet} label="Wallet & billing" />
+          <MenuLink href="/profile" icon={User} label="GST profiles" />
+          <MenuLink href="/billing" icon={Wallet} label="Billing" />
           <MenuLink href="/settings" icon={Settings} label="Settings" />
 
           <DropdownMenu.Separator className="my-1 h-px bg-border" />
