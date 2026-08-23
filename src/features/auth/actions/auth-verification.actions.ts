@@ -3,6 +3,14 @@
 import prisma from "@/lib/prisma";
 import { EmailService } from "@/features/email/services/email.service";
 import { createLogger } from "@/lib/logger";
+import { PASSWORD_MIN_LENGTH } from "@/config/constants";
+// Hashing MUST go through Better Auth's own primitives: its sign-in verifier
+// derives keys with scrypt(N=16384, r=16, p=1) over an NFKC-normalised password.
+// Node's scryptSync defaults use r=8, so hand-rolled hashes never verify at login.
+import {
+  hashPassword as authHashPassword,
+  verifyPassword as authVerifyPassword,
+} from "better-auth/crypto";
 import { z } from "zod";
 import crypto from "crypto";
 
@@ -24,7 +32,9 @@ const RequestPasswordResetSchema = z.object({
 const ResetPasswordSchema = z.object({
   email: z.string().email(),
   otp: z.string().min(6).max(6),
-  newPassword: z.string().min(8, "Password must be at least 8 characters long"),
+  newPassword: z
+    .string()
+    .min(PASSWORD_MIN_LENGTH, `Password must be at least ${PASSWORD_MIN_LENGTH} characters long`),
 });
 
 /**
@@ -58,7 +68,10 @@ export async function requestEmailVerificationAction(input: {
     logger.info({ email: normalizedEmail }, "Email verification OTP dispatched");
     return { success: true };
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : err }, "Failed to request email verification");
+    logger.error(
+      { error: err instanceof Error ? err.message : err },
+      "Failed to request email verification"
+    );
     return {
       success: false,
       error: err instanceof Error ? err.message : "Failed to send verification email.",
@@ -77,11 +90,7 @@ export async function verifyEmailOtpAction(input: {
     const { email, otp } = VerifyEmailOtpSchema.parse(input);
     const normalizedEmail = email.toLowerCase().trim();
 
-    const isValid = await EmailService.verifyOtp(
-      normalizedEmail,
-      "EMAIL_VERIFICATION",
-      otp
-    );
+    const isValid = await EmailService.verifyOtp(normalizedEmail, "EMAIL_VERIFICATION", otp);
 
     if (!isValid) {
       return {
@@ -132,15 +141,28 @@ export async function requestPasswordResetAction(input: {
       return { success: true };
     }
 
-    await EmailService.sendPasswordResetEmail({
+    // Dispatch in the background: SMTP delivery can take tens of seconds on
+    // constrained networks, and the response must never block on it.
+    void EmailService.sendPasswordResetEmail({
       to: normalizedEmail,
       name: user.name,
+    }).then((result) => {
+      if (result.success) {
+        logger.info({ email: normalizedEmail }, "Password reset OTP dispatched");
+      } else {
+        logger.error(
+          { email: normalizedEmail, error: result.error },
+          "Password reset OTP failed to dispatch"
+        );
+      }
     });
 
-    logger.info({ email: normalizedEmail }, "Password reset OTP dispatched");
     return { success: true };
   } catch (err) {
-    logger.error({ error: err instanceof Error ? err.message : err }, "Failed to request password reset");
+    logger.error(
+      { error: err instanceof Error ? err.message : err },
+      "Failed to request password reset"
+    );
     return {
       success: false,
       error: err instanceof Error ? err.message : "Failed to send password reset email.",
@@ -160,11 +182,7 @@ export async function verifyAndResetPasswordAction(input: {
     const { email, otp, newPassword } = ResetPasswordSchema.parse(input);
     const normalizedEmail = email.toLowerCase().trim();
 
-    const isValid = await EmailService.verifyOtp(
-      normalizedEmail,
-      "PASSWORD_RESET",
-      otp
-    );
+    const isValid = await EmailService.verifyOtp(normalizedEmail, "PASSWORD_RESET", otp);
 
     if (!isValid) {
       return {
@@ -182,17 +200,25 @@ export async function verifyAndResetPasswordAction(input: {
       return { success: false, error: "User account not found." };
     }
 
-    // Better Auth password hashing is handled via its scrypt / standard hash or Account update
-    // We update the credential account's password hash
-    // Using standard secure scrypt hashing compatible with Better Auth credential provider
-    const salt = crypto.randomBytes(16).toString("hex");
-    const hashedPassword = crypto.scryptSync(newPassword, salt, 64).toString("hex");
-    const formattedPasswordHash = `${salt}:${hashedPassword}`;
-
-    // Update account with new password hash
     const credentialAccount = user.accounts.find(
       (a) => a.providerId === "credential" || a.providerId === "email"
     );
+
+    // Reject no-op resets before touching anything so the user keeps their
+    // working password. Deliberately runs after OTP consumption — checking
+    // earlier would hand an unauthenticated caller a current-password oracle.
+    if (
+      credentialAccount?.password &&
+      (await authVerifyPassword({ hash: credentialAccount.password, password: newPassword }))
+    ) {
+      return {
+        success: false,
+        error: "Your new password must be different from your current password.",
+      };
+    }
+
+    // Hash with Better Auth's own primitive so its login verifier accepts it.
+    const formattedPasswordHash = await authHashPassword(newPassword);
 
     if (credentialAccount) {
       await prisma.account.update({
@@ -217,7 +243,10 @@ export async function verifyAndResetPasswordAction(input: {
       name: user.name,
     });
 
-    logger.info({ email: normalizedEmail }, "User password successfully reset via OTP verification");
+    logger.info(
+      { email: normalizedEmail },
+      "User password successfully reset via OTP verification"
+    );
     return { success: true };
   } catch (err) {
     logger.error({ error: err instanceof Error ? err.message : err }, "Failed to reset password");

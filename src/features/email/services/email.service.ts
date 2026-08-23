@@ -1,7 +1,7 @@
 /**
  * Production-Grade Transactional Email Service for GSTPilot
  * Supports Gmail SMTP (gstpilot.official@gmail.com), custom SMTP, Resend, and dev console fallback.
- * 
+ *
  * SECURITY GUARANTEE:
  * - All OTP generation, hashing, and token validation occur strictly server-side.
  * - OTPs are hashed using SHA-256 before storing in the database.
@@ -17,12 +17,12 @@ import {
   renderVerificationEmailHtml,
   renderPasswordResetEmailHtml,
   renderPasswordChangedEmailHtml,
-} from "../templates/auth-emails.template";
+} from "@/features/email/templates/auth-emails.template";
 import {
   renderWelcomeTrialEmailHtml,
   renderPaymentReceiptEmailHtml,
   renderCampaignBroadcastEmailHtml,
-} from "../templates/transaction-emails.template";
+} from "@/features/email/templates/transaction-emails.template";
 
 const emailLogger = createLogger({ module: "email-service" });
 
@@ -31,6 +31,10 @@ export interface SendMailOptions {
   subject: string;
   html: string;
   text?: string;
+  /** Overrides the default reply address for this message. */
+  replyTo?: string;
+  /** Set on bulk mail so Gmail/Yahoo one-click unsubscribe headers are emitted. */
+  unsubscribeUrl?: string;
 }
 
 export class EmailService {
@@ -43,7 +47,8 @@ export class EmailService {
     if (this.transporter) return this.transporter;
 
     // Check if SMTP configuration is provided
-    const host = env.SMTP_HOST || (env.SMTP_USER?.includes("gmail.com") ? "smtp.gmail.com" : undefined);
+    const host =
+      env.SMTP_HOST || (env.SMTP_USER?.includes("gmail.com") ? "smtp.gmail.com" : undefined);
     const user = env.SMTP_USER || (env.SMTP_PASS ? "gstpilot.official@gmail.com" : undefined);
     const pass = env.SMTP_PASS;
     const port = env.SMTP_PORT ? parseInt(env.SMTP_PORT, 10) : 465;
@@ -58,6 +63,11 @@ export class EmailService {
           user,
           pass,
         },
+        // Bounded failure: without these a silently-dropped SMTP session (common
+        // on hotspot/CGNAT networks) parks every awaiting request indefinitely.
+        connectionTimeout: 10_000,
+        greetingTimeout: 10_000,
+        socketTimeout: 30_000,
       });
       emailLogger.info({ host, user, port }, "Nodemailer SMTP transporter initialized");
       return this.transporter;
@@ -69,11 +79,59 @@ export class EmailService {
   /**
    * Dispatch an email message with fallback to styled developer console logging.
    */
-  public static async sendMail(options: SendMailOptions): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  public static async sendMail(
+    options: SendMailOptions
+  ): Promise<{ success: boolean; messageId?: string; error?: string }> {
     const { to, subject, html, text } = options;
     const from = env.EMAIL_FROM || "GSTPilot <gstpilot.official@gmail.com>";
 
+    const headers: Record<string, string> = {};
+    if (options.unsubscribeUrl) {
+      headers["List-Unsubscribe"] = `<${options.unsubscribeUrl}>`;
+      headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Visible-Click";
+      headers["List-Id"] = "GSTPilot Announcements <announcements.gstpilot>";
+    }
+
     try {
+      // Preferred path when configured: a transactional provider (Resend) over
+      // its API — dedicated infrastructure with per-domain SPF/DKIM signing,
+      // which is what keeps mail out of spam. Gmail SMTP relay cannot offer
+      // that for a custom From domain.
+      if (env.RESEND_API_KEY) {
+        const res = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${env.RESEND_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: env.EMAIL_FROM || "GSTPilot <onboarding@resend.dev>",
+            to: [to],
+            subject,
+            html,
+            text: text || subject,
+            reply_to: options.replyTo,
+            headers,
+          }),
+        });
+
+        const data = (await res.json().catch(() => null)) as {
+          id?: string;
+          message?: string;
+        } | null;
+        if (!res.ok || !data?.id) {
+          const errorMsg = data?.message || `Resend responded ${res.status}`;
+          emailLogger.error({ to, subject, error: errorMsg }, "Resend dispatch failed");
+          return { success: false, error: errorMsg };
+        }
+
+        emailLogger.info(
+          { to, subject, messageId: data.id },
+          "Email dispatched successfully via Resend"
+        );
+        return { success: true, messageId: data.id };
+      }
+
       const transporter = this.getTransporter();
 
       if (transporter) {
@@ -83,6 +141,8 @@ export class EmailService {
           subject,
           html,
           text: text || subject,
+          ...(options.replyTo ? { replyTo: options.replyTo } : {}),
+          ...(Object.keys(headers).length > 0 ? { headers } : {}),
         });
 
         emailLogger.info(
@@ -113,10 +173,17 @@ export class EmailService {
   /**
    * Generate a cryptographically secure 6-digit OTP code and hashed database entry.
    */
-  public static async generateOtp(identifier: string, purpose: string, expiryMinutes = 15): Promise<string> {
+  public static async generateOtp(
+    identifier: string,
+    purpose: string,
+    expiryMinutes = 15
+  ): Promise<string> {
     // Cryptographically secure 6-digit numeric OTP
     const rawOtp = crypto.randomInt(100000, 999999).toString();
-    const hashedOtp = crypto.createHash("sha256").update(`${rawOtp}:${purpose}:${identifier}`).digest("hex");
+    const hashedOtp = crypto
+      .createHash("sha256")
+      .update(`${rawOtp}:${purpose}:${identifier}`)
+      .digest("hex");
     const expiresAt = new Date(Date.now() + expiryMinutes * 60 * 1000);
 
     const fullIdentifier = `${purpose}:${identifier.toLowerCase().trim()}`;
@@ -141,7 +208,11 @@ export class EmailService {
   /**
    * Verify an OTP code strictly server-side against SHA-256 hash.
    */
-  public static async verifyOtp(identifier: string, purpose: string, submittedOtp: string): Promise<boolean> {
+  public static async verifyOtp(
+    identifier: string,
+    purpose: string,
+    submittedOtp: string
+  ): Promise<boolean> {
     if (!submittedOtp || submittedOtp.trim().length !== 6) return false;
 
     const fullIdentifier = `${purpose}:${identifier.toLowerCase().trim()}`;
@@ -314,6 +385,6 @@ export class EmailService {
       unsubscribeUrl,
     });
 
-    return this.sendMail({ to, subject, html, text });
+    return this.sendMail({ to, subject, html, text, unsubscribeUrl });
   }
 }
