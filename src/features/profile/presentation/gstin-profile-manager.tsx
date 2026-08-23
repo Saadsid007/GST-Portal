@@ -12,16 +12,25 @@ import {
   CheckCircle,
   Search,
   X,
+  AlertTriangle,
 } from "lucide-react";
 import { filterGstinProfiles } from "@/features/profile/domain/gstin-search";
-import { Button, EmptyState, Input } from "@/components/ui";
+import { Button, EmptyState, Input, Modal } from "@/components/ui";
 import type { GstinProfile } from "@/generated/prisma/client";
+import type { GstinDeletionImpact } from "@/features/billing/services/capacity.service";
 import { BUSINESS_TYPE_OPTIONS, businessTypeMeta } from "@/features/profile/domain/business-type";
 import {
   addGstinProfileAction,
   deleteGstinProfileAction,
+  getGstinDeletionImpactAction,
   setDefaultGstinAction,
 } from "@/features/profile/actions/profile.actions";
+
+const dateFmt = new Intl.DateTimeFormat("en-IN", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
 
 interface Props {
   initialProfiles: GstinProfile[];
@@ -32,6 +41,14 @@ export function GstinProfileManager({ initialProfiles }: Props) {
   const [query, setQuery] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
+  // Deleting is quota-relevant, so the dialog waits on the server's verdict
+  // rather than guessing whether the slot comes back.
+  const [pendingDelete, setPendingDelete] = useState<{
+    id: string;
+    impact: GstinDeletionImpact | null;
+  } | null>(null);
+  const [impactLoading, setImpactLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [form, setForm] = useState({
     gstinNumber: "",
     legalName: "",
@@ -69,11 +86,47 @@ export function GstinProfileManager({ initialProfiles }: Props) {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm("Delete this GSTIN profile?")) return;
-    await deleteGstinProfileAction(id);
-    setProfiles((prev) => prev.filter((p) => p.id !== id));
-    toast.success("Profile deleted");
+  async function openDeleteDialog(id: string) {
+    setPendingDelete({ id, impact: null });
+    setImpactLoading(true);
+    try {
+      const res = await getGstinDeletionImpactAction(id);
+      if (res.success && res.data) {
+        setPendingDelete({ id, impact: res.data });
+      } else {
+        setPendingDelete(null);
+        toast.error(res.error || "Could not load profile");
+      }
+    } catch {
+      setPendingDelete(null);
+      toast.error("Something went wrong");
+    } finally {
+      setImpactLoading(false);
+    }
+  }
+
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    const { id } = pendingDelete;
+    setDeleting(true);
+    try {
+      const res = await deleteGstinProfileAction(id);
+      if (!res.success) {
+        toast.error(res.error || "Failed to delete profile");
+        return;
+      }
+      setProfiles((prev) => prev.filter((p) => p.id !== id));
+      setPendingDelete(null);
+      toast.success(
+        res.slotRetained && res.releasesOn
+          ? `Profile deleted. The GSTIN slot stays reserved until ${dateFmt.format(new Date(res.releasesOn))}.`
+          : "Profile deleted"
+      );
+    } catch {
+      toast.error("Something went wrong");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   async function handleSetDefault(id: string) {
@@ -305,7 +358,9 @@ export function GstinProfileManager({ initialProfiles }: Props) {
                   </button>
                 )}
                 <button
-                  onClick={() => handleDelete(profile.id)}
+                  onClick={() => openDeleteDialog(profile.id)}
+                  title="Delete profile"
+                  aria-label={`Delete ${profile.legalName}`}
                   className="rounded-lg p-2 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
                 >
                   <Trash2 className="size-4" />
@@ -315,6 +370,97 @@ export function GstinProfileManager({ initialProfiles }: Props) {
           ))}
         </div>
       )}
+
+      <Modal
+        open={pendingDelete !== null}
+        onClose={() => {
+          if (!deleting) setPendingDelete(null);
+        }}
+        size="md"
+        icon={<AlertTriangle className="size-5 text-destructive" />}
+        title="Delete this GSTIN profile?"
+        description={
+          pendingDelete?.impact
+            ? `${pendingDelete.impact.legalName} · ${pendingDelete.impact.gstinNumber}`
+            : undefined
+        }
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={deleting}
+              onClick={() => setPendingDelete(null)}
+            >
+              Keep profile
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={deleting || impactLoading}
+              onClick={confirmDelete}
+            >
+              {deleting ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Trash2 className="size-4" />
+              )}
+              Delete anyway
+            </Button>
+          </div>
+        }
+      >
+        {impactLoading || !pendingDelete?.impact ? (
+          <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" /> Checking your plan usage…
+          </div>
+        ) : (
+          <div className="space-y-3 text-sm">
+            <p className="text-muted-foreground">
+              Deleting removes the profile and its saved details from your workspace. Conversion
+              history stays intact.
+            </p>
+
+            {pendingDelete.impact.slotRetained ? (
+              <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3.5 text-xs">
+                <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                <div className="space-y-1">
+                  <p className="font-bold text-foreground">
+                    This will not free up a GSTIN slot right now
+                  </p>
+                  <p className="text-muted-foreground">
+                    This GSTIN was added during your current billing period, so it stays counted
+                    against your {pendingDelete.impact.planName} quota until{" "}
+                    <span className="font-semibold text-foreground">
+                      {dateFmt.format(new Date(pendingDelete.impact.releasesOn))}
+                    </span>
+                    . You will still have{" "}
+                    <span className="font-semibold text-foreground">
+                      {pendingDelete.impact.availableAfterDelete} of{" "}
+                      {pendingDelete.impact.totalCapacity}
+                    </span>{" "}
+                    slots available after deleting.
+                  </p>
+                  <p className="text-muted-foreground">
+                    Re-adding this same GSTIN later in this period is free — it will not consume
+                    another slot.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-border bg-muted/40 p-3.5 text-xs text-muted-foreground">
+                This GSTIN was not added during your current billing period, so deleting it frees a
+                slot immediately —{" "}
+                <span className="font-semibold text-foreground">
+                  {pendingDelete.impact.availableAfterDelete} of{" "}
+                  {pendingDelete.impact.totalCapacity}
+                </span>{" "}
+                slots will be available.
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

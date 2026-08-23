@@ -13,6 +13,7 @@ import {
   type PlanSlug,
 } from "@/features/billing/config/pricing.config";
 import { billingLogger } from "@/features/billing/services/billing.logger";
+import { readGstinSlotUsage } from "@/features/billing/services/gstin-slot.service";
 import { EmailService } from "@/features/email/services/email.service";
 
 export interface SubscriptionStatusSummary {
@@ -105,10 +106,7 @@ export async function getOrCreateSubscription(
         return newSub;
       });
 
-      billingLogger.info(
-        { userId, subId: sub.id },
-        "30-day free trial provisioned with 7 GSTINs"
-      );
+      billingLogger.info({ userId, subId: sub.id }, "30-day free trial provisioned with 7 GSTINs");
     } catch {
       // If a parallel concurrent request completed the creation first, fetch the record safely
       sub = await prisma.subscription.findUnique({
@@ -238,7 +236,7 @@ export async function activatePaidPlan(input: {
   const startDate = now;
   const endDate = new Date(startDate.getTime() + plan.durationDays * 24 * 60 * 60 * 1000);
 
-  const updatedSub = await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx) => {
     // 1. Record payment
     await tx.payment.create({
       data: {
@@ -284,7 +282,9 @@ export async function activatePaidPlan(input: {
     // 3. Update GSTIN capacity
     const currentCap = await tx.gSTINCapacity.findUnique({ where: { userId } });
     const additional = currentCap?.additionalGSTINs ?? 0;
-    const used = await tx.gstinProfile.count({ where: { userId } });
+    // The new period starts now, so the previous period's ledger stops counting
+    // here: retained slots from deleted profiles are released by the purchase.
+    const { consumed: used } = await readGstinSlotUsage(userId, startDate, tx);
 
     await tx.gSTINCapacity.upsert({
       where: { userId },
@@ -332,7 +332,10 @@ export async function activatePaidPlan(input: {
     return sub;
   });
 
-  billingLogger.info({ userId, planSlug: plan.slug }, "Paid subscription plan activated successfully");
+  billingLogger.info(
+    { userId, planSlug: plan.slug },
+    "Paid subscription plan activated successfully"
+  );
 
   // Send payment confirmation email and update marketing audience in background
   try {
@@ -369,7 +372,10 @@ export async function activatePaidPlan(input: {
       });
     }
   } catch (err) {
-    billingLogger.error({ error: err }, "Failed to send payment receipt email or sync marketing audience");
+    billingLogger.error(
+      { error: err },
+      "Failed to send payment receipt email or sync marketing audience"
+    );
   }
 
   return getOrCreateSubscription(userId, now);
@@ -423,7 +429,9 @@ export async function scheduleDowngrade(
 /**
  * Cancels auto-renewal of the current subscription.
  */
-export async function cancelAutoRenewal(userId: string): Promise<{ success: boolean; message: string }> {
+export async function cancelAutoRenewal(
+  userId: string
+): Promise<{ success: boolean; message: string }> {
   const sub = await prisma.subscription.findUnique({ where: { userId } });
   if (!sub) return { success: false, message: "No subscription found." };
 
@@ -452,6 +460,7 @@ export async function cancelAutoRenewal(userId: string): Promise<{ success: bool
 
   return {
     success: true,
-    message: "Auto-renewal cancelled. Your plan remains active until the end of the billing period.",
+    message:
+      "Auto-renewal cancelled. Your plan remains active until the end of the billing period.",
   };
 }

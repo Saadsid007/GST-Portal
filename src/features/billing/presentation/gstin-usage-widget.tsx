@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { GSTINCapacityStatus } from "@/features/billing/services/capacity.service";
 import type { SubscriptionStatusSummary } from "@/features/billing/services/subscription.service";
 import { AddGstinModal } from "@/features/billing/presentation/add-gstin-modal";
-import { Plus, Sparkles, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Plus, Sparkles, AlertTriangle, CheckCircle2, History } from "lucide-react";
 
 interface Props {
   capacity: GSTINCapacityStatus;
@@ -34,7 +34,10 @@ export function GstinUsageWidget({ capacity, subscription, onRefresh }: Props) {
               GSTIN Client Capacity
             </span>
             <h3 className="mt-0.5 text-xl font-extrabold text-foreground">
-              {capacity.used} <span className="text-sm font-medium text-muted-foreground">/ {capacity.totalCapacity} GSTINs Used</span>
+              {capacity.used}{" "}
+              <span className="text-sm font-medium text-muted-foreground">
+                / {capacity.totalCapacity} GSTINs Used
+              </span>
             </h3>
           </div>
 
@@ -58,7 +61,9 @@ export function GstinUsageWidget({ capacity, subscription, onRefresh }: Props) {
             />
           </div>
           <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>{capacity.available} available slot{capacity.available === 1 ? "" : "s"}</span>
+            <span>
+              {capacity.available} available slot{capacity.available === 1 ? "" : "s"}
+            </span>
             <span>{percent}% capacity utilised</span>
           </div>
         </div>
@@ -75,13 +80,37 @@ export function GstinUsageWidget({ capacity, subscription, onRefresh }: Props) {
           </div>
           <div className="rounded-xl border border-border bg-background p-2.5">
             <p className="text-[11px] text-muted-foreground">Active Profiles</p>
-            <p className="mt-0.5 font-bold text-foreground">{capacity.used} GSTINs</p>
+            <p className="mt-0.5 font-bold text-foreground">{capacity.activeProfiles} GSTINs</p>
           </div>
           <div className="rounded-xl border border-primary/30 bg-primary/5 p-2.5">
             <p className="text-[11px] font-semibold text-primary-ink">Total Capacity</p>
             <p className="mt-0.5 font-bold text-primary-ink">{capacity.totalCapacity} GSTINs</p>
           </div>
         </div>
+
+        {/* Slots still billed for GSTINs the user deleted mid-period. Shown
+            unconditionally when present, so the number never looks like a bug. */}
+        {capacity.retainedSlots > 0 && (
+          <div className="flex items-start gap-2.5 rounded-xl border border-border bg-muted/40 p-3.5 text-xs">
+            <History className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+            <div>
+              <p className="font-bold text-foreground">
+                {capacity.retainedSlots} slot{capacity.retainedSlots === 1 ? "" : "s"} reserved by
+                deleted GSTIN{capacity.retainedSlots === 1 ? "" : "s"}
+              </p>
+              <p className="mt-0.5 text-muted-foreground">
+                {capacity.retainedGstins.join(", ")} — deleted during this billing period, so{" "}
+                {capacity.retainedSlots === 1 ? "the slot stays" : "these slots stay"} counted until{" "}
+                {new Date(capacity.periodEnd).toLocaleDateString("en-IN", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })}
+                . Re-adding the same GSTIN costs nothing.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Status Alerts */}
         {isLimitReached && (
@@ -90,7 +119,8 @@ export function GstinUsageWidget({ capacity, subscription, onRefresh }: Props) {
             <div>
               <p className="font-bold text-foreground">GSTIN Limit Reached (100%)</p>
               <p className="mt-0.5 text-muted-foreground">
-                You have utilised all {capacity.totalCapacity} GSTIN slots. Purchase extra GSTINs for ₹6/month each or upgrade your plan to add more clients.
+                You have utilised all {capacity.totalCapacity} GSTIN slots. Purchase extra GSTINs
+                for ₹6/month each or upgrade your plan to add more clients.
               </p>
             </div>
           </div>
@@ -102,7 +132,8 @@ export function GstinUsageWidget({ capacity, subscription, onRefresh }: Props) {
             <div>
               <p className="font-bold text-foreground">Capacity Almost Full (90%+)</p>
               <p className="mt-0.5 text-muted-foreground">
-                Only {capacity.available} GSTIN slot remaining. Consider adding extra capacity to avoid onboarding delays.
+                Only {capacity.available} GSTIN slot remaining. Consider adding extra capacity to
+                avoid onboarding delays.
               </p>
             </div>
           </div>
@@ -112,7 +143,9 @@ export function GstinUsageWidget({ capacity, subscription, onRefresh }: Props) {
           <div className="flex items-start gap-2.5 rounded-xl border border-blue-500/30 bg-blue-500/5 p-3.5 text-xs">
             <Sparkles className="mt-0.5 size-4 shrink-0 text-blue-600 dark:text-blue-400" />
             <div>
-              <p className="font-bold text-foreground">You are using {capacity.used} of {capacity.totalCapacity} GSTIN slots</p>
+              <p className="font-bold text-foreground">
+                You are using {capacity.used} of {capacity.totalCapacity} GSTIN slots
+              </p>
               <p className="mt-0.5 text-muted-foreground">
                 Additional slots can be added at any time for just ₹6/month (prorated).
               </p>
@@ -123,7 +156,10 @@ export function GstinUsageWidget({ capacity, subscription, onRefresh }: Props) {
         {!isWarning80 && !isWarning90 && !isLimitReached && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <CheckCircle2 className="size-3.5 text-emerald-500" />
-            <span>Capacity healthy. Multi-marketplace files under the same GSTIN do not consume extra slots.</span>
+            <span>
+              Capacity healthy. Multi-marketplace files under the same GSTIN do not consume extra
+              slots.
+            </span>
           </div>
         )}
       </div>

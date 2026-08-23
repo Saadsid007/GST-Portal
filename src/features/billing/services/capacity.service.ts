@@ -11,12 +11,18 @@ import {
 } from "@/features/billing/config/pricing.config";
 import { getOrCreateSubscription } from "@/features/billing/services/subscription.service";
 import { billingLogger } from "@/features/billing/services/billing.logger";
+import { isSlotRetainedOnDelete, normalizeGstin } from "@/features/billing/domain/gstin-slot-usage";
+import {
+  readGstinSlotUsage,
+  readPeriodGstins,
+} from "@/features/billing/services/gstin-slot.service";
 
 export interface GSTINCapacityStatus {
   userId: string;
   included: number;
   additional: number;
   totalCapacity: number;
+  /** Slots consumed this period. Includes GSTINs deleted since the period started. */
   used: number;
   available: number;
   usagePercent: number;
@@ -24,6 +30,16 @@ export interface GSTINCapacityStatus {
   canAddMore: boolean;
   planName: string;
   planSlug: string;
+  /** Distinct GSTINs with a live profile right now. */
+  activeProfiles: number;
+  /** Slots held by GSTINs deleted during this period. Released at renewal. */
+  retainedSlots: number;
+  /** GSTINs deleted this period that are still billed. */
+  retainedGstins: string[];
+  /** Start of the billing period the usage above is measured over. */
+  periodStart: Date;
+  /** Renewal date — when retained slots are released. */
+  periodEnd: Date;
 }
 
 export interface ProrationCalculation {
@@ -43,10 +59,11 @@ export async function getGstinCapacity(
   userId: string,
   now: Date = new Date()
 ): Promise<GSTINCapacityStatus> {
-  const [sub, actualUsedCount] = await Promise.all([
-    getOrCreateSubscription(userId, now),
-    prisma.gstinProfile.count({ where: { userId } }),
-  ]);
+  const sub = await getOrCreateSubscription(userId, now);
+  // Counted from the subscription start, so renewal releases retained slots
+  // without any cleanup job.
+  const usage = await readGstinSlotUsage(userId, sub.startDate);
+  const consumed = usage.consumed;
 
   let cap = await prisma.gSTINCapacity.findUnique({ where: { userId } });
 
@@ -57,20 +74,20 @@ export async function getGstinCapacity(
         userId,
         includedGSTINs: sub.includedGSTINs,
         additionalGSTINs: 0,
-        usedGSTINs: actualUsedCount,
+        usedGSTINs: consumed,
         effectiveCapacity: sub.includedGSTINs,
       },
       update: {
         includedGSTINs: sub.includedGSTINs,
-        usedGSTINs: actualUsedCount,
+        usedGSTINs: consumed,
       },
     });
-  } else if (cap.usedGSTINs !== actualUsedCount || cap.includedGSTINs !== sub.includedGSTINs) {
+  } else if (cap.usedGSTINs !== consumed || cap.includedGSTINs !== sub.includedGSTINs) {
     cap = await prisma.gSTINCapacity.update({
       where: { userId },
       data: {
         includedGSTINs: sub.includedGSTINs,
-        usedGSTINs: actualUsedCount,
+        usedGSTINs: consumed,
         effectiveCapacity: sub.includedGSTINs + cap.additionalGSTINs,
       },
     });
@@ -79,9 +96,10 @@ export async function getGstinCapacity(
   const included = cap.includedGSTINs;
   const additional = cap.additionalGSTINs;
   const totalCapacity = included + additional;
-  const used = actualUsedCount;
+  const used = consumed;
   const available = Math.max(0, totalCapacity - used);
-  const usagePercent = totalCapacity > 0 ? Math.min(100, Math.round((used / totalCapacity) * 100)) : 100;
+  const usagePercent =
+    totalCapacity > 0 ? Math.min(100, Math.round((used / totalCapacity) * 100)) : 100;
 
   let status: GSTINCapacityStatus["status"] = "OK";
   if (used >= totalCapacity) {
@@ -106,14 +124,24 @@ export async function getGstinCapacity(
     canAddMore,
     planName: sub.planName,
     planSlug: sub.planSlug,
+    activeProfiles: usage.activeCount,
+    retainedSlots: usage.retainedCount,
+    retainedGstins: usage.retainedGstins,
+    periodStart: sub.startDate,
+    periodEnd: sub.endDate,
   };
 }
 
 /**
  * Authoritative server-side gate before creating a new GSTIN profile.
+ *
+ * Pass the GSTIN being added when it is known: a number that already consumed a
+ * slot this period is re-added free of charge, even at the limit, so a user who
+ * deletes by mistake is not locked out of their own client.
  */
 export async function canCreateGstin(
-  userId: string
+  userId: string,
+  gstinNumber?: string
 ): Promise<{ allowed: true } | { allowed: false; reason: string; capacity: GSTINCapacityStatus }> {
   const capacity = await getGstinCapacity(userId);
   const sub = await getOrCreateSubscription(userId);
@@ -121,20 +149,83 @@ export async function canCreateGstin(
   if (sub.isExpired) {
     return {
       allowed: false,
-      reason: "Your subscription / 30-day free trial has expired. Please upgrade or renew your plan to add more GSTIN profiles.",
+      reason:
+        "Your subscription / 30-day free trial has expired. Please upgrade or renew your plan to add more GSTIN profiles.",
       capacity,
     };
   }
 
-  if (capacity.used >= capacity.totalCapacity) {
+  const reusesPaidSlot =
+    gstinNumber !== undefined && capacity.retainedGstins.includes(normalizeGstin(gstinNumber));
+
+  if (!reusesPaidSlot && capacity.used >= capacity.totalCapacity) {
+    const retainedNote =
+      capacity.retainedSlots > 0
+        ? ` ${capacity.retainedSlots} slot${capacity.retainedSlots === 1 ? " is" : "s are"} still held by GSTIN${capacity.retainedSlots === 1 ? "" : "s"} deleted during this billing period; ${capacity.retainedSlots === 1 ? "it frees" : "they free"} up on ${capacity.periodEnd.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.`
+        : "";
+
     return {
       allowed: false,
-      reason: `GSTIN limit reached (${capacity.used} of ${capacity.totalCapacity} slots used). Please upgrade your plan or add additional GSTIN capacity.`,
+      reason: `GSTIN limit reached (${capacity.used} of ${capacity.totalCapacity} slots used).${retainedNote} Please upgrade your plan or add additional GSTIN capacity.`,
       capacity,
     };
   }
 
   return { allowed: true };
+}
+
+export interface GstinDeletionImpact {
+  gstinNumber: string;
+  legalName: string;
+  /** True when the slot stays billed until renewal. */
+  slotRetained: boolean;
+  /** Renewal date — when a retained slot is released. */
+  releasesOn: Date;
+  /** Slots that would remain available immediately after the delete. */
+  availableAfterDelete: number;
+  totalCapacity: number;
+  planName: string;
+}
+
+/**
+ * Explains what a user actually loses by deleting a profile, so the confirmation
+ * dialog can say it plainly instead of implying the slot comes back.
+ */
+export async function getGstinDeletionImpact(
+  userId: string,
+  profileId: string,
+  now: Date = new Date()
+): Promise<GstinDeletionImpact | null> {
+  const profile = await prisma.gstinProfile.findFirst({
+    where: { id: profileId, userId },
+    select: { gstinNumber: true, legalName: true },
+  });
+  if (!profile) return null;
+
+  const capacity = await getGstinCapacity(userId, now);
+  const [periodGstins, otherProfiles] = await Promise.all([
+    readPeriodGstins(userId, capacity.periodStart),
+    prisma.gstinProfile.findMany({
+      where: { userId, id: { not: profileId } },
+      select: { gstinNumber: true },
+    }),
+  ]);
+
+  const slotRetained = isSlotRetainedOnDelete({
+    gstin: profile.gstinNumber,
+    periodGstins,
+    otherActiveGstins: otherProfiles.map((p) => p.gstinNumber),
+  });
+
+  return {
+    gstinNumber: profile.gstinNumber,
+    legalName: profile.legalName,
+    slotRetained,
+    releasesOn: capacity.periodEnd,
+    availableAfterDelete: slotRetained ? capacity.available : capacity.available + 1,
+    totalCapacity: capacity.totalCapacity,
+    planName: capacity.planName,
+  };
 }
 
 /**

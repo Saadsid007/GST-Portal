@@ -42,6 +42,7 @@ model User {
   subscription       Subscription?
   gstinCapacity      GSTINCapacity?
   gstinPurchases     AdditionalGSTINPurchase[]
+  gstinCreationLogs  GstinCreationLog[]
   payments           Payment[]
   billingAuditLogs   BillingAuditLog[]
   auditLogs          AuditLog[]
@@ -124,6 +125,25 @@ model GstinProfile {
   @@index([userId])
   @@index([gstinNumber])
   @@map("gstin_profile")
+}
+
+/// Append-only ledger of every GSTIN profile creation. This — not the live
+/// gstin_profile count — is what quota is measured against: a user who deletes
+/// a profile has still consumed the slot for the current billing period, so
+/// delete-then-recreate cannot be used to cycle past the plan limit. The count
+/// resets naturally each period because usage is always counted from the
+/// subscription's startDate, which moves forward on renewal.
+model GstinCreationLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id")
+  profileId   String   @map("profile_id") @db.Uuid
+  gstinNumber String   @map("gstin_number")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("gstin_creation_log")
 }
 
 /// The GSTIN of a marketplace operator, as it applies to one of the seller's own GSTINs.
