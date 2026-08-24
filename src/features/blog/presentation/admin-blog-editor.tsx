@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bold,
@@ -28,9 +28,15 @@ import { SITE } from "@/config/site";
 import { BLOG_CATEGORIES, type BlogPostItem } from "@/features/blog/types/blog.types";
 import { createBlogAction, updateBlogAction } from "@/features/blog/actions/blog.actions";
 import { calculateReadTime, generateSlug } from "@/features/blog/utils/blog.utils";
+import { Markdown } from "@/components/markdown";
 
 interface AdminBlogEditorProps {
   initialPost?: BlogPostItem | null;
+}
+
+/** Escapes a literal so it can be embedded in a RegExp source safely. */
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 export function AdminBlogEditor({ initialPost }: AdminBlogEditorProps) {
@@ -70,22 +76,100 @@ export function AdminBlogEditor({ initialPost }: AdminBlogEditorProps) {
     }
   };
 
+  const editorRef = useRef<HTMLTextAreaElement>(null);
+
+  /** Applies an edit and restores the caret, so typing continues where expected. */
+  const applyEdit = (next: string, selStart: number, selEnd: number) => {
+    setContent(next);
+    // After React commits the new value; setting selection before that is undone.
+    requestAnimationFrame(() => {
+      const el = editorRef.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(selStart, selEnd);
+    });
+  };
+
+  /**
+   * Wraps the selection in inline markers (bold, italic, code).
+   * With nothing selected the markers are inserted and the caret is parked
+   * between them, so the next keystroke lands inside the formatting.
+   */
+  const wrapInline = (marker: string) => {
+    const el = editorRef.current;
+    if (!el) return;
+
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    const selected = content.slice(start, end);
+
+    // Already wrapped: unwrap, so the button toggles rather than nesting.
+    const before = content.slice(Math.max(0, start - marker.length), start);
+    const after = content.slice(end, end + marker.length);
+    if (before === marker && after === marker) {
+      const next =
+        content.slice(0, start - marker.length) + selected + content.slice(end + marker.length);
+      applyEdit(next, start - marker.length, end - marker.length);
+      return;
+    }
+
+    const next = content.slice(0, start) + marker + selected + marker + content.slice(end);
+    applyEdit(next, start + marker.length, end + marker.length);
+  };
+
+  /**
+   * Applies a line-start prefix (heading, list, quote).
+   *
+   * Markdown only recognises these at the beginning of a line, so inserting them
+   * at the caret — as this editor used to — produced "some text ## more", which
+   * is not a heading. Every fully or partially selected line gets the prefix, and
+   * a line that already carries it has it removed, making the button a toggle.
+   */
+  const toggleBlockPrefix = (prefix: string) => {
+    const el = editorRef.current;
+    if (!el) return;
+
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+
+    const lineStart = content.lastIndexOf("\n", start - 1) + 1;
+    const lineEndIdx = content.indexOf("\n", end);
+    const lineEnd = lineEndIdx === -1 ? content.length : lineEndIdx;
+
+    const block = content.slice(lineStart, lineEnd);
+    const lines = block.split("\n");
+
+    // Ordered lists renumber, so match any "N. " rather than the literal prefix.
+    const isOrdered = /^\d+\.\s$/.test(prefix);
+    const matcher = isOrdered ? /^\d+\.\s/ : new RegExp(`^${escapeRegExp(prefix)}`);
+
+    const allPrefixed = lines.every((line) => line.trim() === "" || matcher.test(line));
+
+    const updated = lines.map((line, i) => {
+      if (line.trim() === "") return line;
+      if (allPrefixed) return line.replace(matcher, "");
+      // Strip any existing block prefix first, so H2 -> H3 swaps cleanly
+      // instead of stacking into "## ### ".
+      const bare = line.replace(/^(#{1,6}\s|[-*]\s|\d+\.\s|>\s)/, "");
+      return `${isOrdered ? `${i + 1}. ` : prefix}${bare}`;
+    });
+
+    const nextBlock = updated.join("\n");
+    const next = content.slice(0, lineStart) + nextBlock + content.slice(lineEnd);
+    applyEdit(next, lineStart, lineStart + nextBlock.length);
+  };
+
+  /** Inserts text at the caret — used for links, images and code fences. */
   const insertFormatting = (prefix: string, suffix: string = "") => {
-    const textarea = document.getElementById("blog-content-editor") as HTMLTextAreaElement;
-    if (!textarea) return;
+    const el = editorRef.current;
+    if (!el) return;
 
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selectedText = content.substring(start, end) || "text";
-    const replacement = `${prefix}${selectedText}${suffix}`;
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    const selected = content.slice(start, end);
 
-    const newContent = content.substring(0, start) + replacement + content.substring(end);
-    setContent(newContent);
-
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start + prefix.length, end + prefix.length);
-    }, 50);
+    const next = content.slice(0, start) + prefix + selected + suffix + content.slice(end);
+    applyEdit(next, start + prefix.length, start + prefix.length + selected.length);
   };
 
   const handleInsertImage = () => {
@@ -339,7 +423,7 @@ export function AdminBlogEditor({ initialPost }: AdminBlogEditorProps) {
                 <div className="flex items-center gap-1 text-muted-foreground">
                   <button
                     type="button"
-                    onClick={() => insertFormatting("**", "**")}
+                    onClick={() => wrapInline("**")}
                     title="Bold"
                     className="rounded-lg p-1.5 hover:bg-accent hover:text-foreground"
                   >
@@ -347,7 +431,7 @@ export function AdminBlogEditor({ initialPost }: AdminBlogEditorProps) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => insertFormatting("*", "*")}
+                    onClick={() => wrapInline("*")}
                     title="Italic"
                     className="rounded-lg p-1.5 hover:bg-accent hover:text-foreground"
                   >
@@ -355,7 +439,7 @@ export function AdminBlogEditor({ initialPost }: AdminBlogEditorProps) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => insertFormatting("## ")}
+                    onClick={() => toggleBlockPrefix("## ")}
                     title="Heading 2"
                     className="rounded-lg p-1.5 hover:bg-accent hover:text-foreground"
                   >
@@ -363,7 +447,7 @@ export function AdminBlogEditor({ initialPost }: AdminBlogEditorProps) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => insertFormatting("### ")}
+                    onClick={() => toggleBlockPrefix("### ")}
                     title="Heading 3"
                     className="rounded-lg p-1.5 hover:bg-accent hover:text-foreground"
                   >
@@ -371,7 +455,7 @@ export function AdminBlogEditor({ initialPost }: AdminBlogEditorProps) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => insertFormatting("- ")}
+                    onClick={() => toggleBlockPrefix("- ")}
                     title="Bullet List"
                     className="rounded-lg p-1.5 hover:bg-accent hover:text-foreground"
                   >
@@ -379,7 +463,7 @@ export function AdminBlogEditor({ initialPost }: AdminBlogEditorProps) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => insertFormatting("1. ")}
+                    onClick={() => toggleBlockPrefix("1. ")}
                     title="Numbered List"
                     className="rounded-lg p-1.5 hover:bg-accent hover:text-foreground"
                   >
@@ -387,7 +471,7 @@ export function AdminBlogEditor({ initialPost }: AdminBlogEditorProps) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => insertFormatting("> ")}
+                    onClick={() => toggleBlockPrefix("> ")}
                     title="Quote"
                     className="rounded-lg p-1.5 hover:bg-accent hover:text-foreground"
                   >
@@ -425,6 +509,7 @@ export function AdminBlogEditor({ initialPost }: AdminBlogEditorProps) {
             {activeTab === "write" && (
               <div className="p-4">
                 <Textarea
+                  ref={editorRef}
                   id="blog-content-editor"
                   rows={22}
                   value={content}
@@ -439,9 +524,9 @@ export function AdminBlogEditor({ initialPost }: AdminBlogEditorProps) {
 
             {/* Tab 2: Preview */}
             {activeTab === "preview" && (
-              <div className="prose dark:prose-invert min-h-[400px] max-w-none p-8 text-sm">
+              <div className="min-h-[400px] p-8">
                 {content ? (
-                  <div className="leading-relaxed whitespace-pre-line">{content}</div>
+                  <Markdown content={content} />
                 ) : (
                   <p className="py-12 text-center text-muted-foreground italic">
                     Start typing content in the editor tab to see live preview here...

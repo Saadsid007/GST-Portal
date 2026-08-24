@@ -1,5 +1,8 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+/* `prose` was already used by the blog, docs and editor preview, but the plugin
+   supplying it was never installed — so those classes styled nothing. */
+@plugin "@tailwindcss/typography";
 /* Every brand colour lives here. This is the only file to edit to re-skin. */
 @import "./theme.css";
 

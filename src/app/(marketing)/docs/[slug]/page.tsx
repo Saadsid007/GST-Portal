@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { DOCS_DATA } from "@/lib/seo/docs-data";
 import { JsonLd } from "@/components/json-ld";
+import { Markdown } from "@/components/markdown";
 import { articleSchema, breadcrumbSchema } from "@/lib/seo/structured-data";
 import { ChevronRight, BookOpen, Clock, ArrowLeft, ArrowRight } from "lucide-react";
 
@@ -118,8 +119,8 @@ export default async function DocDetailPage({ params }: Props) {
           </div>
 
           {/* Article Body */}
-          <article className="prose dark:prose-invert max-w-none space-y-4 text-xs leading-relaxed sm:text-sm">
-            <div className="whitespace-pre-line text-foreground/90">{doc.content}</div>
+          <article>
+            <Markdown content={doc.content} />
           </article>
 
           {/* Bottom Nav */}

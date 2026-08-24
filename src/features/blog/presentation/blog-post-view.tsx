@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Calendar, Clock, Check, Copy, Zap, List } from "lucide-react";
 import { Button } from "@/components/ui";
+import { Markdown } from "@/components/markdown";
 import type { BlogPostItem } from "@/features/blog/types/blog.types";
 
 interface BlogPostViewProps {
@@ -161,9 +162,7 @@ export function BlogPostView({ post, relatedPosts = [] }: BlogPostViewProps) {
               : "mx-auto max-w-3xl space-y-8 lg:col-span-4"
           }
         >
-          <div className="prose dark:prose-invert max-w-none space-y-6 text-sm leading-relaxed sm:text-base">
-            <div className="whitespace-pre-line text-foreground/90">{post.content}</div>
-          </div>
+          <Markdown content={post.content} className="prose-base" />
 
           {/* Author Box */}
           <div className="flex items-start gap-4 rounded-3xl border border-border bg-subtle p-6 shadow-xs">
