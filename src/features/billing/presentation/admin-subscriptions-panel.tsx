@@ -12,14 +12,13 @@ import {
   type AdminBillingStats,
   type AdminSubscriberItem,
 } from "@/features/billing/actions/admin-subscription.actions";
-import { PLANS, type PlanSlug } from "@/features/billing/config/pricing.config";
+import { type PlanSlug } from "@/features/billing/config/pricing.config";
 import {
-  Users,
   Search,
-  Zap,
   TrendingUp,
   ShieldCheck,
   RotateCcw,
+  Ban,
   Plus,
   Minus,
   Calendar,
@@ -153,7 +152,11 @@ export function AdminSubscriptionsPanel() {
   }
 
   function handleResetTrial(user: AdminSubscriberItem) {
-    if (!confirm(`Reset ${user.userName} (${user.userEmail}) to a fresh 30-Day Free Trial with 7 GSTINs?`)) {
+    if (
+      !confirm(
+        `Reset ${user.userName} (${user.userEmail}) to a fresh 30-Day Free Trial with 7 GSTINs?`
+      )
+    ) {
       return;
     }
     startAction(async () => {
@@ -186,7 +189,9 @@ export function AdminSubscriptionsPanel() {
             </div>
             <p className="mt-2 text-2xl font-black text-foreground">
               {stats.activeSubscribers}{" "}
-              <span className="text-xs font-medium text-muted-foreground">/ {stats.totalUsers} users</span>
+              <span className="text-xs font-medium text-muted-foreground">
+                / {stats.totalUsers} users
+              </span>
             </p>
             <p className="mt-1 text-[11px] text-muted-foreground">
               {stats.trialUsers} on 30-day trial • {stats.expiredUsers} expired
@@ -195,7 +200,9 @@ export function AdminSubscriptionsPanel() {
 
           <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-xs font-bold tracking-wider uppercase">GSTIN Slots Allocated</span>
+              <span className="text-xs font-bold tracking-wider uppercase">
+                GSTIN Slots Allocated
+              </span>
               <Sliders className="size-4 text-primary-ink" />
             </div>
             <p className="mt-2 text-2xl font-black text-primary-ink">
@@ -208,7 +215,9 @@ export function AdminSubscriptionsPanel() {
 
           <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-xs font-bold tracking-wider uppercase">Total Platform Revenue</span>
+              <span className="text-xs font-bold tracking-wider uppercase">
+                Total Platform Revenue
+              </span>
               <CreditCard className="size-4 text-emerald-600" />
             </div>
             <p className="mt-2 text-2xl font-black text-emerald-600 dark:text-emerald-400">
@@ -285,11 +294,12 @@ export function AdminSubscriptionsPanel() {
       <div className="space-y-4 rounded-3xl border border-border bg-card p-6 shadow-sm">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-bold tracking-wide uppercase text-foreground">
+            <h3 className="text-sm font-bold tracking-wide text-foreground uppercase">
               Subscribers &amp; Capacity Control ({total})
             </h3>
             <p className="text-xs text-muted-foreground">
-              Directly override plans, grant extra GSTIN slots, extend duration, or reset trials for any user.
+              Directly override plans, grant extra GSTIN slots, extend duration, or reset trials for
+              any user.
             </p>
           </div>
           {loading && <Loader2 className="size-4 animate-spin text-primary-ink" />}
@@ -315,11 +325,13 @@ export function AdminSubscriptionsPanel() {
                 const isExpired = user.status === "EXPIRED";
 
                 return (
-                  <tr key={user.userId} className="hover:bg-accent/40 transition">
+                  <tr key={user.userId} className="transition hover:bg-accent/40">
                     <td className="px-4 py-3">
                       <div>
                         <p className="font-bold text-foreground">{user.userName}</p>
-                        <p className="font-mono text-[11px] text-muted-foreground">{user.userEmail}</p>
+                        <p className="font-mono text-[11px] text-muted-foreground">
+                          {user.userEmail}
+                        </p>
                       </div>
                     </td>
 
@@ -369,7 +381,7 @@ export function AdminSubscriptionsPanel() {
                       </div>
                     </td>
 
-                    <td className="px-4 py-3 font-bold text-foreground whitespace-nowrap">
+                    <td className="px-4 py-3 font-bold whitespace-nowrap text-foreground">
                       {formatCurrency(user.totalPaid)}
                     </td>
 
@@ -382,7 +394,7 @@ export function AdminSubscriptionsPanel() {
                             setNewPlanSlug(user.planSlug);
                             setPlanModalOpen(true);
                           }}
-                          className="rounded-lg border border-border bg-background px-2.5 py-1 text-[11px] font-bold text-foreground transition hover:bg-accent hover:border-primary/40"
+                          className="rounded-lg border border-border bg-background px-2.5 py-1 text-[11px] font-bold text-foreground transition hover:border-primary/40 hover:bg-accent"
                         >
                           Plan
                         </button>
@@ -394,7 +406,7 @@ export function AdminSubscriptionsPanel() {
                             setCapacityDelta(5);
                             setCapacityModalOpen(true);
                           }}
-                          className="rounded-lg border border-border bg-background px-2.5 py-1 text-[11px] font-bold text-primary-ink transition hover:bg-primary/10 hover:border-primary/40"
+                          className="rounded-lg border border-border bg-background px-2.5 py-1 text-[11px] font-bold text-primary-ink transition hover:border-primary/40 hover:bg-primary/10"
                         >
                           +Capacity
                         </button>
@@ -406,7 +418,7 @@ export function AdminSubscriptionsPanel() {
                             setExtendDays(30);
                             setExtendModalOpen(true);
                           }}
-                          className="rounded-lg border border-border bg-background px-2.5 py-1 text-[11px] font-bold text-emerald-600 transition hover:bg-emerald-500/10 hover:border-emerald-500/40"
+                          className="rounded-lg border border-border bg-background px-2.5 py-1 text-[11px] font-bold text-emerald-600 transition hover:border-emerald-500/40 hover:bg-emerald-500/10"
                         >
                           +Days
                         </button>
@@ -419,6 +431,20 @@ export function AdminSubscriptionsPanel() {
                         >
                           <RotateCcw className="size-3.5" />
                         </button>
+
+                        {/* The action existed server-side with no way to reach
+                            it. Hidden on an already-expired subscription, where
+                            it would be a no-op. */}
+                        {!isExpired && (
+                          <button
+                            type="button"
+                            onClick={() => handleExpire(user)}
+                            title="Expire this subscription immediately"
+                            className="rounded-lg border border-border bg-background p-1 text-muted-foreground transition hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+                          >
+                            <Ban className="size-3.5" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -470,7 +496,8 @@ export function AdminSubscriptionsPanel() {
 
             <h3 className="text-base font-bold text-foreground">Change User Plan</h3>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Target: <span className="font-semibold text-foreground">{selectedUser.userName}</span> ({selectedUser.userEmail})
+              Target: <span className="font-semibold text-foreground">{selectedUser.userName}</span>{" "}
+              ({selectedUser.userEmail})
             </p>
 
             <div className="my-5 space-y-4 text-xs">
@@ -549,19 +576,26 @@ export function AdminSubscriptionsPanel() {
 
             <h3 className="text-base font-bold text-foreground">Grant / Adjust GSTIN Capacity</h3>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Target: <span className="font-semibold text-foreground">{selectedUser.userName}</span> ({selectedUser.userEmail})
+              Target: <span className="font-semibold text-foreground">{selectedUser.userName}</span>{" "}
+              ({selectedUser.userEmail})
             </p>
 
             <div className="my-5 space-y-4 text-xs">
               <div className="rounded-xl border border-border bg-background p-3">
                 <div className="flex justify-between text-muted-foreground">
                   <span>Current Capacity:</span>
-                  <span className="font-bold text-foreground">{selectedUser.totalCapacity} GSTINs</span>
+                  <span className="font-bold text-foreground">
+                    {selectedUser.totalCapacity} GSTINs
+                  </span>
                 </div>
-                <div className="flex justify-between text-muted-foreground mt-1">
+                <div className="mt-1 flex justify-between text-muted-foreground">
                   <span>New Total Capacity:</span>
                   <span className="font-bold text-primary-ink">
-                    {Math.max(selectedUser.includedGSTINs, selectedUser.totalCapacity + capacityDelta)} GSTINs
+                    {Math.max(
+                      selectedUser.includedGSTINs,
+                      selectedUser.totalCapacity + capacityDelta
+                    )}{" "}
+                    GSTINs
                   </span>
                 </div>
               </div>
@@ -640,7 +674,8 @@ export function AdminSubscriptionsPanel() {
 
             <h3 className="text-base font-bold text-foreground">Extend Subscription Duration</h3>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              Target: <span className="font-semibold text-foreground">{selectedUser.userName}</span> ({selectedUser.userEmail})
+              Target: <span className="font-semibold text-foreground">{selectedUser.userName}</span>{" "}
+              ({selectedUser.userEmail})
             </p>
 
             <div className="my-5 space-y-4 text-xs">
@@ -698,7 +733,11 @@ export function AdminSubscriptionsPanel() {
                 disabled={actionPending}
                 className="flex w-1/2 items-center justify-center gap-1.5 rounded-xl brand-gradient py-2.5 text-xs font-bold text-white shadow hover:brightness-110 disabled:opacity-50"
               >
-                {actionPending ? <Loader2 className="size-3.5 animate-spin" /> : `Extend +${extendDays} Days`}
+                {actionPending ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  `Extend +${extendDays} Days`
+                )}
               </button>
             </div>
           </div>

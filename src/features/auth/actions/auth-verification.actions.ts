@@ -11,6 +11,7 @@ import {
   hashPassword as authHashPassword,
   verifyPassword as authVerifyPassword,
 } from "better-auth/crypto";
+import { consumeRateLimit, resetRateLimit, retryAfterMessage } from "@/lib/rate-limit";
 import { z } from "zod";
 import crypto from "crypto";
 
@@ -48,21 +49,38 @@ export async function requestEmailVerificationAction(input: {
     const { email } = RequestVerificationSchema.parse(input);
     const normalizedEmail = email.toLowerCase().trim();
 
+    // Unauthenticated and it sends mail, so it is both an email bomb aimed at
+    // any known address and a free way to burn our sending reputation.
+    const limit = await consumeRateLimit("otpRequest", normalizedEmail);
+    if (!limit.allowed) {
+      return {
+        success: false,
+        error: `Too many verification emails requested. ${retryAfterMessage(limit.resetAt)}`,
+      };
+    }
+
     const user = await prisma.user.findUnique({
       where: { email: normalizedEmail },
     });
 
-    if (!user) {
-      return { success: false, error: "Account not found with this email." };
+    // Same response whether or not the account exists. Saying "account not
+    // found" here turns this into a free registered-email oracle.
+    if (!user || user.emailVerified) {
+      return { success: true };
     }
 
-    if (user.emailVerified) {
-      return { success: true }; // Already verified
-    }
-
-    await EmailService.sendVerificationEmail({
+    // Dispatched in the background: SMTP can take tens of seconds and the
+    // response must not block on it.
+    void EmailService.sendVerificationEmail({
       to: normalizedEmail,
       name: user.name,
+    }).then((result) => {
+      if (!result.success) {
+        logger.error(
+          { email: normalizedEmail, error: result.error },
+          "Verification OTP failed to dispatch"
+        );
+      }
     });
 
     logger.info({ email: normalizedEmail }, "Email verification OTP dispatched");
@@ -89,6 +107,16 @@ export async function verifyEmailOtpAction(input: {
   try {
     const { email, otp } = VerifyEmailOtpSchema.parse(input);
     const normalizedEmail = email.toLowerCase().trim();
+
+    // Second line of defence behind the per-code attempt cap: this one bounds
+    // guessing across freshly requested codes too.
+    const limit = await consumeRateLimit("otpVerify", normalizedEmail);
+    if (!limit.allowed) {
+      return {
+        success: false,
+        error: `Too many verification attempts. ${retryAfterMessage(limit.resetAt)}`,
+      };
+    }
 
     const isValid = await EmailService.verifyOtp(normalizedEmail, "EMAIL_VERIFICATION", otp);
 
@@ -131,6 +159,16 @@ export async function requestPasswordResetAction(input: {
   try {
     const { email } = RequestPasswordResetSchema.parse(input);
     const normalizedEmail = email.toLowerCase().trim();
+
+    // Rate limited before the user lookup so the limiter itself cannot be used
+    // to time whether an account exists.
+    const limit = await consumeRateLimit("otpRequest", normalizedEmail);
+    if (!limit.allowed) {
+      return {
+        success: false,
+        error: `Too many reset emails requested. ${retryAfterMessage(limit.resetAt)}`,
+      };
+    }
 
     const user = await prisma.user.findUnique({
       where: { email: normalizedEmail },
@@ -181,6 +219,16 @@ export async function verifyAndResetPasswordAction(input: {
   try {
     const { email, otp, newPassword } = ResetPasswordSchema.parse(input);
     const normalizedEmail = email.toLowerCase().trim();
+
+    // The highest-value target in the app: a guessed code here is a full
+    // account takeover. Capped per code (attempts column) and per address here.
+    const limit = await consumeRateLimit("passwordReset", normalizedEmail);
+    if (!limit.allowed) {
+      return {
+        success: false,
+        error: `Too many password reset attempts. ${retryAfterMessage(limit.resetAt)}`,
+      };
+    }
 
     const isValid = await EmailService.verifyOtp(normalizedEmail, "PASSWORD_RESET", otp);
 
@@ -237,11 +285,16 @@ export async function verifyAndResetPasswordAction(input: {
       });
     }
 
-    // Send security confirmation notification
+    // Sessions are not revoked here — Better Auth owns that — but the user is
+    // told, so a reset they did not perform is visible immediately.
     void EmailService.sendPasswordChangedNotification({
       to: normalizedEmail,
       name: user.name,
     });
+
+    // The flow completed legitimately, so the throttle should not follow the
+    // user into their next genuine reset.
+    await resetRateLimit("passwordReset", normalizedEmail);
 
     logger.info(
       { email: normalizedEmail },

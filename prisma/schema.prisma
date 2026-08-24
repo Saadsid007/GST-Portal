@@ -93,11 +93,32 @@ model Verification {
   id         String    @id
   identifier String
   value      String
+  /// Failed OTP submissions against this code. A 6-digit OTP is only ~1M wide,
+  /// so without a cap it is brute-forceable inside its own validity window.
+  /// The code is destroyed once this passes the configured maximum.
+  attempts   Int       @default(0)
   expiresAt  DateTime  @map("expires_at") @db.Timestamptz
   createdAt  DateTime? @default(now()) @map("created_at") @db.Timestamptz
   updatedAt  DateTime? @updatedAt @map("updated_at") @db.Timestamptz
 
   @@map("verification")
+}
+
+/// Fixed-window rate limiter, persisted so limits survive a deploy and hold
+/// across instances — an in-memory Map would reset on every restart, which is
+/// exactly when an attacker retries. One row per (action, subject).
+model RateLimit {
+  id        String   @id @default(uuid()) @db.Uuid
+  /// "<action>:<subject>", e.g. "otp_request:user@example.com".
+  key       String   @unique
+  count     Int      @default(0)
+  /// When the current window ends. Past this, count resets on next use.
+  resetAt   DateTime @map("reset_at") @db.Timestamptz
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([resetAt])
+  @@map("rate_limit")
 }
 
 // -----------------------------------------------------------------------------

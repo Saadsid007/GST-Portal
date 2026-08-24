@@ -22,17 +22,25 @@ interface Props {
 }
 
 export function BillingDashboard({ initialData }: Props) {
-  const [data, setData] = useState<BillingOverview>(initialData);
   const [cancelling, setCancelling] = useState(false);
   const router = useRouter();
 
+  // Read straight from props rather than seeding state with them: useState
+  // ignores later prop changes, so after router.refresh() the page re-rendered
+  // with fresh server data while the screen kept showing the mount-time copy —
+  // buying capacity left the old numbers on display.
+  const data = initialData;
   const sub = data.subscription;
   const cap = data.capacity;
   const isTrial = sub.isTrial;
   const isExpired = sub.isExpired;
 
   async function handleCancelAutoRenew() {
-    if (!confirm("Are you sure you want to cancel auto-renewal? Your plan will remain active until the end of the current billing cycle.")) {
+    if (
+      !confirm(
+        "Are you sure you want to cancel auto-renewal? Your plan will remain active until the end of the current billing cycle."
+      )
+    ) {
       return;
     }
     setCancelling(true);
@@ -70,17 +78,16 @@ export function BillingDashboard({ initialData }: Props) {
               )}
             </div>
 
-            <h1 className="text-2xl font-black text-foreground md:text-3xl">
-              {sub.planName}
-            </h1>
+            <h1 className="text-2xl font-black text-foreground md:text-3xl">{sub.planName}</h1>
             <p className="text-sm text-muted-foreground">
-              Unlimited GSTR-1 return generations included. Client capacity: {cap.totalCapacity} GSTINs.
+              Unlimited GSTR-1 return generations included. Client capacity: {cap.totalCapacity}{" "}
+              GSTINs.
             </p>
           </div>
 
           {/* Pricing & Renewal Pill */}
           <div className="flex flex-col gap-2 rounded-2xl border border-border bg-background p-4 text-xs sm:flex-row sm:items-center">
-            <div className="pr-4 border-r border-border">
+            <div className="border-r border-border pr-4">
               <p className="text-muted-foreground">Plan Billing</p>
               <p className="text-base font-bold text-foreground">
                 {isTrial ? "₹0 / 30 Days" : `₹${sub.monthlyPrice} / month`}
@@ -88,9 +95,7 @@ export function BillingDashboard({ initialData }: Props) {
             </div>
 
             <div className="pl-1">
-              <p className="text-muted-foreground">
-                {isExpired ? "Expired On" : "Renewal Date"}
-              </p>
+              <p className="text-muted-foreground">{isExpired ? "Expired On" : "Renewal Date"}</p>
               <p className="flex items-center gap-1.5 font-bold text-foreground">
                 <Calendar className="size-3.5 text-primary-ink" />
                 {new Date(sub.endDate).toLocaleDateString("en-IN", {
@@ -122,9 +127,7 @@ export function BillingDashboard({ initialData }: Props) {
 
           <div className="space-y-1 rounded-2xl border border-border bg-background p-4">
             <p className="text-xs text-muted-foreground">Add-on Cost</p>
-            <p className="text-sm font-extrabold text-primary-ink">
-              ₹6 / GSTIN / mo
-            </p>
+            <p className="text-sm font-extrabold text-primary-ink">₹6 / GSTIN / mo</p>
           </div>
 
           <div className="space-y-1 rounded-2xl border border-border bg-background p-4">
@@ -151,7 +154,8 @@ export function BillingDashboard({ initialData }: Props) {
           <div className="flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-xs font-semibold text-amber-700 dark:text-amber-300">
             <RotateCcw className="size-4 shrink-0" />
             <span>
-              Downgrade scheduled: Your subscription will switch to {sub.scheduledPlanSlug.replace("_", " ")} on{" "}
+              Downgrade scheduled: Your subscription will switch to{" "}
+              {sub.scheduledPlanSlug.replace("_", " ")} on{" "}
               {new Date(sub.endDate).toLocaleDateString("en-IN")}.
             </span>
           </div>
@@ -159,11 +163,7 @@ export function BillingDashboard({ initialData }: Props) {
       </div>
 
       {/* GSTIN Usage Widget */}
-      <GstinUsageWidget
-        capacity={cap}
-        subscription={sub}
-        onRefresh={() => router.refresh()}
-      />
+      <GstinUsageWidget capacity={cap} onRefresh={() => router.refresh()} />
 
       {/* Plan Selector Grid */}
       <PlanComparisonGrid

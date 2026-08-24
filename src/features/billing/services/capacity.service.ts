@@ -540,25 +540,39 @@ export async function addGstinCapacity(input: {
   const sub = await getOrCreateSubscription(userId, now);
 
   await prisma.$transaction(async (tx) => {
-    // 1. Record payment
-    await tx.payment.create({
-      data: {
-        userId,
-        provider: "RAZORPAY",
-        providerOrderId: providerOrderId ?? null,
-        providerPaymentId: paymentId,
-        amount: amountRupees,
-        currency: "INR",
-        status: "SUCCESS",
-        paymentType: "ADDITIONAL_GSTIN",
-        planSlug: sub.planSlug,
-        metadata: {
-          quantity,
-          pricePerGSTIN: ADDITIONAL_GSTIN_PRICE_MONTHLY,
-          cycleEndDate: sub.endDate.toISOString(),
-        },
+    // 1. Settle the payment. The checkout flow already wrote a CREATED row for
+    //    this order — that row is the authoritative record of what was paid for,
+    //    so it is updated rather than duplicated. The webhook path has no
+    //    pre-existing row, hence the upsert.
+    const paymentData = {
+      userId,
+      provider: "RAZORPAY",
+      providerPaymentId: paymentId,
+      amount: amountRupees,
+      currency: "INR",
+      status: "SUCCESS",
+      paymentType: "ADDITIONAL_GSTIN",
+      planSlug: sub.planSlug,
+      metadata: {
+        quantity,
+        pricePerGSTIN: ADDITIONAL_GSTIN_PRICE_MONTHLY,
+        cycleEndDate: sub.endDate.toISOString(),
       },
-    });
+    };
+
+    if (providerOrderId) {
+      await tx.payment.upsert({
+        where: { providerOrderId },
+        create: { ...paymentData, providerOrderId },
+        update: {
+          providerPaymentId: paymentId,
+          status: "SUCCESS",
+          metadata: paymentData.metadata,
+        },
+      });
+    } else {
+      await tx.payment.create({ data: paymentData });
+    }
 
     // 2. Record purchase ledger
     await tx.additionalGSTINPurchase.create({

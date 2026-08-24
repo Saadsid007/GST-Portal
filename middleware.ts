@@ -17,9 +17,19 @@ const PROTECTED_PREFIXES = [
   "/admin",
 ] as const;
 
-const AUTH_ROUTES = ["/login", "/register", "/forgot-password", "/reset-password"] as const;
+const AUTH_ROUTES = [
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
+  // Sits under /admin, which is otherwise protected. Without this exemption the
+  // admin sign-in screen requires a session to reach — i.e. it is unreachable
+  // for exactly the person who needs it.
+  "/admin/login",
+] as const;
 
 function isProtectedRoute(pathname: string): boolean {
+  if (isAuthRoute(pathname)) return false;
   return PROTECTED_PREFIXES.some((route) => pathname === route || pathname.startsWith(route + "/"));
 }
 

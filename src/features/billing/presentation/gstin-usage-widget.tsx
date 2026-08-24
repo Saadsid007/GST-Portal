@@ -2,17 +2,15 @@
 
 import { useState } from "react";
 import type { GSTINCapacityStatus } from "@/features/billing/services/capacity.service";
-import type { SubscriptionStatusSummary } from "@/features/billing/services/subscription.service";
 import { AddGstinModal } from "@/features/billing/presentation/add-gstin-modal";
 import { Plus, Sparkles, AlertTriangle, CheckCircle2, History } from "lucide-react";
 
 interface Props {
   capacity: GSTINCapacityStatus;
-  subscription: SubscriptionStatusSummary;
   onRefresh?: () => void;
 }
 
-export function GstinUsageWidget({ capacity, subscription, onRefresh }: Props) {
+export function GstinUsageWidget({ capacity, onRefresh }: Props) {
   const [modalOpen, setModalOpen] = useState(false);
 
   const percent = Math.min(100, capacity.usagePercent);
@@ -161,7 +159,6 @@ export function GstinUsageWidget({ capacity, subscription, onRefresh }: Props) {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         capacity={capacity}
-        subscription={subscription}
         onSuccess={() => {
           setModalOpen(false);
           onRefresh?.();

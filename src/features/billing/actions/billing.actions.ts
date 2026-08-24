@@ -124,6 +124,23 @@ export async function createPlanSubscriptionOrderAction(planSlug: PlanSlug): Pro
       type: "SUBSCRIPTION",
     });
 
+    // Persist what was actually ordered, owned by this user. Confirmation reads
+    // the plan and price back from here — never from the client, which would
+    // otherwise be free to pay for Starter and claim CA Firm.
+    await prisma.payment.create({
+      data: {
+        userId,
+        provider: "RAZORPAY",
+        providerOrderId: order.orderId,
+        amount: plan.monthlyPrice,
+        currency: "INR",
+        status: "CREATED",
+        paymentType: "SUBSCRIPTION",
+        planSlug: plan.slug,
+        metadata: { receipt, planName: plan.name },
+      },
+    });
+
     return {
       success: true,
       data: {
@@ -160,8 +177,23 @@ export async function createGstinAddonOrderAction(quantity: number): Promise<{
     const receipt = `addon_${Date.now().toString(36)}`;
     const order = await createRazorpayOrder(proration.proratedAmount, receipt, {
       userId,
-      quantity: String(quantity),
+      quantity: String(proration.quantity),
       type: "ADDITIONAL_GSTIN",
+    });
+
+    // Quantity and price are recorded server-side against this order, so
+    // confirmation cannot be replayed with a larger quantity than was paid for.
+    await prisma.payment.create({
+      data: {
+        userId,
+        provider: "RAZORPAY",
+        providerOrderId: order.orderId,
+        amount: proration.proratedAmount,
+        currency: "INR",
+        status: "CREATED",
+        paymentType: "ADDITIONAL_GSTIN",
+        metadata: { receipt, quantity: proration.quantity },
+      },
     });
 
     return {
@@ -180,35 +212,88 @@ export async function createGstinAddonOrderAction(quantity: number): Promise<{
 }
 
 /**
- * Verifies Razorpay checkout signature and activates plan immediately.
+ * Loads the pending order this user actually placed.
+ *
+ * The checkout signature is an HMAC over `orderId|paymentId` only — it proves a
+ * payment happened against that order, but it binds neither the plan, the
+ * quantity nor the amount. Confirmation must therefore read what was ordered
+ * from our own record, scoped to the caller, and ignore the client entirely.
+ */
+async function claimPendingOrder(input: {
+  userId: string;
+  orderId: string;
+  paymentId: string;
+  signature: string;
+  paymentType: "SUBSCRIPTION" | "ADDITIONAL_GSTIN";
+}): Promise<
+  | { ok: true; order: { amount: number; planSlug: string | null; metadata: unknown } }
+  | { ok: false; error: string }
+> {
+  const valid = verifyCheckoutSignature({
+    orderId: input.orderId,
+    paymentId: input.paymentId,
+    signature: input.signature,
+  });
+  if (!valid) return { ok: false, error: "Invalid payment signature." };
+
+  const order = await prisma.payment.findUnique({
+    where: { providerOrderId: input.orderId },
+  });
+
+  // Scoped to the caller: an order belonging to someone else is not theirs to
+  // redeem, even with a valid signature for it.
+  if (!order || order.userId !== input.userId || order.paymentType !== input.paymentType) {
+    return { ok: false, error: "Order not found for this account." };
+  }
+
+  if (order.status === "SUCCESS") {
+    return { ok: false, error: "This payment has already been applied." };
+  }
+
+  return {
+    ok: true,
+    order: { amount: order.amount, planSlug: order.planSlug, metadata: order.metadata },
+  };
+}
+
+/**
+ * Verifies Razorpay checkout signature and activates the plan that was ordered.
  */
 export async function confirmPlanPaymentAction(input: {
   orderId: string;
   paymentId: string;
   signature: string;
-  planSlug: PlanSlug;
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const session = await requireSession();
     const userId = session.user.id;
 
-    const valid = verifyCheckoutSignature({
+    const claim = await claimPendingOrder({
+      userId,
       orderId: input.orderId,
       paymentId: input.paymentId,
       signature: input.signature,
+      paymentType: "SUBSCRIPTION",
     });
+    if (!claim.ok) return { success: false, error: claim.error };
 
-    if (!valid) {
-      return { success: false, error: "Invalid payment signature." };
+    // The plan comes from the order we wrote at checkout time, never from input.
+    const plan = getPlanDefinition(claim.order.planSlug ?? "free_trial");
+    if (plan.monthlyPrice <= 0) {
+      return { success: false, error: "This order has no purchasable plan." };
     }
 
-    const plan = getPlanDefinition(input.planSlug);
+    await prisma.payment.update({
+      where: { providerOrderId: input.orderId },
+      data: { status: "SUCCESS", providerPaymentId: input.paymentId },
+    });
+
     await activatePaidPlan({
       userId,
-      planSlug: input.planSlug,
+      planSlug: plan.slug,
       paymentId: input.paymentId,
       providerOrderId: input.orderId,
-      amountRupees: plan.monthlyPrice,
+      amountRupees: claim.order.amount,
     });
 
     revalidatePath("/billing");
@@ -225,33 +310,43 @@ export async function confirmPlanPaymentAction(input: {
 }
 
 /**
- * Verifies Razorpay checkout signature and adds GSTIN capacity immediately.
+ * Verifies Razorpay checkout signature and adds the GSTIN capacity that was paid for.
  */
 export async function confirmGstinAddonPaymentAction(input: {
   orderId: string;
   paymentId: string;
   signature: string;
-  quantity: number;
-  amountRupees: number;
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const session = await requireSession();
     const userId = session.user.id;
 
-    const valid = verifyCheckoutSignature({
+    const claim = await claimPendingOrder({
+      userId,
       orderId: input.orderId,
       paymentId: input.paymentId,
       signature: input.signature,
+      paymentType: "ADDITIONAL_GSTIN",
     });
+    if (!claim.ok) return { success: false, error: claim.error };
 
-    if (!valid) {
-      return { success: false, error: "Invalid payment signature." };
+    // Quantity comes from the stored order, so a ₹6 payment cannot be confirmed
+    // as a thousand slots.
+    const meta = (claim.order.metadata ?? {}) as { quantity?: number };
+    const quantity = Number(meta.quantity);
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      return { success: false, error: "Order is missing a valid quantity." };
     }
+
+    await prisma.payment.update({
+      where: { providerOrderId: input.orderId },
+      data: { status: "SUCCESS", providerPaymentId: input.paymentId },
+    });
 
     await addGstinCapacity({
       userId,
-      quantity: input.quantity,
-      amountRupees: input.amountRupees,
+      quantity,
+      amountRupees: claim.order.amount,
       paymentId: input.paymentId,
       providerOrderId: input.orderId,
     });

@@ -2,29 +2,26 @@
 
 import { useEffect, useState, useTransition } from "react";
 import type { GSTINCapacityStatus } from "@/features/billing/services/capacity.service";
-import type { SubscriptionStatusSummary } from "@/features/billing/services/subscription.service";
 import {
   calculateGstinProrationAction,
   confirmGstinAddonPaymentAction,
   createGstinAddonOrderAction,
 } from "@/features/billing/actions/billing.actions";
 import { X, Plus, Minus, Loader2, ShieldCheck, Zap } from "lucide-react";
-
-declare global {
-  interface Window {
-    Razorpay?: any;
-  }
-}
+import {
+  loadRazorpayCheckout,
+  type RazorpayCheckoutResponse,
+  type RazorpayFailureResponse,
+} from "@/features/billing/types/razorpay-checkout";
 
 interface Props {
   open: boolean;
   onClose: () => void;
   capacity: GSTINCapacityStatus;
-  subscription: SubscriptionStatusSummary;
   onSuccess: () => void;
 }
 
-export function AddGstinModal({ open, onClose, capacity, subscription, onSuccess }: Props) {
+export function AddGstinModal({ open, onClose, capacity, onSuccess }: Props) {
   const [quantity, setQuantity] = useState(2);
   const [proratedAmount, setProratedAmount] = useState(12);
   const [fullAmount, setFullAmount] = useState(12);
@@ -47,22 +44,11 @@ export function AddGstinModal({ open, onClose, capacity, subscription, onSuccess
 
   if (!open) return null;
 
-  function loadRazorpayScript(): Promise<boolean> {
-    return new Promise((resolve) => {
-      if (window.Razorpay) return resolve(true);
-      const script = document.createElement("script");
-      script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
-      document.body.appendChild(script);
-    });
-  }
-
   function handleCheckout() {
     setError(null);
     startPay(async () => {
-      const loaded = await loadRazorpayScript();
-      if (!loaded) {
+      const Checkout = await loadRazorpayCheckout();
+      if (!Checkout) {
         setError("Failed to load Razorpay SDK. Please check your internet connection.");
         return;
       }
@@ -82,17 +68,11 @@ export function AddGstinModal({ open, onClose, capacity, subscription, onSuccess
         name: "GSTPilot",
         description: `Add ${quantity} GSTIN slot(s) for ${remainingDays} remaining days`,
         order_id: orderData.orderId,
-        handler: async function (response: {
-          razorpay_payment_id: string;
-          razorpay_order_id: string;
-          razorpay_signature: string;
-        }) {
+        handler: async function (response: RazorpayCheckoutResponse) {
           const confirmRes = await confirmGstinAddonPaymentAction({
             orderId: response.razorpay_order_id,
             paymentId: response.razorpay_payment_id,
             signature: response.razorpay_signature,
-            quantity,
-            amountRupees: orderData.proration.proratedAmount,
           });
 
           if (confirmRes.success) {
@@ -106,8 +86,8 @@ export function AddGstinModal({ open, onClose, capacity, subscription, onSuccess
         },
       };
 
-      const rzp = new window.Razorpay(options);
-      rzp.on("payment.failed", function (response: any) {
+      const rzp = new Checkout(options);
+      rzp.on("payment.failed", function (response: RazorpayFailureResponse) {
         setError(response.error?.description || "Payment was not completed.");
       });
       rzp.open();
@@ -131,7 +111,8 @@ export function AddGstinModal({ open, onClose, capacity, subscription, onSuccess
           </span>
           <h2 className="text-xl font-extrabold">Add Extra Client GSTINs</h2>
           <p className="text-xs text-muted-foreground">
-            Scale your practice with flexible GSTIN packs at ₹6/month per GSTIN (prorated for remaining days).
+            Scale your practice with flexible GSTIN packs at ₹6/month per GSTIN (prorated for
+            remaining days).
           </p>
         </div>
 
@@ -166,7 +147,9 @@ export function AddGstinModal({ open, onClose, capacity, subscription, onSuccess
             </div>
             <div className="flex justify-between text-muted-foreground">
               <span>New Total Capacity</span>
-              <span className="font-bold text-primary-ink">{capacity.totalCapacity + quantity} GSTINs</span>
+              <span className="font-bold text-primary-ink">
+                {capacity.totalCapacity + quantity} GSTINs
+              </span>
             </div>
             <div className="flex justify-between text-muted-foreground">
               <span>Standard Monthly Rate</span>
@@ -182,7 +165,9 @@ export function AddGstinModal({ open, onClose, capacity, subscription, onSuccess
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-semibold text-primary-ink">Total Payable (Prorated)</p>
-                <p className="text-[11px] text-muted-foreground">Calculated for {remainingDays} remaining days</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Calculated for {remainingDays} remaining days
+                </p>
               </div>
               <div className="text-right">
                 {calcPending ? (
@@ -209,7 +194,9 @@ export function AddGstinModal({ open, onClose, capacity, subscription, onSuccess
             className="flex w-full items-center justify-center gap-2 rounded-xl brand-gradient py-3 text-sm font-bold text-white shadow-lg transition hover:brightness-110 active:scale-98 disabled:opacity-50"
           >
             {payPending ? <Loader2 className="size-4 animate-spin" /> : <Zap className="size-4" />}
-            <span>Pay ₹{proratedAmount} &amp; Activate {quantity} GSTINs</span>
+            <span>
+              Pay ₹{proratedAmount} &amp; Activate {quantity} GSTINs
+            </span>
           </button>
 
           <div className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">

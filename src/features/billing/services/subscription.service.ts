@@ -237,25 +237,39 @@ export async function activatePaidPlan(input: {
   const endDate = new Date(startDate.getTime() + plan.durationDays * 24 * 60 * 60 * 1000);
 
   await prisma.$transaction(async (tx) => {
-    // 1. Record payment
-    await tx.payment.create({
-      data: {
-        userId,
-        provider: "RAZORPAY",
-        providerOrderId: providerOrderId ?? null,
-        providerPaymentId: paymentId,
-        amount: amountRupees,
-        currency: "INR",
-        status: "SUCCESS",
-        paymentType: "SUBSCRIPTION",
-        planSlug: plan.slug,
-        metadata: {
-          planName: plan.name,
-          durationDays: plan.durationDays,
-          includedGSTINs: plan.includedGSTINs,
-        },
+    // 1. Settle the payment. Checkout already wrote a CREATED row carrying the
+    //    plan and price that were actually ordered, so it is updated rather than
+    //    duplicated; the webhook path has no such row, hence the upsert.
+    const paymentData = {
+      userId,
+      provider: "RAZORPAY",
+      providerPaymentId: paymentId,
+      amount: amountRupees,
+      currency: "INR",
+      status: "SUCCESS",
+      paymentType: "SUBSCRIPTION",
+      planSlug: plan.slug,
+      metadata: {
+        planName: plan.name,
+        durationDays: plan.durationDays,
+        includedGSTINs: plan.includedGSTINs,
       },
-    });
+    };
+
+    if (providerOrderId) {
+      await tx.payment.upsert({
+        where: { providerOrderId },
+        create: { ...paymentData, providerOrderId },
+        update: {
+          providerPaymentId: paymentId,
+          status: "SUCCESS",
+          planSlug: plan.slug,
+          metadata: paymentData.metadata,
+        },
+      });
+    } else {
+      await tx.payment.create({ data: paymentData });
+    }
 
     // 2. Upsert subscription
     const sub = await tx.subscription.upsert({

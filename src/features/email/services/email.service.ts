@@ -206,6 +206,17 @@ export class EmailService {
   }
 
   /**
+   * Wrong guesses tolerated per issued code before it is destroyed.
+   *
+   * A 6-digit OTP is only ~900k wide and lives for 15 minutes, so an uncapped
+   * verify endpoint is a brute-force oracle: enough parallel guesses inside one
+   * window take over the account. Burning the code after a few misses makes the
+   * attacker request a new one for every handful of guesses, which the
+   * otpRequest rate limit then throttles.
+   */
+  private static readonly MAX_OTP_ATTEMPTS = 5;
+
+  /**
    * Verify an OTP code strictly server-side against SHA-256 hash.
    */
   public static async verifyOtp(
@@ -225,15 +236,45 @@ export class EmailService {
 
     if (!record) return false;
 
+    // Already burned through its allowance — destroy it rather than keep
+    // answering guesses against it.
+    if (record.attempts >= this.MAX_OTP_ATTEMPTS) {
+      await prisma.verification.delete({ where: { id: record.id } }).catch(() => {});
+      emailLogger.warn(
+        { identifier: fullIdentifier },
+        "OTP destroyed after exceeding attempt limit"
+      );
+      return false;
+    }
+
     const expectedHash = crypto
       .createHash("sha256")
       .update(`${submittedOtp.trim()}:${purpose}:${identifier}`)
       .digest("hex");
 
-    if (crypto.timingSafeEqual(Buffer.from(record.value), Buffer.from(expectedHash))) {
+    // Both operands are SHA-256 hex, so lengths always match; timingSafeEqual
+    // would throw on a mismatch rather than return false.
+    const matches = crypto.timingSafeEqual(
+      Buffer.from(record.value, "utf8"),
+      Buffer.from(expectedHash, "utf8")
+    );
+
+    if (matches) {
       // Consume OTP immediately so it cannot be re-used
       await prisma.verification.delete({ where: { id: record.id } });
       return true;
+    }
+
+    // Count the miss. On the last allowed attempt the code is destroyed outright
+    // so a parallel burst cannot keep guessing against it.
+    const nextAttempts = record.attempts + 1;
+    if (nextAttempts >= this.MAX_OTP_ATTEMPTS) {
+      await prisma.verification.delete({ where: { id: record.id } }).catch(() => {});
+      emailLogger.warn({ identifier: fullIdentifier }, "OTP destroyed after too many wrong codes");
+    } else {
+      await prisma.verification
+        .update({ where: { id: record.id }, data: { attempts: nextAttempts } })
+        .catch(() => {});
     }
 
     return false;

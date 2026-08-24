@@ -8,21 +8,12 @@ import {
   createPlanSubscriptionOrderAction,
   scheduleDowngradeAction,
 } from "@/features/billing/actions/billing.actions";
+import { Check, Sparkles, Loader2, ShieldCheck, ArrowRight, Clock } from "lucide-react";
 import {
-  Check,
-  Zap,
-  Sparkles,
-  Loader2,
-  ShieldCheck,
-  ArrowRight,
-  Clock,
-} from "lucide-react";
-
-declare global {
-  interface Window {
-    Razorpay?: any;
-  }
-}
+  loadRazorpayCheckout,
+  type RazorpayCheckoutResponse,
+  type RazorpayFailureResponse,
+} from "@/features/billing/types/razorpay-checkout";
 
 interface Props {
   plans: PlanDefinition[];
@@ -35,17 +26,6 @@ export function PlanComparisonGrid({ plans, currentSubscription, onRefresh }: Pr
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  function loadRazorpayScript(): Promise<boolean> {
-    return new Promise((resolve) => {
-      if (window.Razorpay) return resolve(true);
-      const script = document.createElement("script");
-      script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
-      document.body.appendChild(script);
-    });
-  }
-
   function handleSelectPlan(planSlug: PlanSlug) {
     if (planSlug === "free_trial" || planSlug === currentSubscription.planSlug) return;
     setError(null);
@@ -56,7 +36,11 @@ export function PlanComparisonGrid({ plans, currentSubscription, onRefresh }: Pr
       const targetPlanIndex = plans.findIndex((p) => p.slug === planSlug);
 
       // If user is selecting a lower tier plan while on an active paid plan -> Schedule Downgrade
-      if (currentSubscription.isActive && targetPlanIndex < currentPlanIndex && currentSubscription.planSlug !== "free_trial") {
+      if (
+        currentSubscription.isActive &&
+        targetPlanIndex < currentPlanIndex &&
+        currentSubscription.planSlug !== "free_trial"
+      ) {
         const res = await scheduleDowngradeAction(planSlug);
         if (res.success) {
           onRefresh?.();
@@ -67,8 +51,8 @@ export function PlanComparisonGrid({ plans, currentSubscription, onRefresh }: Pr
       }
 
       // Otherwise -> Initiate Razorpay checkout for Upgrade/New Plan
-      const loaded = await loadRazorpayScript();
-      if (!loaded) {
+      const Checkout = await loadRazorpayCheckout();
+      if (!Checkout) {
         setError("Failed to load Razorpay SDK. Please check your internet connection.");
         return;
       }
@@ -88,16 +72,11 @@ export function PlanComparisonGrid({ plans, currentSubscription, onRefresh }: Pr
         name: "GSTPilot",
         description: `${orderData.planName} Subscription Plan`,
         order_id: orderData.orderId,
-        handler: async function (response: {
-          razorpay_payment_id: string;
-          razorpay_order_id: string;
-          razorpay_signature: string;
-        }) {
+        handler: async function (response: RazorpayCheckoutResponse) {
           const confirmRes = await confirmPlanPaymentAction({
             orderId: response.razorpay_order_id,
             paymentId: response.razorpay_payment_id,
             signature: response.razorpay_signature,
-            planSlug,
           });
 
           if (confirmRes.success) {
@@ -111,8 +90,8 @@ export function PlanComparisonGrid({ plans, currentSubscription, onRefresh }: Pr
         },
       };
 
-      const rzp = new window.Razorpay(options);
-      rzp.on("payment.failed", function (response: any) {
+      const rzp = new Checkout(options);
+      rzp.on("payment.failed", function (response: RazorpayFailureResponse) {
         setError(response.error?.description || "Payment was not completed.");
       });
       rzp.open();
@@ -129,7 +108,8 @@ export function PlanComparisonGrid({ plans, currentSubscription, onRefresh }: Pr
           Simple, GSTIN-Based Pricing for Every Practice
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Unlimited GSTR-1 generations on all active plans. Pay only for the client GSTIN capacity you need.
+          Unlimited GSTR-1 generations on all active plans. Pay only for the client GSTIN capacity
+          you need.
         </p>
       </div>
 
@@ -160,7 +140,7 @@ export function PlanComparisonGrid({ plans, currentSubscription, onRefresh }: Pr
               {/* Badge */}
               {plan.badge && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="inline-flex items-center gap-1 rounded-full brand-gradient px-3 py-0.5 text-[10px] font-extrabold text-white shadow-sm uppercase tracking-wider">
+                  <span className="inline-flex items-center gap-1 rounded-full brand-gradient px-3 py-0.5 text-[10px] font-extrabold tracking-wider text-white uppercase shadow-sm">
                     <Sparkles className="size-2.5" /> {plan.badge}
                   </span>
                 </div>
@@ -168,7 +148,7 @@ export function PlanComparisonGrid({ plans, currentSubscription, onRefresh }: Pr
 
               {isCurrent && (
                 <div className="absolute -top-3 right-6">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500 px-3 py-0.5 text-[10px] font-extrabold text-white shadow-sm uppercase tracking-wider">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500 px-3 py-0.5 text-[10px] font-extrabold tracking-wider text-white uppercase shadow-sm">
                     Current Plan
                   </span>
                 </div>
@@ -177,7 +157,7 @@ export function PlanComparisonGrid({ plans, currentSubscription, onRefresh }: Pr
               <div>
                 <div className="space-y-1">
                   <h3 className="text-lg font-bold text-foreground">{plan.name}</h3>
-                  <p className="text-xs text-muted-foreground min-h-[32px]">{plan.description}</p>
+                  <p className="min-h-[32px] text-xs text-muted-foreground">{plan.description}</p>
                 </div>
 
                 {/* Price Display */}
@@ -203,7 +183,7 @@ export function PlanComparisonGrid({ plans, currentSubscription, onRefresh }: Pr
 
                 {/* Features List */}
                 <div className="space-y-2.5 text-xs">
-                  <p className="font-bold tracking-wider text-muted-foreground uppercase text-[10px]">
+                  <p className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase">
                     Plan Features
                   </p>
                   <ul className="space-y-2">
@@ -224,12 +204,12 @@ export function PlanComparisonGrid({ plans, currentSubscription, onRefresh }: Pr
               </div>
 
               {/* Action Button */}
-              <div className="mt-8 pt-4 border-t border-border">
+              <div className="mt-8 border-t border-border pt-4">
                 {isCurrent ? (
                   <button
                     type="button"
                     disabled
-                    className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-2.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 opacity-90 cursor-default"
+                    className="flex w-full cursor-default items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-2.5 text-xs font-bold text-emerald-600 opacity-90 dark:text-emerald-400"
                   >
                     <ShieldCheck className="size-3.5" /> Active Plan
                   </button>
@@ -237,7 +217,7 @@ export function PlanComparisonGrid({ plans, currentSubscription, onRefresh }: Pr
                   <button
                     type="button"
                     disabled
-                    className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 py-2.5 text-xs font-bold text-amber-600 opacity-90 cursor-default"
+                    className="flex w-full cursor-default items-center justify-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 py-2.5 text-xs font-bold text-amber-600 opacity-90"
                   >
                     <Clock className="size-3.5" /> Scheduled for Renewal
                   </button>
@@ -249,7 +229,7 @@ export function PlanComparisonGrid({ plans, currentSubscription, onRefresh }: Pr
                     className={`flex w-full items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-bold transition active:scale-98 disabled:opacity-50 ${
                       isPopular
                         ? "brand-gradient text-white shadow hover:brightness-110"
-                        : "border border-border bg-background text-foreground hover:bg-accent hover:border-primary/40"
+                        : "border border-border bg-background text-foreground hover:border-primary/40 hover:bg-accent"
                     }`}
                   >
                     {pending && selectedSlug === plan.slug ? (
