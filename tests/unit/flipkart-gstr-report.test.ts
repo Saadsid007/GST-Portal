@@ -68,3 +68,35 @@ describe("Flipkart GSTR-1/GSTR-8 section report", () => {
     expect(sale?.ecoGstin).toBeTruthy();
   });
 });
+
+describe("Flipkart companion sheets", () => {
+  it("skips the summary sheets instead of asking the AI to map them", async () => {
+    const tables = readWorkbook(fs.readFileSync(SAMPLE));
+    const batch = tables.map((table, i) => ({
+      fileId: `fk-${i}`,
+      fileName: "flipkart-gstr-report.xlsx",
+      table,
+    }));
+
+    const result = await ImportSessionManager.processBatch(batch);
+
+    const skipped = result.skippedSheets.map((s) => s.sheetName);
+    expect(skipped).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("Help"),
+        expect.stringContaining("Section 12"),
+        expect.stringContaining("Section 13"),
+        expect.stringContaining("GSTR-8"),
+      ])
+    );
+
+    // The whole point: none of them should land in the AI-mapping bucket.
+    const unmapped = result.unmappedFiles.map((t) => t.sheetName);
+    expect(unmapped).not.toEqual(expect.arrayContaining([expect.stringContaining("Section 12")]));
+    expect(unmapped).not.toEqual(expect.arrayContaining([expect.stringContaining("Section 13")]));
+    expect(unmapped).not.toEqual(expect.arrayContaining([expect.stringContaining("Help")]));
+
+    // And the real sale still imports.
+    expect(result.resultsByPlatform.flipkart?.transactions.length).toBeGreaterThan(0);
+  });
+});

@@ -1,5 +1,6 @@
 import type { ReconstructedTable } from "@/features/convert/engine/universal/types";
 import { PlatformDetector } from "@/features/convert/engine/detection/platform.detector";
+import { classifyCompanionSheet } from "@/features/convert/engine/detection/companion-sheets";
 import { AmazonAdapter } from "@/features/convert/engine/adapters/amazon.adapter";
 import { MeeshoAdapter } from "@/features/convert/engine/adapters/meesho.adapter";
 import { FlipkartAdapter } from "@/features/convert/engine/adapters/flipkart.adapter";
@@ -14,6 +15,18 @@ export interface SessionResult {
   resultsByPlatform: Record<string, AdapterResult>;
   combinedTransactions: NormalizedInvoiceRow[];
   unmappedFiles: ReconstructedTable[]; // Files that need Universal Engine / AI Mapping
+  /**
+   * Sheets deliberately not imported — summaries, instructions and amendment
+   * tables that ship alongside the real data. Reported rather than dropped
+   * silently, so the user can see the workbook was read in full.
+   */
+  skippedSheets: SkippedSheet[];
+}
+
+export interface SkippedSheet {
+  fileName: string;
+  sheetName: string;
+  reason: string;
 }
 
 export class ImportSessionManager {
@@ -29,9 +42,23 @@ export class ImportSessionManager {
     const sessionId = crypto.randomUUID();
     const resultsByPlatform: Record<string, AdapterResult> = {};
     const unmappedFiles: ReconstructedTable[] = [];
+    const skippedSheets: SkippedSheet[] = [];
     const combinedTransactions: NormalizedInvoiceRow[] = [];
 
     for (const { fileId, fileName, table } of tables) {
+      // 0. Companion sheets never reach detection. An HSN roll-up or a document
+      //    count has no line items, so sending it to the AI mapper only produces
+      //    questions with no right answer.
+      const companion = classifyCompanionSheet(table.sheetName);
+      if (companion) {
+        skippedSheets.push({
+          fileName,
+          sheetName: table.sheetName,
+          reason: companion.reason,
+        });
+        continue;
+      }
+
       // 1. Detect Platform
       const detection = PlatformDetector.detect(table.headers, table.sheetName, fileName);
 
@@ -113,6 +140,7 @@ export class ImportSessionManager {
       resultsByPlatform,
       combinedTransactions,
       unmappedFiles,
+      skippedSheets,
     };
   }
 }

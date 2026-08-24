@@ -243,6 +243,32 @@ export function Step6Intelligence({ state, onChange, onNext, onBack }: Props) {
             </div>
           ))}
 
+        {/* Sheets read and deliberately set aside. Stated plainly so a workbook
+            never looks half-read, and so nobody hunts for a summary tab that
+            "did not import". */}
+        {(sessionResult?.skippedSheets?.length ?? 0) > 0 && (
+          <div className="mt-8 rounded-2xl border border-border bg-muted/30 p-5">
+            <h3 className="text-sm font-bold text-foreground">
+              Companion sheets skipped ({sessionResult!.skippedSheets.length})
+            </h3>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              These carry summaries and instructions, not line items. Every figure in them is
+              rebuilt from your transactions, so importing them would double-count.
+            </p>
+            <ul className="mt-3 space-y-1.5">
+              {sessionResult!.skippedSheets.map((sheet) => (
+                <li
+                  key={`${sheet.fileName}::${sheet.sheetName}`}
+                  className="flex flex-wrap items-baseline gap-x-2 text-xs"
+                >
+                  <span className="font-mono font-medium text-foreground">{sheet.sheetName}</span>
+                  <span className="text-muted-foreground">— {sheet.reason}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {reports.length > 0 && (
           <h3 className="mt-8 text-lg font-bold">Unrecognized Files (AI Mapping Required)</h3>
         )}
@@ -264,7 +290,7 @@ export function Step6Intelligence({ state, onChange, onNext, onBack }: Props) {
 
           return (
             <div
-              key={report.fileName}
+              key={`${report.fileName}::${report.sheetName}`}
               className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm"
             >
               {/* Report Header */}
@@ -304,7 +330,7 @@ export function Step6Intelligence({ state, onChange, onNext, onBack }: Props) {
 
                       return (
                         <tr
-                          key={`${report.fileName}-${header}-${idx}`}
+                          key={`${report.fileName}::${report.sheetName}-${header}-${idx}`}
                           className="hover:bg-muted/20"
                         >
                           <td className="py-3 font-mono font-bold text-foreground">{header}</td>

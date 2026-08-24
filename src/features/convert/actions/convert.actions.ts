@@ -389,6 +389,11 @@ export async function parseMultiPlatformFilesAction(
        * output on faith.
        */
       importReports: reports,
+      /**
+       * Sheets read but deliberately not imported — summaries, instructions and
+       * amendment tables. Listed so a workbook never appears half-read.
+       */
+      skippedSheets: sessionResult.skippedSheets,
       /** Operator GSTINs learned from this upload, so the UI can say what it picked up. */
       detectedEcoGstins: Object.fromEntries(learned),
       gstr1CmpResult,
