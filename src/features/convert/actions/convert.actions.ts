@@ -33,7 +33,7 @@ import {
   Gstr1Comparator,
   type Gstr1ComparisonResult,
 } from "@/features/convert/engine/comparison/gstr1.comparator";
-import * as XLSX from "xlsx";
+import { readWorkbookSafely } from "@/features/convert/utils/workbook.utils";
 import { getPlatformConfig } from "@/features/convert/config/platform.config";
 import { applyAutoFixers } from "@/features/convert/engine/error-center/auto-fixers";
 import {
@@ -79,14 +79,14 @@ async function loadFileTables(
     const rows: Record<string, string>[] = inv.lineItems.map((it) => ({
       "Invoice Number": inv.invoiceNumber,
       "Invoice Date": inv.invoiceDate,
-      "Type": inv.classification,
+      Type: inv.classification,
       "Buyer Name": inv.buyerName,
       "Buyer GSTIN": inv.buyerGstin,
       "Place of Supply": inv.placeOfSupplyStateName,
       "HSN/SAC Code": it.hsnCode,
       "Item Description": it.itemDescription,
-      "UQC": it.uqc,
-      "Quantity": String(it.quantity),
+      UQC: it.uqc,
+      Quantity: String(it.quantity),
       "GST Rate (%)": String(it.rate),
       "Taxable Value (Rs)": String(it.taxableValue),
       "IGST (Rs)": String(it.igstAmount),
@@ -366,7 +366,7 @@ export async function parseMultiPlatformFilesAction(
   if (refFileItem) {
     try {
       const buffer = Buffer.from(await refFileItem.file.arrayBuffer());
-      const wb = XLSX.read(buffer, { type: "buffer" });
+      const { workbook: wb } = readWorkbookSafely(buffer);
       const parsedRef = parseGstr1File(wb);
       gstr1CmpResult = Gstr1Comparator.compare(validationResult.rows, parsedRef);
       gstr1CmpLabel = refFileItem.fileName;

@@ -1,6 +1,6 @@
 "use server";
 
-import * as XLSX from "xlsx";
+import { readWorkbookSafely } from "@/features/convert/utils/workbook.utils";
 import { requireSession } from "@/features/auth";
 import { TcsReconciler } from "@/features/convert/engine/tcs/tcs.reconciler";
 import { parsePortalGstr1 } from "@/features/convert/engine/tcs/portal-gstr1.parser";
@@ -10,7 +10,7 @@ export async function reconcileTcsAction(gstr1Rows: NormalizedInvoiceRow[], tcsF
   await requireSession();
 
   const buffer = Buffer.from(await tcsFile.arrayBuffer());
-  const workbook = XLSX.read(buffer, { type: "buffer", raw: true });
+  const { workbook } = readWorkbookSafely(buffer, { raw: true });
 
   // Use the dedicated GSTR-1 portal parser which handles:
   // • 3-row summary header offset per sheet

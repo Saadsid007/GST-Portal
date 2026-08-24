@@ -1,4 +1,4 @@
-import * as XLSX from "xlsx";
+import { readWorkbookSafely } from "@/features/convert/utils/workbook.utils";
 import {
   CANONICAL_FIELDS,
   type ColumnMappingDict,
@@ -50,8 +50,7 @@ export interface UniversalImportOptions {
 export function readWorkbook(buffer: Buffer): ReconstructedTable[] {
   // `cellDates: false` keeps dates as their raw serial or string so the date
   // detectors see what the file actually contains rather than xlsx's guess.
-  const workbook = XLSX.read(buffer, {
-    type: "buffer",
+  const { workbook } = readWorkbookSafely(buffer, {
     raw: false,
     cellDates: false,
     codepage: 65001,

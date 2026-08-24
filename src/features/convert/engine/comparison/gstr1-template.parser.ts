@@ -1,4 +1,5 @@
 import * as XLSX from "xlsx";
+import { readWorkbookSafely } from "@/features/convert/utils/workbook.utils";
 import { normalizeStateCode } from "@/features/convert/domain/state-codes";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -514,6 +515,6 @@ export function parseGstr1Buffer(buffer: Buffer, fileName?: string): ParsedGstr1
     return parseGstr1Json(buffer.toString("utf8"));
   }
 
-  const workbook = XLSX.read(buffer, { type: "buffer", raw: true });
+  const { workbook } = readWorkbookSafely(buffer, { raw: true });
   return parseGstr1File(workbook);
 }
