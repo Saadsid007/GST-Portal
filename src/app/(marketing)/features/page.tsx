@@ -12,6 +12,8 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { buildPageMetadata } from "@/lib/seo/metadata";
+import { JsonLd } from "@/components/json-ld";
+import { breadcrumbSchema } from "@/lib/seo/structured-data";
 
 export const metadata: Metadata = buildPageMetadata({
   title: "Features Directory — Multi-Marketplace GSTR-1 Engine",
@@ -74,6 +76,12 @@ export default function FeaturesPage() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-16 px-6 py-16">
+      <JsonLd
+        schema={breadcrumbSchema([
+          { name: "Home", path: "/" },
+          { name: "Features", path: "/features" },
+        ])}
+      />
       <div className="mx-auto max-w-3xl space-y-4 text-center">
         <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold tracking-wider text-primary-ink uppercase">
           Feature Directory

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Sparkles, Building2, Zap } from "lucide-react";
+import { ArrowRight, Building2 } from "lucide-react";
 import { Button, Card } from "@/components/ui";
 import { MarketingPlanCard, TrustStrip } from "@/app/(marketing)/_components/pricing-blocks";
 import { ALL_PLANS } from "@/features/billing/config/pricing.config";
@@ -37,14 +37,15 @@ export async function PricingPreview() {
               For CA Firms &amp; Tax Practitioners — Up to 200 Client GSTINs
             </p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              CA Pro (75 GSTINs @ ₹399/mo) and CA Firm (200 GSTINs @ ₹799/mo) with bulk client processing, team members &amp; white-label exports.
+              CA Pro (75 GSTINs @ ₹399/mo) and CA Firm (200 GSTINs @ ₹799/mo) with bulk client
+              processing, team members &amp; white-label exports.
             </p>
           </div>
         </div>
         <Button asChild variant="outline" size="sm" className="shrink-0">
           <Link href="/pricing">
             View All Plans &amp; Comparison
-            <ArrowRight className="size-3.5 ml-1" />
+            <ArrowRight className="ml-1 size-3.5" />
           </Link>
         </Button>
       </Card>

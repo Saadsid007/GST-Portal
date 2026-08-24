@@ -37,6 +37,20 @@ export interface NormalizedInvoiceRow {
   ecoGstin?: string;
   /** Legal name of that operator, kept for reports and debugging only. */
   ecoName?: string;
+
+  /* ── Export (EXP) fields ───────────────────────────────────────────────
+     Read by the GSTR-1 EXP sheet. Declared here because the generator was
+     reaching for them through `as any`, which hid the fact that they exist
+     nowhere in the model. No adapter populates them yet, so EXP rows still
+     emit the WOPAY default and blank shipping-bill columns — mapping them
+     from a marketplace export is a separate piece of work. */
+  /** "WPAY" (with payment of tax) or "WOPAY". Defaults to WOPAY when absent. */
+  exportType?: "WPAY" | "WOPAY";
+  /** Six-character customs port code. */
+  portCode?: string;
+  shippingBillNumber?: string;
+  /** YYYY-MM-DD. */
+  shippingBillDate?: string;
   errors: string[];
   /**
    * Non-blocking findings. A row with reviews but no errors is recoverable — it still

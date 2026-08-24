@@ -107,7 +107,8 @@ function posLabel(code: string): string {
 function isStockTransferRow(r: NormalizedInvoiceRow): boolean {
   return (
     r.sourcePlatformId === "stock_transfer" ||
-    (Boolean(r.sourceFileName) && (r.sourceFileName?.toLowerCase().includes("stock_transfer") ?? false))
+    (Boolean(r.sourceFileName) &&
+      (r.sourceFileName?.toLowerCase().includes("stock_transfer") ?? false))
   );
 }
 
@@ -125,7 +126,7 @@ function cellXml(
   colLetter: string,
   rowNum: number,
   styleId: number | string,
-  val: any,
+  val: string | number | null | undefined,
   type?: "str" | "num"
 ): string {
   const cellRef = `${colLetter}${rowNum}`;
@@ -229,7 +230,8 @@ export async function generateGstr1Excel(
   const b2bDataRowsXml = b2bRows.map((r, idx) => {
     const rowNum = 5 + idx;
     const rate = r2(r.igstRate > 0 ? r.igstRate : r.cgstRate + r.sgstRate);
-    return `<row r="${rowNum}" spans="1:13" s="19" customFormat="1">` +
+    return (
+      `<row r="${rowNum}" spans="1:13" s="19" customFormat="1">` +
       cellXml("A", rowNum, 18, r.buyerGstin || "") +
       cellXml("B", rowNum, 18, "") +
       cellXml("C", rowNum, 18, r.invoiceNumber) +
@@ -243,7 +245,8 @@ export async function generateGstr1Excel(
       cellXml("K", rowNum, 37, rate, "num") +
       cellXml("L", rowNum, 37, r.taxableValue, "num") +
       cellXml("M", rowNum, 37, r.cessAmount || "", r.cessAmount ? "num" : "str") +
-      `</row>`;
+      `</row>`
+    );
   });
 
   const b2bXml = await zip.file("xl/worksheets/sheet2.xml")?.async("string");
@@ -271,7 +274,8 @@ export async function generateGstr1Excel(
 
   const b2clDataRowsXml = b2clRows.map((r, idx) => {
     const rowNum = 5 + idx;
-    return `<row r="${rowNum}" spans="1:9" s="19" customFormat="1">` +
+    return (
+      `<row r="${rowNum}" spans="1:9" s="19" customFormat="1">` +
       cellXml("A", rowNum, 18, r.invoiceNumber) +
       cellXml("B", rowNum, 23, toExcelDate(r.invoiceDate)) +
       cellXml("C", rowNum, 37, r.totalValue, "num") +
@@ -281,7 +285,8 @@ export async function generateGstr1Excel(
       cellXml("G", rowNum, 37, r.taxableValue, "num") +
       cellXml("H", rowNum, 37, r.cessAmount || "", r.cessAmount ? "num" : "str") +
       cellXml("I", rowNum, 18, r.ecoGstin ? ensureTcsGstin(r.ecoGstin) : "") +
-      `</row>`;
+      `</row>`
+    );
   });
 
   const b2clXml = await zip.file("xl/worksheets/sheet4.xml")?.async("string");
@@ -305,7 +310,9 @@ export async function generateGstr1Excel(
     { txval: number; iamt: number; camt: number; samt: number; rt: number; pos: string }
   >();
   validRows
-    .filter((r) => (r.invoiceType === "B2CS" || r.invoiceType === "CDNCS") && Boolean(r.placeOfSupply))
+    .filter(
+      (r) => (r.invoiceType === "B2CS" || r.invoiceType === "CDNCS") && Boolean(r.placeOfSupply)
+    )
     .forEach((r) => {
       const rt = r2(r.igstRate > 0 ? r.igstRate : r.cgstRate + r.sgstRate);
       const key = `${r.placeOfSupply}|${rt}`;
@@ -325,7 +332,8 @@ export async function generateGstr1Excel(
 
   const b2csDataRowsXml = b2csValues.map((v, idx) => {
     const rowNum = 5 + idx;
-    return `<row r="${rowNum}" spans="1:8" s="19" customFormat="1">` +
+    return (
+      `<row r="${rowNum}" spans="1:8" s="19" customFormat="1">` +
       cellXml("A", rowNum, 26, "OE") +
       cellXml("B", rowNum, 20, posLabel(v.pos)) +
       cellXml("C", rowNum, 69, "") +
@@ -334,7 +342,8 @@ export async function generateGstr1Excel(
       cellXml("F", rowNum, 37, "") +
       cellXml("G", rowNum, 253, "") +
       cellXml("H", rowNum, 25, "") +
-      `</row>`;
+      `</row>`
+    );
   });
 
   const b2csXml = await zip.file("xl/worksheets/sheet6.xml")?.async("string");
@@ -361,7 +370,8 @@ export async function generateGstr1Excel(
   const cdnrDataRowsXml = cdnrRows.map((r, idx) => {
     const rowNum = 5 + idx;
     const rate = r2(r.igstRate > 0 ? r.igstRate : r.cgstRate + r.sgstRate);
-    return `<row r="${rowNum}" spans="1:13" s="19" customFormat="1">` +
+    return (
+      `<row r="${rowNum}" spans="1:13" s="19" customFormat="1">` +
       cellXml("A", rowNum, 18, r.buyerGstin || "") +
       cellXml("B", rowNum, 18, "") +
       cellXml("C", rowNum, 18, r.invoiceNumber) +
@@ -375,7 +385,8 @@ export async function generateGstr1Excel(
       cellXml("K", rowNum, 37, rate, "num") +
       cellXml("L", rowNum, 37, Math.abs(r.taxableValue), "num") +
       cellXml("M", rowNum, 37, Math.abs(r.cessAmount) || "", r.cessAmount ? "num" : "str") +
-      `</row>`;
+      `</row>`
+    );
   });
 
   const cdnrXml = await zip.file("xl/worksheets/sheet8.xml")?.async("string");
@@ -395,9 +406,7 @@ export async function generateGstr1Excel(
   // ─────────────────────────────────────────────────────────────────────────────
   // 5. cdnur Sheet (xl/worksheets/sheet10.xml)
   // ─────────────────────────────────────────────────────────────────────────────
-  const cdnurRows = validRows.filter(
-    (r) => (r.invoiceType === ("CDNCS" as any)) && r.totalValue > 250000
-  );
+  const cdnurRows = validRows.filter((r) => r.invoiceType === "CDNCS" && r.totalValue > 250000);
   const cdnurNotes = cdnurRows.length;
   const cdnurTotalVal = r2(cdnurRows.reduce((s, r) => s + Math.abs(r.totalValue), 0));
   const cdnurTotalTxVal = r2(cdnurRows.reduce((s, r) => s + Math.abs(r.taxableValue), 0));
@@ -406,7 +415,8 @@ export async function generateGstr1Excel(
   const cdnurDataRowsXml = cdnurRows.map((r, idx) => {
     const rowNum = 5 + idx;
     const rate = r2(r.igstRate > 0 ? r.igstRate : r.cgstRate + r.sgstRate);
-    return `<row r="${rowNum}" spans="1:10" s="19" customFormat="1">` +
+    return (
+      `<row r="${rowNum}" spans="1:10" s="19" customFormat="1">` +
       cellXml("A", rowNum, 23, "B2CL") +
       cellXml("B", rowNum, 18, r.invoiceNumber) +
       cellXml("C", rowNum, 23, toExcelDate(r.invoiceDate)) +
@@ -417,7 +427,8 @@ export async function generateGstr1Excel(
       cellXml("H", rowNum, 37, rate, "num") +
       cellXml("I", rowNum, 37, Math.abs(r.taxableValue), "num") +
       cellXml("J", rowNum, 37, Math.abs(r.cessAmount) || "", r.cessAmount ? "num" : "str") +
-      `</row>`;
+      `</row>`
+    );
   });
 
   const cdnurXml = await zip.file("xl/worksheets/sheet10.xml")?.async("string");
@@ -443,18 +454,20 @@ export async function generateGstr1Excel(
 
   const expDataRowsXml = expRows.map((r, idx) => {
     const rowNum = 5 + idx;
-    return `<row r="${rowNum}" spans="1:10" s="19" customFormat="1">` +
-      cellXml("A", rowNum, 23, (r as any).exportType || "WOPAY") +
+    return (
+      `<row r="${rowNum}" spans="1:10" s="19" customFormat="1">` +
+      cellXml("A", rowNum, 23, r.exportType || "WOPAY") +
       cellXml("B", rowNum, 18, r.invoiceNumber) +
       cellXml("C", rowNum, 23, toExcelDate(r.invoiceDate)) +
       cellXml("D", rowNum, 37, r.totalValue, "num") +
-      cellXml("E", rowNum, 69, (r as any).portCode || "") +
-      cellXml("F", rowNum, 70, (r as any).shippingBillNumber || "") +
-      cellXml("G", rowNum, 23, toExcelDate((r as any).shippingBillDate || "")) +
+      cellXml("E", rowNum, 69, r.portCode || "") +
+      cellXml("F", rowNum, 70, r.shippingBillNumber || "") +
+      cellXml("G", rowNum, 23, toExcelDate(r.shippingBillDate || "")) +
       cellXml("H", rowNum, 37, r2(r.igstRate), "num") +
       cellXml("I", rowNum, 37, r.taxableValue, "num") +
       cellXml("J", rowNum, 37, r.cessAmount || "", r.cessAmount ? "num" : "str") +
-      `</row>`;
+      `</row>`
+    );
   });
 
   const expXml = await zip.file("xl/worksheets/sheet12.xml")?.async("string");
@@ -539,7 +552,8 @@ export async function generateGstr1Excel(
 
   const hsnB2bDataRowsXml = hsnB2bValues.map((v, idx) => {
     const rowNum = 5 + idx;
-    return `<row r="${rowNum}" spans="1:11" s="19" customFormat="1">` +
+    return (
+      `<row r="${rowNum}" spans="1:11" s="19" customFormat="1">` +
       cellXml("A", rowNum, 69, v.hsn) +
       cellXml("B", rowNum, 18, v.desc) +
       cellXml("C", rowNum, 18, toUqcFull(v.uqc)) +
@@ -551,7 +565,8 @@ export async function generateGstr1Excel(
       cellXml("I", rowNum, 38, v.camt || "", v.camt ? "num" : "str") +
       cellXml("J", rowNum, 38, v.samt || "", v.samt ? "num" : "str") +
       cellXml("K", rowNum, 38, v.csamt || "", v.csamt ? "num" : "str") +
-      `</row>`;
+      `</row>`
+    );
   });
 
   const hsnB2bXml = await zip.file("xl/worksheets/sheet19.xml")?.async("string");
@@ -582,7 +597,8 @@ export async function generateGstr1Excel(
 
   const hsnB2cDataRowsXml = hsnB2cValues.map((v, idx) => {
     const rowNum = 5 + idx;
-    return `<row r="${rowNum}" spans="1:11" s="19" customFormat="1">` +
+    return (
+      `<row r="${rowNum}" spans="1:11" s="19" customFormat="1">` +
       cellXml("A", rowNum, 69, v.hsn) +
       cellXml("B", rowNum, 18, v.desc) +
       cellXml("C", rowNum, 18, toUqcFull(v.uqc)) +
@@ -594,7 +610,8 @@ export async function generateGstr1Excel(
       cellXml("I", rowNum, 38, v.camt || "", v.camt ? "num" : "str") +
       cellXml("J", rowNum, 38, v.samt || "", v.samt ? "num" : "str") +
       cellXml("K", rowNum, 38, v.csamt || "", v.csamt ? "num" : "str") +
-      `</row>`;
+      `</row>`
+    );
   });
 
   const hsnB2cXml = await zip.file("xl/worksheets/sheet20.xml")?.async("string");
@@ -661,13 +678,15 @@ export async function generateGstr1Excel(
 
   const docsDataRowsXml = docRowsData.map((d, idx) => {
     const rowNum = 5 + idx;
-    return `<row r="${rowNum}" spans="1:5" s="19" customFormat="1">` +
+    return (
+      `<row r="${rowNum}" spans="1:5" s="19" customFormat="1">` +
       cellXml("A", rowNum, 18, d.name) +
       cellXml("B", rowNum, 18, d.from) +
       cellXml("C", rowNum, 18, d.to) +
       cellXml("D", rowNum, 50, d.totnum, "num") +
       cellXml("E", rowNum, 103, d.cancel, "num") +
-      `</row>`;
+      `</row>`
+    );
   });
 
   const docsXml = await zip.file("xl/worksheets/sheet21.xml")?.async("string");
@@ -690,13 +709,22 @@ export async function generateGstr1Excel(
   >();
 
   validRows
-    .filter((r) => !isStockTransferRow(r) && r.sourcePlatformId !== "offline" && Boolean(r.ecoGstin))
+    .filter(
+      (r) => !isStockTransferRow(r) && r.sourcePlatformId !== "offline" && Boolean(r.ecoGstin)
+    )
     .forEach((r) => {
       const etin = ensureTcsGstin(r.ecoGstin!);
       const isCreditNote = r.invoiceType === "CDNR" || r.invoiceType === "CDNCS";
       const sign = isCreditNote ? -1 : 1;
       if (!ecoAgg.has(etin)) {
-        ecoAgg.set(etin, { ecoName: r.ecoName || "", txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0 });
+        ecoAgg.set(etin, {
+          ecoName: r.ecoName || "",
+          txval: 0,
+          iamt: 0,
+          camt: 0,
+          samt: 0,
+          csamt: 0,
+        });
       }
       const b = ecoAgg.get(etin)!;
       b.txval = r2(b.txval + Math.abs(r.taxableValue) * sign);
@@ -716,7 +744,8 @@ export async function generateGstr1Excel(
 
   const ecoDataRowsXml = ecoVals.map(([etin, v], idx) => {
     const rowNum = 5 + idx;
-    return `<row r="${rowNum}" spans="1:8">` +
+    return (
+      `<row r="${rowNum}" spans="1:8">` +
       cellXml("A", rowNum, 211, "Liable to collect tax u/s 52(TCS)") +
       cellXml("B", rowNum, 255, etin) +
       cellXml("C", rowNum, 215, v.ecoName) +
@@ -725,7 +754,8 @@ export async function generateGstr1Excel(
       cellXml("F", rowNum, 199, v.camt || "", v.camt ? "num" : "str") +
       cellXml("G", rowNum, 199, v.samt || "", v.samt ? "num" : "str") +
       cellXml("H", rowNum, 199, v.csamt || "", v.csamt ? "num" : "str") +
-      `</row>`;
+      `</row>`
+    );
   });
 
   const ecoXml = await zip.file("xl/worksheets/sheet22.xml")?.async("string");

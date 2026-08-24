@@ -12,7 +12,6 @@ import {
   CheckCircle2,
   Sparkles,
   Loader2,
-  Filter,
   X,
 } from "lucide-react";
 import {
@@ -22,7 +21,7 @@ import {
   adminSyncAllUsersToMarketingAction,
   type MarketingAudienceItem,
   type MarketingAudienceStats,
-} from "../actions/marketing.actions";
+} from "@/features/campaigns/actions/marketing.actions";
 
 export function AdminCampaignsMarketingPanel() {
   const [items, setItems] = useState<MarketingAudienceItem[]>([]);
@@ -197,7 +196,9 @@ export function AdminCampaignsMarketingPanel() {
           <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
             <Mail className="size-4 text-amber-500" /> 30-Day Free Trials
           </div>
-          <div className="mt-2 text-2xl font-black text-amber-500">{stats.freeTrialSubscribers}</div>
+          <div className="mt-2 text-2xl font-black text-amber-500">
+            {stats.freeTrialSubscribers}
+          </div>
           <div className="mt-0.5 text-2xs text-muted-foreground">Active trial users (7 GSTINs)</div>
         </div>
 
@@ -216,20 +217,24 @@ export function AdminCampaignsMarketingPanel() {
       <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
         <form onSubmit={handleSearch} className="flex flex-1 items-center gap-2">
           <div className="relative flex-1">
-            <label htmlFor={searchInputId} className="sr-only">Search contacts</label>
-            <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <label htmlFor={searchInputId} className="sr-only">
+              Search contacts
+            </label>
+            <Search className="absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <input
               id={searchInputId}
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by email or name..."
-              className="w-full rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-xs transition focus:ring-2 focus:ring-primary/50 focus:outline-none"
+              className="w-full rounded-xl border border-border bg-background py-2 pr-3 pl-9 text-xs transition focus:ring-2 focus:ring-primary/50 focus:outline-none"
             />
           </div>
 
           <div className="flex items-center gap-2">
-            <label htmlFor={planSelectId} className="sr-only">Filter by plan</label>
+            <label htmlFor={planSelectId} className="sr-only">
+              Filter by plan
+            </label>
             <select
               id={planSelectId}
               value={planSlug}
@@ -250,7 +255,9 @@ export function AdminCampaignsMarketingPanel() {
               <option value="ca_firm">CA Firm</option>
             </select>
 
-            <label htmlFor={statusSelectId} className="sr-only">Filter by status</label>
+            <label htmlFor={statusSelectId} className="sr-only">
+              Filter by status
+            </label>
             <select
               id={statusSelectId}
               value={status}
@@ -330,7 +337,9 @@ export function AdminCampaignsMarketingPanel() {
                   <td colSpan={5} className="py-12 text-center text-muted-foreground">
                     <Mail className="mx-auto size-8 opacity-40" />
                     <p className="mt-2 font-semibold">No contacts found</p>
-                    <p className="text-2xs">Click &quot;Sync Users&quot; to auto-import existing registered accounts.</p>
+                    <p className="text-2xs">
+                      Click &quot;Sync Users&quot; to auto-import existing registered accounts.
+                    </p>
                   </td>
                 </tr>
               ) : (
@@ -342,7 +351,7 @@ export function AdminCampaignsMarketingPanel() {
                     </td>
                     <td className="px-4 py-3">
                       <span
-                        className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                        className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase ${
                           item.planSlug === "free_trial"
                             ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
                             : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
@@ -352,7 +361,9 @@ export function AdminCampaignsMarketingPanel() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className="font-mono text-2xs text-muted-foreground">{item.source}</span>
+                      <span className="font-mono text-2xs text-muted-foreground">
+                        {item.source}
+                      </span>
                     </td>
                     <td className="px-4 py-3">
                       <span
@@ -432,7 +443,10 @@ export function AdminCampaignsMarketingPanel() {
 
             <form onSubmit={handleSendBroadcast} className="mt-4 space-y-4 text-xs">
               <div className="space-y-1">
-                <label htmlFor={broadcastTargetId} className="font-bold text-muted-foreground uppercase">
+                <label
+                  htmlFor={broadcastTargetId}
+                  className="font-bold text-muted-foreground uppercase"
+                >
                   Target Audience
                 </label>
                 <select
@@ -444,13 +458,18 @@ export function AdminCampaignsMarketingPanel() {
                   className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm font-semibold focus:outline-none"
                 >
                   <option value="ALL">All Active Subscribers ({stats.totalSubscribers})</option>
-                  <option value="TRIAL">30-Day Free Trial Users ({stats.freeTrialSubscribers})</option>
+                  <option value="TRIAL">
+                    30-Day Free Trial Users ({stats.freeTrialSubscribers})
+                  </option>
                   <option value="PAID">Active Paid Customers ({stats.paidSubscribers})</option>
                 </select>
               </div>
 
               <div className="space-y-1">
-                <label htmlFor={broadcastSubjectId} className="font-bold text-muted-foreground uppercase">
+                <label
+                  htmlFor={broadcastSubjectId}
+                  className="font-bold text-muted-foreground uppercase"
+                >
                   Email Subject Line
                 </label>
                 <input
@@ -465,7 +484,10 @@ export function AdminCampaignsMarketingPanel() {
               </div>
 
               <div className="space-y-1">
-                <label htmlFor={broadcastHeadlineId} className="font-bold text-muted-foreground uppercase">
+                <label
+                  htmlFor={broadcastHeadlineId}
+                  className="font-bold text-muted-foreground uppercase"
+                >
                   Header Banner / Headline
                 </label>
                 <input
@@ -480,7 +502,10 @@ export function AdminCampaignsMarketingPanel() {
               </div>
 
               <div className="space-y-1">
-                <label htmlFor={broadcastBodyId} className="font-bold text-muted-foreground uppercase">
+                <label
+                  htmlFor={broadcastBodyId}
+                  className="font-bold text-muted-foreground uppercase"
+                >
                   Message Body (Separate paragraphs with blank lines)
                 </label>
                 <textarea
@@ -496,7 +521,10 @@ export function AdminCampaignsMarketingPanel() {
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
-                  <label htmlFor={broadcastCtaTextId} className="font-bold text-muted-foreground uppercase">
+                  <label
+                    htmlFor={broadcastCtaTextId}
+                    className="font-bold text-muted-foreground uppercase"
+                  >
                     CTA Button Text (Optional)
                   </label>
                   <input
@@ -509,7 +537,10 @@ export function AdminCampaignsMarketingPanel() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label htmlFor={broadcastCtaUrlId} className="font-bold text-muted-foreground uppercase">
+                  <label
+                    htmlFor={broadcastCtaUrlId}
+                    className="font-bold text-muted-foreground uppercase"
+                  >
                     CTA Button URL (Optional)
                   </label>
                   <input

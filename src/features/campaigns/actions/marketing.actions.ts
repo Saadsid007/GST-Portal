@@ -2,6 +2,7 @@
 
 import { requireAdmin } from "@/features/auth";
 import prisma from "@/lib/prisma";
+import type { Prisma } from "@/generated/prisma/client";
 import { EmailService } from "@/features/email/services/email.service";
 import { createLogger } from "@/lib/logger";
 import { revalidatePath } from "next/cache";
@@ -55,7 +56,7 @@ export async function adminGetMarketingAudienceAction(params: {
     const limit = Math.max(5, Math.min(200, params.limit ?? 25));
     const skip = (page - 1) * limit;
 
-    const where: any = {};
+    const where: Prisma.MarketingSubscriberWhereInput = {};
 
     if (params.search && params.search.trim()) {
       const q = params.search.trim();
@@ -77,22 +78,21 @@ export async function adminGetMarketingAudienceAction(params: {
       }
     }
 
-    const [items, total, totalAll, freeTrialCount, paidCount, unsubCount] =
-      await Promise.all([
-        prisma.marketingSubscriber.findMany({
-          where,
-          orderBy: { createdAt: "desc" },
-          skip,
-          take: limit,
-        }),
-        prisma.marketingSubscriber.count({ where }),
-        prisma.marketingSubscriber.count(),
-        prisma.marketingSubscriber.count({ where: { planSlug: "free_trial" } }),
-        prisma.marketingSubscriber.count({
-          where: { planSlug: { notIn: ["free_trial", "free"] } },
-        }),
-        prisma.marketingSubscriber.count({ where: { status: "UNSUBSCRIBED" } }),
-      ]);
+    const [items, total, totalAll, freeTrialCount, paidCount, unsubCount] = await Promise.all([
+      prisma.marketingSubscriber.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
+      prisma.marketingSubscriber.count({ where }),
+      prisma.marketingSubscriber.count(),
+      prisma.marketingSubscriber.count({ where: { planSlug: "free_trial" } }),
+      prisma.marketingSubscriber.count({
+        where: { planSlug: { notIn: ["free_trial", "free"] } },
+      }),
+      prisma.marketingSubscriber.count({ where: { status: "UNSUBSCRIBED" } }),
+    ]);
 
     return {
       success: true,
@@ -144,7 +144,7 @@ export async function adminExportAudienceCsvAction(params: {
   try {
     await requireAdmin();
 
-    const where: any = {};
+    const where: Prisma.MarketingSubscriberWhereInput = {};
     if (params.status && params.status !== "ALL") {
       where.status = params.status;
     }
@@ -209,10 +209,7 @@ export async function adminSyncAllUsersToMarketingAction(): Promise<{
     let count = 0;
     for (const u of users) {
       const planSlug = u.subscription?.planSlug || "free_trial";
-      const tags =
-        planSlug === "free_trial"
-          ? ["trial_user"]
-          : ["paid_customer", planSlug];
+      const tags = planSlug === "free_trial" ? ["trial_user"] : ["paid_customer", planSlug];
 
       await prisma.marketingSubscriber.upsert({
         where: { email: u.email },
@@ -271,7 +268,7 @@ export async function adminSendBroadcastCampaignAction(input: {
     }
 
     // Determine target subscriber list
-    const where: any = { status: "SUBSCRIBED" };
+    const where: Prisma.MarketingSubscriberWhereInput = { status: "SUBSCRIBED" };
     if (targetAudience === "TRIAL") {
       where.planSlug = "free_trial";
     } else if (targetAudience === "PAID") {

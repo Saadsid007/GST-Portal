@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Sparkles, CheckCircle } from "lucide-react";
 import { buildPageMetadata } from "@/lib/seo/metadata";
+import { JsonLd } from "@/components/json-ld";
+import { breadcrumbSchema } from "@/lib/seo/structured-data";
 
 export const metadata: Metadata = buildPageMetadata({
   title: "Changelog & Product Updates",
@@ -37,6 +39,12 @@ export default function ChangelogPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-12 px-6 py-16">
+      <JsonLd
+        schema={breadcrumbSchema([
+          { name: "Home", path: "/" },
+          { name: "Changelog", path: "/changelog" },
+        ])}
+      />
       <div className="space-y-4 text-center">
         <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold tracking-wider text-primary-ink uppercase">
           Product Changelog

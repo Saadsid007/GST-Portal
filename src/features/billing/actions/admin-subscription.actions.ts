@@ -2,6 +2,7 @@
 
 import { requireAdmin } from "@/features/auth";
 import prisma from "@/lib/prisma";
+import type { Prisma } from "@/generated/prisma/client";
 import {
   getPlanDefinition,
   isPaidPlan,
@@ -137,7 +138,7 @@ export async function adminGetSubscribersListAction(params: {
     const limit = Math.max(5, Math.min(100, params.limit ?? 20));
     const skip = (page - 1) * limit;
 
-    const whereUser: any = {};
+    const whereUser: Prisma.UserWhereInput = {};
     if (params.search && params.search.trim()) {
       const q = params.search.trim();
       whereUser.OR = [
@@ -146,7 +147,7 @@ export async function adminGetSubscribersListAction(params: {
       ];
     }
 
-    const whereSub: any = {};
+    const whereSub: Prisma.SubscriptionWhereInput = {};
     if (params.planSlug && params.planSlug !== "ALL") {
       whereSub.planSlug = params.planSlug;
     }
@@ -483,7 +484,7 @@ export async function adminResetTrialAction(input: {
     const endDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
     await prisma.$transaction(async (tx) => {
-      const sub = await tx.subscription.upsert({
+      await tx.subscription.upsert({
         where: { userId },
         create: {
           userId,

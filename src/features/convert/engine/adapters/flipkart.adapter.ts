@@ -44,9 +44,6 @@ export class FlipkartAdapter {
     const isSection7B2 = sheetNameLower.includes("7(b)(2)") || sheetNameLower.includes("7b2");
     const isSection7A2 = sheetNameLower.includes("7(a)(2)") || sheetNameLower.includes("7a2");
 
-    // Default Flipkart ECO TCS GSTIN
-    const defaultFlipkartEcoGstin = context.fallbackEcoGstin || "09AACCF0683K1ZF";
-
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i]!;
       const errors: string[] = [];
@@ -124,11 +121,7 @@ export class FlipkartAdapter {
       );
 
       // 4. Identities & Dates
-      const rawInvoiceNumber = (
-        row["Invoice Number"] ||
-        row["sub_order_num"] ||
-        ""
-      ).trim();
+      const rawInvoiceNumber = (row["Invoice Number"] || row["sub_order_num"] || "").trim();
 
       const invoiceNumber =
         rawInvoiceNumber.length > 16 ? rawInvoiceNumber.slice(-16) : rawInvoiceNumber;
@@ -160,10 +153,7 @@ export class FlipkartAdapter {
         platformId: "flipkart",
         supplierGstin: context.supplierGstin,
         userFallbackGstin: context.fallbackEcoGstin,
-        rowGstin:
-          row["TCS GSTIN"] ||
-          row["GSTIN of Flipkart.Com"] ||
-          row["ECO GSTIN"],
+        rowGstin: row["TCS GSTIN"] || row["GSTIN of Flipkart.Com"] || row["ECO GSTIN"],
       });
       validRows++;
 

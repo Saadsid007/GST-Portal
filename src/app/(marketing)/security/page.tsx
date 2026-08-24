@@ -4,6 +4,8 @@ import { Lock, Server, KeyRound, Trash2, FileCheck2, EyeOff, ArrowRight } from "
 import { Button, Card } from "@/components/ui";
 import { PageHero } from "@/app/(marketing)/_components/page-hero";
 import { buildPageMetadata } from "@/lib/seo/metadata";
+import { JsonLd } from "@/components/json-ld";
+import { breadcrumbSchema } from "@/lib/seo/structured-data";
 
 export const metadata: Metadata = buildPageMetadata({
   title: "Security Model & Infrastructure",
@@ -48,6 +50,12 @@ const CONTROLS = [
 export default function SecurityPage() {
   return (
     <div className="pb-20">
+      <JsonLd
+        schema={breadcrumbSchema([
+          { name: "Home", path: "/" },
+          { name: "Security", path: "/security" },
+        ])}
+      />
       <PageHero
         eyebrow="Security model"
         title="Built for data you can't afford to leak"

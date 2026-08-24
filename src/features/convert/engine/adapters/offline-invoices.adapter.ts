@@ -45,8 +45,6 @@ export class OfflineInvoicesAdapter {
   static adapt(rows: Record<string, string>[], context: SourceContext): AdapterResult {
     const transactions: NormalizedInvoiceRow[] = [];
     const unmappedColumns = new Set<string>();
-    let validRows = 0;
-    let errorRows = 0;
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i]!;
@@ -142,15 +140,7 @@ export class OfflineInvoicesAdapter {
       const isInterState = pos !== supplierState;
 
       // 6. HSN & Line Description
-      const rawHsn = getVal(
-        row,
-        "HSN/SAC Code",
-        "HSN/SAC",
-        "HSN Code",
-        "HSN",
-        "SAC",
-        "SAC Code"
-      );
+      const rawHsn = getVal(row, "HSN/SAC Code", "HSN/SAC", "HSN Code", "HSN", "SAC", "SAC Code");
       const hsnCode = transformHsn(rawHsn) || (rawHsn ? rawHsn.replace(/\D/g, "") : FALLBACK_HSN);
 
       const itemDescription =
@@ -163,23 +153,38 @@ export class OfflineInvoicesAdapter {
           "Goods Description"
         ) || `Goods/Services supplied under HSN ${hsnCode}`;
 
-      const uqc = getVal(row, "UQC", "Unit", "Quantity Unit") || (hsnCode.startsWith("99") ? "OTH" : "PCS");
+      const uqc =
+        getVal(row, "UQC", "Unit", "Quantity Unit") || (hsnCode.startsWith("99") ? "OTH" : "PCS");
       const quantity = parseNum(getVal(row, "Quantity", "Qty", "Total Quantity")) || 1;
 
       // 7. Rates & Financials
-      const gstRate = parseNum(
-        getVal(row, "GST Rate (%)", "Rate", "Rate (%)", "GST Rate", "Tax Rate (%)", "Tax Rate")
-      ) || 5;
+      const gstRate =
+        parseNum(
+          getVal(row, "GST Rate (%)", "Rate", "Rate (%)", "GST Rate", "Tax Rate (%)", "Tax Rate")
+        ) || 5;
 
       const taxableValue = round2(
         parseNum(
-          getVal(row, "Taxable Value (Rs)", "Taxable Value", "Taxable Amount", "Taxable", "Net Amount")
+          getVal(
+            row,
+            "Taxable Value (Rs)",
+            "Taxable Value",
+            "Taxable Amount",
+            "Taxable",
+            "Net Amount"
+          )
         )
       );
 
-      let igstAmount = round2(parseNum(getVal(row, "IGST (Rs)", "IGST Amount", "IGST", "Integrated Tax Amount")));
-      let cgstAmount = round2(parseNum(getVal(row, "CGST (Rs)", "CGST Amount", "CGST", "Central Tax Amount")));
-      let sgstAmount = round2(parseNum(getVal(row, "SGST (Rs)", "SGST Amount", "SGST", "State/UT Tax Amount")));
+      let igstAmount = round2(
+        parseNum(getVal(row, "IGST (Rs)", "IGST Amount", "IGST", "Integrated Tax Amount"))
+      );
+      let cgstAmount = round2(
+        parseNum(getVal(row, "CGST (Rs)", "CGST Amount", "CGST", "Central Tax Amount"))
+      );
+      let sgstAmount = round2(
+        parseNum(getVal(row, "SGST (Rs)", "SGST Amount", "SGST", "State/UT Tax Amount"))
+      );
       const cessAmount = round2(parseNum(getVal(row, "Cess (Rs)", "Cess Amount", "Cess")));
 
       const totalTax = round2(taxableValue * (gstRate / 100));
@@ -215,7 +220,9 @@ export class OfflineInvoicesAdapter {
       // 8. Transaction Type
       const rawTxType = getVal(row, "Transaction Type", "Doc Type", "Document Type");
       const transactionType: TransactionType =
-        rawTxType.toLowerCase().includes("credit") || rawTxType.toLowerCase().includes("return") || taxableValue < 0
+        rawTxType.toLowerCase().includes("credit") ||
+        rawTxType.toLowerCase().includes("return") ||
+        taxableValue < 0
           ? "Return"
           : "Sales";
 

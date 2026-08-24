@@ -22,9 +22,15 @@ function VerifyEmailForm() {
   const [isPending, startTransition] = useTransition();
   const [resendCooldown, setResendCooldown] = useState(60);
 
-  useEffect(() => {
+  // The field stays editable, so it cannot simply be derived from the query
+  // string — but it must follow the param when that changes. Adjusting during
+  // render is React's documented pattern for this; doing it in an effect
+  // renders the stale value first and triggers a second pass.
+  const [syncedEmailParam, setSyncedEmailParam] = useState(emailParam);
+  if (emailParam !== syncedEmailParam) {
+    setSyncedEmailParam(emailParam);
     if (emailParam) setEmail(emailParam);
-  }, [emailParam]);
+  }
 
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -87,7 +93,7 @@ function VerifyEmailForm() {
         {/* Card */}
         <div className="space-y-6 rounded-3xl border border-border/80 bg-card p-8 shadow-2xl shadow-primary/5">
           {isSuccess ? (
-            <div className="space-y-4 text-center py-4">
+            <div className="space-y-4 py-4 text-center">
               <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500">
                 <CheckCircle2 className="size-8" />
               </div>
@@ -110,7 +116,7 @@ function VerifyEmailForm() {
                 <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                   <MailCheck className="size-6" />
                 </div>
-                <h1 className="text-xl font-bold pt-2">Verify Your Email</h1>
+                <h1 className="pt-2 text-xl font-bold">Verify Your Email</h1>
                 <p className="text-xs text-muted-foreground">
                   Enter the 6-digit verification code sent to{" "}
                   <span className="font-semibold text-foreground">{email || "your email"}</span>
@@ -141,7 +147,7 @@ function VerifyEmailForm() {
                 <div className="space-y-1.5">
                   <label
                     htmlFor="otp"
-                    className="text-xs font-bold tracking-wide text-muted-foreground uppercase text-center block"
+                    className="block text-center text-xs font-bold tracking-wide text-muted-foreground uppercase"
                   >
                     6-Digit Verification Code
                   </label>

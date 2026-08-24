@@ -3,6 +3,8 @@ import Link from "next/link";
 import { DOCS_DATA } from "@/lib/seo/docs-data";
 import { ArrowRight } from "lucide-react";
 import { buildPageMetadata } from "@/lib/seo/metadata";
+import { JsonLd } from "@/components/json-ld";
+import { breadcrumbSchema } from "@/lib/seo/structured-data";
 
 export const metadata: Metadata = buildPageMetadata({
   title: "Documentation Portal & Guides",
@@ -16,6 +18,12 @@ export default function DocsPage() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-12 px-6 py-16">
+      <JsonLd
+        schema={breadcrumbSchema([
+          { name: "Home", path: "/" },
+          { name: "Docs", path: "/docs" },
+        ])}
+      />
       <div className="mx-auto max-w-2xl space-y-3 text-center">
         <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold tracking-wider text-primary-ink uppercase">
           Documentation Portal

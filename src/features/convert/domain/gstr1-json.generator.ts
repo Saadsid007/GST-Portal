@@ -206,16 +206,16 @@ export function generateGstr1Json(
   const b2cs = Array.from(b2csMap.values())
     .filter((val) => Math.abs(val.txval) > 0.001)
     .map((val) => {
-    const isInter = supplierState && val.pos !== supplierState;
-    return {
-      sply_ty: isInter ? "INTER" : "INTRA",
-      rt: val.rt,
-      typ: "OE",
-      pos: val.pos,
-      txval: val.txval,
-      ...(isInter ? { iamt: val.iamt, csamt: 0 } : { camt: val.camt, samt: val.samt, csamt: 0 }),
-    };
-  });
+      const isInter = supplierState && val.pos !== supplierState;
+      return {
+        sply_ty: isInter ? "INTER" : "INTRA",
+        rt: val.rt,
+        typ: "OE",
+        pos: val.pos,
+        txval: val.txval,
+        ...(isInter ? { iamt: val.iamt, csamt: 0 } : { camt: val.camt, samt: val.samt, csamt: 0 }),
+      };
+    });
 
   // --- CDNR (B2B Credit Notes) ---
   const cdnrRows = validRows.filter((r) => r.invoiceType === "CDNR");
@@ -390,7 +390,7 @@ export function generateGstr1Json(
     }> = [];
     let numIdx = 1;
 
-    for (const [prefix, items] of prefixGroups) {
+    for (const [, items] of prefixGroups) {
       const sorted = [...items].sort((a, b) => {
         const numA = parseInt((a.invoiceNumber.match(/\d+/g) || []).pop() || "0", 10);
         const numB = parseInt((b.invoiceNumber.match(/\d+/g) || []).pop() || "0", 10);
@@ -403,8 +403,8 @@ export function generateGstr1Json(
       const lastNum = parseInt((last.match(/\d+/g) || []).pop() || "0", 10);
 
       const actualCount = items.length;
-      let totnum = lastNum >= firstNum && firstNum > 0 ? lastNum - firstNum + 1 : actualCount;
-      let cancel = Math.max(0, totnum - actualCount);
+      const totnum = lastNum >= firstNum && firstNum > 0 ? lastNum - firstNum + 1 : actualCount;
+      const cancel = Math.max(0, totnum - actualCount);
       const netIssue = totnum - cancel;
 
       docsArr.push({

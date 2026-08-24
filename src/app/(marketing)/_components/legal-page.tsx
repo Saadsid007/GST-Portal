@@ -5,6 +5,8 @@ import { Card } from "@/components/ui";
 import { SITE } from "@/config/site";
 import { LEGAL_DOCUMENTS, POLICY_LAST_UPDATED, type LegalDocument } from "@/lib/seo/legal-data";
 import { PageHero } from "@/app/(marketing)/_components/page-hero";
+import { JsonLd } from "@/components/json-ld";
+import { breadcrumbSchema } from "@/lib/seo/structured-data";
 
 /**
  * One shell for every policy page, so Terms, Privacy, Refund, Delivery and
@@ -33,6 +35,14 @@ export function LegalPage({ doc }: { doc: LegalDocument }) {
 
   return (
     <div className="pb-20">
+      {/* Declared once here rather than in each of the five policy pages, so a
+          new policy inherits its breadcrumb by existing. */}
+      <JsonLd
+        schema={breadcrumbSchema([
+          { name: "Home", path: "/" },
+          { name: doc.title, path: `/${doc.slug}` },
+        ])}
+      />
       <PageHero eyebrow="Legal" title={doc.title} description={doc.summary} />
 
       <div className="mx-auto mt-6 grid max-w-5xl gap-8 px-6 lg:grid-cols-[15rem_1fr] lg:items-start">

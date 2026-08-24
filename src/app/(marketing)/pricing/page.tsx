@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Check, Sparkles, Building2, Zap, ShieldCheck, HelpCircle } from "lucide-react";
-import { Badge, Button, Card } from "@/components/ui";
+import { ArrowRight, Sparkles, HelpCircle } from "lucide-react";
+import { Button, Card } from "@/components/ui";
 import { PageHero } from "@/app/(marketing)/_components/page-hero";
 import {
   MarketingPlanCard,
@@ -9,32 +9,104 @@ import {
   TrustStrip,
   type ComparisonRow,
 } from "@/app/(marketing)/_components/pricing-blocks";
-import { ALL_PLANS, PLANS } from "@/features/billing/config/pricing.config";
+import { ALL_PLANS } from "@/features/billing/config/pricing.config";
 import { buildPageMetadata } from "@/lib/seo/metadata";
 import { JsonLd } from "@/components/json-ld";
-import { faqPageSchema, productSchema } from "@/lib/seo/structured-data";
+import { faqPageSchema, productSchema, breadcrumbSchema } from "@/lib/seo/structured-data";
 
 export const metadata: Metadata = buildPageMetadata({
-  title: "Pricing & Plans — Unlimited GSTR-1 Generation | GSTPilot",
+  title: "Pricing & Plans — Unlimited GSTR-1 Generation",
   description:
     "GSTPilot offers simple, GSTIN-based subscription pricing. Unlimited GSTR-1 generations, 30-day free trial with 7 GSTINs, and plans starting at ₹79/month.",
   path: "/pricing",
 });
 
 const COMPARISON_ROWS: ComparisonRow[] = [
-  { feature: "Included Client GSTINs", starter: "10 GSTINs", growth: "15 GSTINs", business: "30 GSTINs", caFirm: "200 GSTINs" },
-  { feature: "GSTR-1 Generation Limit", starter: "Unlimited", growth: "Unlimited", business: "Unlimited", caFirm: "Unlimited" },
+  {
+    feature: "Included Client GSTINs",
+    starter: "10 GSTINs",
+    growth: "15 GSTINs",
+    business: "30 GSTINs",
+    caFirm: "200 GSTINs",
+  },
+  {
+    feature: "GSTR-1 Generation Limit",
+    starter: "Unlimited",
+    growth: "Unlimited",
+    business: "Unlimited",
+    caFirm: "Unlimited",
+  },
   { feature: "Per-return charge", starter: "₹0", growth: "₹0", business: "₹0", caFirm: "₹0" },
-  { feature: "All 10 Marketplace Parsers", starter: true, growth: true, business: true, caFirm: true },
-  { feature: "Official GSTN JSON v3.0 + Multi-Sheet Excel", starter: true, growth: true, business: true, caFirm: true },
-  { feature: "Place of Supply & Tax Validation Engine", starter: true, growth: true, business: true, caFirm: true },
-  { feature: "Table 14 ECO & Section 52 TCS Reconciliation", starter: false, growth: true, business: true, caFirm: true },
-  { feature: "One-Click AI Error Auto-Fixers", starter: false, growth: true, business: true, caFirm: true },
-  { feature: "Advanced Multi-Marketplace Merge", starter: false, growth: true, business: true, caFirm: true },
-  { feature: "Multi-client Batch Processing & ZIP Export", starter: false, growth: false, business: true, caFirm: true },
-  { feature: "Team Members & Staff Access", starter: false, growth: false, business: false, caFirm: true },
-  { feature: "White Label & Firm Branding Reports", starter: false, growth: false, business: false, caFirm: true },
-  { feature: "Additional GSTIN Add-ons", starter: "₹6/mo each", growth: "₹6/mo each", business: "₹6/mo each", caFirm: "₹6/mo each" },
+  {
+    feature: "All 10 Marketplace Parsers",
+    starter: true,
+    growth: true,
+    business: true,
+    caFirm: true,
+  },
+  {
+    feature: "Official GSTN JSON v3.0 + Multi-Sheet Excel",
+    starter: true,
+    growth: true,
+    business: true,
+    caFirm: true,
+  },
+  {
+    feature: "Place of Supply & Tax Validation Engine",
+    starter: true,
+    growth: true,
+    business: true,
+    caFirm: true,
+  },
+  {
+    feature: "Table 14 ECO & Section 52 TCS Reconciliation",
+    starter: false,
+    growth: true,
+    business: true,
+    caFirm: true,
+  },
+  {
+    feature: "One-Click AI Error Auto-Fixers",
+    starter: false,
+    growth: true,
+    business: true,
+    caFirm: true,
+  },
+  {
+    feature: "Advanced Multi-Marketplace Merge",
+    starter: false,
+    growth: true,
+    business: true,
+    caFirm: true,
+  },
+  {
+    feature: "Multi-client Batch Processing & ZIP Export",
+    starter: false,
+    growth: false,
+    business: true,
+    caFirm: true,
+  },
+  {
+    feature: "Team Members & Staff Access",
+    starter: false,
+    growth: false,
+    business: false,
+    caFirm: true,
+  },
+  {
+    feature: "White Label & Firm Branding Reports",
+    starter: false,
+    growth: false,
+    business: false,
+    caFirm: true,
+  },
+  {
+    feature: "Additional GSTIN Add-ons",
+    starter: "₹6/mo each",
+    growth: "₹6/mo each",
+    business: "₹6/mo each",
+    caFirm: "₹6/mo each",
+  },
 ];
 
 const FAQS = [
@@ -80,6 +152,12 @@ export default async function PricingPage() {
 
   return (
     <div className="pb-24">
+      <JsonLd
+        schema={breadcrumbSchema([
+          { name: "Home", path: "/" },
+          { name: "Pricing", path: "/pricing" },
+        ])}
+      />
       <JsonLd schema={jsonLd} />
 
       <PageHero
@@ -104,37 +182,41 @@ export default async function PricingPage() {
         </section>
 
         {/* Extra GSTIN Add-on Callout */}
-        <Card variant="subtle" className="flex flex-col justify-between gap-6 p-8 md:flex-row md:items-center">
-          <div className="space-y-1.5 max-w-2xl">
-            <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary-ink uppercase tracking-wider">
+        <Card
+          variant="subtle"
+          className="flex flex-col justify-between gap-6 p-8 md:flex-row md:items-center"
+        >
+          <div className="max-w-2xl space-y-1.5">
+            <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-bold tracking-wider text-primary-ink uppercase">
               Flexible Scaling
             </span>
             <h3 className="text-xl font-bold text-foreground">
               Need extra GSTIN slots for new clients?
             </h3>
             <p className="text-xs text-muted-foreground">
-              Add individual GSTIN capacity packs to any plan at just <span className="font-bold text-foreground">₹6 / GSTIN / month</span>. Automatically prorated for remaining days in your billing cycle.
+              Add individual GSTIN capacity packs to any plan at just{" "}
+              <span className="font-bold text-foreground">₹6 / GSTIN / month</span>. Automatically
+              prorated for remaining days in your billing cycle.
             </p>
           </div>
           <Button asChild variant="brand" size="md" className="shrink-0">
             <Link href="/register">
               Get Started Now
-              <ArrowRight className="size-4 ml-1.5" />
+              <ArrowRight className="ml-1.5 size-4" />
             </Link>
           </Button>
         </Card>
 
         {/* Feature Comparison Matrix */}
         <section className="space-y-6">
-          <div className="text-center space-y-1">
+          <div className="space-y-1 text-center">
             <span className="text-xs font-bold tracking-wider text-primary-ink uppercase">
               Full Feature Comparison
             </span>
-            <h2 className="text-2xl font-black text-foreground">
-              Compare Plan Capabilities
-            </h2>
+            <h2 className="text-2xl font-black text-foreground">Compare Plan Capabilities</h2>
             <p className="text-xs text-muted-foreground">
-              Choose the right tier for individual sellers, growing e-commerce merchants, and large CA firms.
+              Choose the right tier for individual sellers, growing e-commerce merchants, and large
+              CA firms.
             </p>
           </div>
 
@@ -146,7 +228,7 @@ export default async function PricingPage() {
 
         {/* FAQ Section */}
         <section className="space-y-8">
-          <div className="text-center space-y-1">
+          <div className="space-y-1 text-center">
             <span className="text-xs font-bold tracking-wider text-primary-ink uppercase">
               Frequently Asked Questions
             </span>
@@ -157,14 +239,12 @@ export default async function PricingPage() {
 
           <div className="grid gap-4 md:grid-cols-2">
             {FAQS.map((faq, idx) => (
-              <Card key={idx} variant="solid" className="p-6 space-y-2">
+              <Card key={idx} variant="solid" className="space-y-2 p-6">
                 <p className="flex items-start gap-2 text-sm font-bold text-foreground">
-                  <HelpCircle className="size-4 text-primary-ink shrink-0 mt-0.5" />
+                  <HelpCircle className="mt-0.5 size-4 shrink-0 text-primary-ink" />
                   <span>{faq.q}</span>
                 </p>
-                <p className="text-xs text-muted-foreground leading-relaxed pl-6">
-                  {faq.a}
-                </p>
+                <p className="pl-6 text-xs leading-relaxed text-muted-foreground">{faq.a}</p>
               </Card>
             ))}
           </div>

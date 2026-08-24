@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Menu, Sun, Moon, X, Zap, LayoutDashboard } from "lucide-react";
 import { useTheme } from "next-themes";
-import { Button, Skeleton } from "@/components/ui";
+import { Button } from "@/components/ui";
 import { authClient } from "@/lib/auth-client";
 
 const NAV_LINKS = [
@@ -95,10 +95,7 @@ export function MarketingNav({
               </Link>
             );
           })}
-          <MobileAuthLinks
-            initialSession={initialSession}
-            onNavigate={() => setMenuOpen(false)}
-          />
+          <MobileAuthLinks initialSession={initialSession} onNavigate={() => setMenuOpen(false)} />
         </nav>
       )}
     </>

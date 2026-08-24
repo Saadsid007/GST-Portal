@@ -2,10 +2,19 @@ import type { Metadata } from "next";
 import { SITE } from "@/config/site";
 
 interface PageMetadataInput {
+  /**
+   * Written WITHOUT the site name: the root layout applies a `%s | GSTPilot`
+   * template, so including it here renders "… | GSTPilot | GSTPilot".
+   */
   title: string;
   description: string;
   /** Site-relative, e.g. "/pricing". Becomes the self-referencing canonical. */
   path: string;
+  /**
+   * Opts out of the title template. For pages that must lead with the brand —
+   * the homepage — where the suffix would otherwise repeat it.
+   */
+  absoluteTitle?: boolean;
   type?: "website" | "article";
   publishedTime?: string;
   modifiedTime?: string;
@@ -21,6 +30,7 @@ export function buildPageMetadata({
   title,
   description,
   path,
+  absoluteTitle = false,
   type = "website",
   publishedTime,
   modifiedTime,
@@ -31,7 +41,7 @@ export function buildPageMetadata({
   const canonical = path.startsWith("/") ? path : `/${path}`;
 
   return {
-    title,
+    title: absoluteTitle ? { absolute: title } : title,
     description,
     alternates: { canonical },
     openGraph: {

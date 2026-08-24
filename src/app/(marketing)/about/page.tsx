@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { buildPageMetadata } from "@/lib/seo/metadata";
+import { JsonLd } from "@/components/json-ld";
+import { breadcrumbSchema } from "@/lib/seo/structured-data";
 
 export const metadata: Metadata = buildPageMetadata({
-  title: "About GSTPilot — E-Commerce GST Engine",
+  title: "About — the e-commerce GST compliance engine",
   description:
     "Learn about GSTPilot's mission to simplify e-commerce GST compliance for Indian sellers and CAs.",
   path: "/about",
@@ -11,6 +13,12 @@ export const metadata: Metadata = buildPageMetadata({
 export default function AboutPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-12 px-6 py-16">
+      <JsonLd
+        schema={breadcrumbSchema([
+          { name: "Home", path: "/" },
+          { name: "About", path: "/about" },
+        ])}
+      />
       <div className="space-y-4 text-center">
         <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold tracking-wider text-primary-ink uppercase">
           About GSTPilot

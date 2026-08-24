@@ -31,6 +31,7 @@ export const revalidate = 300;
 
 const baseMetadata = buildPageMetadata({
   title: "GSTPilot — Convert Amazon, Meesho & Flipkart reports to GSTR-1",
+  absoluteTitle: true,
   description:
     "Turn marketplace seller reports into government-ready GSTR-1 JSON and Excel in seconds. Automatic net sales after returns, multi-marketplace merge, TCS reconciliation and one-click auto-fixers.",
   path: "/",

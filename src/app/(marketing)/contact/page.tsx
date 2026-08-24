@@ -6,6 +6,8 @@ import { PageHero } from "@/app/(marketing)/_components/page-hero";
 import { ContactForm } from "@/features/support/presentation/contact-form";
 import { SITE } from "@/config/site";
 import { buildPageMetadata } from "@/lib/seo/metadata";
+import { JsonLd } from "@/components/json-ld";
+import { breadcrumbSchema } from "@/lib/seo/structured-data";
 
 export const metadata: Metadata = buildPageMetadata({
   title: "Contact Sales & Support",
@@ -55,6 +57,12 @@ const SELF_SERVE = [
 export default function ContactPage() {
   return (
     <div className="pb-20">
+      <JsonLd
+        schema={breadcrumbSchema([
+          { name: "Home", path: "/" },
+          { name: "Contact", path: "/contact" },
+        ])}
+      />
       <PageHero
         eyebrow="Contact"
         title="Talk to a human who knows GST"

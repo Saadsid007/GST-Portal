@@ -1,5 +1,14 @@
 import Link from "next/link";
-import { ArrowRight, Check, Minus, ShieldCheck, Lock, RefreshCw, Sparkles, Zap, Building2 } from "lucide-react";
+import {
+  ArrowRight,
+  Check,
+  Minus,
+  ShieldCheck,
+  Lock,
+  Sparkles,
+  Zap,
+  Building2,
+} from "lucide-react";
 import { Badge, Button, Card } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import type { PlanDefinition } from "@/features/billing/config/pricing.config";
@@ -19,13 +28,16 @@ export function MarketingPlanCard({
       variant={isPopular ? "accent" : "solid"}
       className={cn(
         "relative flex flex-col justify-between p-6 transition-all duration-200",
-        isPopular && "ring-2 ring-primary/40 shadow-xl",
+        isPopular && "shadow-xl ring-2 ring-primary/40",
         featured && "md:-translate-y-2"
       )}
     >
       {isPopular && (
-        <Badge variant="solid" className="absolute -top-3 left-1/2 -translate-x-1/2 shadow-sm font-extrabold uppercase tracking-wider text-[10px]">
-          <Sparkles className="size-2.5 mr-1" aria-hidden />
+        <Badge
+          variant="solid"
+          className="absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] font-extrabold tracking-wider uppercase shadow-sm"
+        >
+          <Sparkles className="mr-1 size-2.5" aria-hidden />
           Recommended
         </Badge>
       )}
@@ -35,7 +47,7 @@ export function MarketingPlanCard({
           <p className="text-2xs font-extrabold tracking-wider text-muted-foreground uppercase">
             {plan.name}
           </p>
-          <p className="text-xs text-muted-foreground min-h-[32px]">{plan.description}</p>
+          <p className="min-h-[32px] text-xs text-muted-foreground">{plan.description}</p>
         </div>
 
         <div className="my-4 border-y border-border py-4">
@@ -50,7 +62,7 @@ export function MarketingPlanCard({
 
           <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
             <span className="inline-flex items-center rounded-md bg-emerald-500/10 px-2 py-0.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-              <Zap className="size-3 mr-1" /> Unlimited GSTR-1
+              <Zap className="mr-1 size-3" /> Unlimited GSTR-1
             </span>
             <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary-ink">
               {plan.includedGSTINs} GSTINs Included
@@ -64,13 +76,13 @@ export function MarketingPlanCard({
           </p>
           <ul className="space-y-2">
             {plan.features.map((feat, idx) => (
-              <li key={idx} className="flex items-start gap-2 text-foreground/90 text-xs">
+              <li key={idx} className="flex items-start gap-2 text-xs text-foreground/90">
                 <Check className="mt-0.5 size-3.5 flex-shrink-0 text-emerald-500" />
                 <span>{feat}</span>
               </li>
             ))}
             {!isTrial && (
-              <li className="flex items-start gap-2 font-semibold text-primary-ink text-xs">
+              <li className="flex items-start gap-2 text-xs font-semibold text-primary-ink">
                 <Check className="mt-0.5 size-3.5 flex-shrink-0 text-primary-ink" />
                 <span>Extra GSTINs @ ₹6/mo each</span>
               </li>
@@ -79,11 +91,11 @@ export function MarketingPlanCard({
         </div>
       </div>
 
-      <div className="mt-6 pt-4 border-t border-border">
+      <div className="mt-6 border-t border-border pt-4">
         <Button asChild variant={isPopular ? "brand" : "outline"} size="sm" block>
           <Link href="/register">
             {isTrial ? "Start 30-Day Free Trial" : `Choose ${plan.name}`}
-            <ArrowRight className="size-3.5 ml-1" />
+            <ArrowRight className="ml-1 size-3.5" />
           </Link>
         </Button>
       </div>
@@ -94,10 +106,26 @@ export function MarketingPlanCard({
 /** Trust strip for money and subscription transparency. */
 export function TrustStrip() {
   const items = [
-    { icon: Zap, label: "Unlimited GSTR-1 generation", detail: "Zero per-return deduction on active plans" },
-    { icon: Building2, label: "GSTIN capacity scaling", detail: "Add extra client GSTINs for ₹6/month each" },
-    { icon: ShieldCheck, label: "Official GSTN JSON & Excel", detail: "100% compliant with Offline Tool v3.0" },
-    { icon: Lock, label: "100% Secure Checkout", detail: "Encrypted payments via Razorpay UPI & Cards" },
+    {
+      icon: Zap,
+      label: "Unlimited GSTR-1 generation",
+      detail: "Zero per-return deduction on active plans",
+    },
+    {
+      icon: Building2,
+      label: "GSTIN capacity scaling",
+      detail: "Add extra client GSTINs for ₹6/month each",
+    },
+    {
+      icon: ShieldCheck,
+      label: "Official GSTN JSON & Excel",
+      detail: "100% compliant with Offline Tool v3.0",
+    },
+    {
+      icon: Lock,
+      label: "100% Secure Checkout",
+      detail: "Encrypted payments via Razorpay UPI & Cards",
+    },
   ];
 
   return (
@@ -129,23 +157,31 @@ export function PlanComparison({ rows }: { rows: ComparisonRow[] }) {
   return (
     <div className="overflow-x-auto rounded-2xl border border-border bg-card">
       <table className="w-full text-left text-xs">
-        <thead className="border-b border-border bg-secondary/30 text-muted-foreground font-bold">
+        <thead className="border-b border-border bg-secondary/30 font-bold text-muted-foreground">
           <tr>
             <th className="p-4">Feature</th>
             <th className="p-4">Starter (₹79)</th>
-            <th className="p-4 bg-primary/5 text-primary-ink">Growth (₹129)</th>
+            <th className="bg-primary/5 p-4 text-primary-ink">Growth (₹129)</th>
             <th className="p-4">Business (₹199)</th>
             <th className="p-4">CA Firm (₹799)</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
           {rows.map((row, idx) => (
-            <tr key={idx} className="hover:bg-accent/30 transition">
+            <tr key={idx} className="transition hover:bg-accent/30">
               <td className="p-4 font-semibold text-foreground">{row.feature}</td>
-              <td className="p-4"><Cell val={row.starter} /></td>
-              <td className="p-4 bg-primary/5"><Cell val={row.growth} /></td>
-              <td className="p-4"><Cell val={row.business} /></td>
-              <td className="p-4"><Cell val={row.caFirm} /></td>
+              <td className="p-4">
+                <Cell val={row.starter} />
+              </td>
+              <td className="bg-primary/5 p-4">
+                <Cell val={row.growth} />
+              </td>
+              <td className="p-4">
+                <Cell val={row.business} />
+              </td>
+              <td className="p-4">
+                <Cell val={row.caFirm} />
+              </td>
             </tr>
           ))}
         </tbody>

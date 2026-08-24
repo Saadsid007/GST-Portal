@@ -89,7 +89,7 @@ export async function getActivePlan(userId: string): Promise<PlanSlug> {
 /**
  * Helper for backwards-compatible plan definition lookup.
  */
-export function planDefinition(planSlug: any) {
+export function planDefinition(planSlug: string) {
   return getPlanDefinition(planSlug);
 }
 

@@ -1,15 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  Users,
-  FileSpreadsheet,
-  ArrowRight,
-  ShieldCheck,
-  CreditCard,
-  Sliders,
-  TrendingUp,
-  Sparkles,
-} from "lucide-react";
+import { Users, ArrowRight, ShieldCheck, CreditCard, Sliders, TrendingUp } from "lucide-react";
 import { requireAdmin } from "@/features/auth";
 import prisma from "@/lib/prisma";
 import { formatCurrency } from "@/lib/utils";
@@ -170,7 +161,10 @@ export default async function AdminOverviewPage() {
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-semibold tracking-tight">Newest accounts</h2>
-            <Link href="/admin/users" className="text-xs font-semibold text-primary-ink hover:underline">
+            <Link
+              href="/admin/users"
+              className="text-xs font-semibold text-primary-ink hover:underline"
+            >
               View all
             </Link>
           </div>
@@ -209,8 +203,13 @@ export default async function AdminOverviewPage() {
 
         <section className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold tracking-tight">Recent payments &amp; subscriptions</h2>
-            <Link href="/admin/subscriptions" className="text-xs font-semibold text-primary-ink hover:underline">
+            <h2 className="text-base font-semibold tracking-tight">
+              Recent payments &amp; subscriptions
+            </h2>
+            <Link
+              href="/admin/subscriptions"
+              className="text-xs font-semibold text-primary-ink hover:underline"
+            >
               Manage
             </Link>
           </div>
@@ -232,7 +231,10 @@ export default async function AdminOverviewPage() {
                       <TableCell className="text-xs font-medium capitalize">
                         {p.planSlug ? p.planSlug.replace("_", " ") : p.paymentType}
                       </TableCell>
-                      <TableCell align="right" className="text-xs font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                      <TableCell
+                        align="right"
+                        className="text-xs font-bold text-emerald-600 tabular-nums dark:text-emerald-400"
+                      >
                         ₹{p.amount}
                       </TableCell>
                       <TableCell align="right" className="text-2xs text-muted-foreground">
@@ -250,7 +252,8 @@ export default async function AdminOverviewPage() {
       <Card variant="subtle" className="flex items-start gap-3 p-4">
         <ShieldCheck className="mt-0.5 size-4 flex-shrink-0 text-primary-ink" aria-hidden />
         <p className="text-xs text-muted-foreground">
-          Every plan change, capacity grant, and subscription override is recorded to the compliance audit log with admin actor details.
+          Every plan change, capacity grant, and subscription override is recorded to the compliance
+          audit log with admin actor details.
         </p>
       </Card>
     </div>
