@@ -28,6 +28,7 @@ export function PlanComparisonGrid({ plans, currentSubscription, onRefresh }: Pr
 
   function handleSelectPlan(planSlug: PlanSlug) {
     if (planSlug === "free_trial" || planSlug === currentSubscription.planSlug) return;
+    if (plans.find((p) => p.slug === planSlug)?.comingSoon) return;
     setError(null);
     setSelectedSlug(planSlug);
 
@@ -105,11 +106,12 @@ export function PlanComparisonGrid({ plans, currentSubscription, onRefresh }: Pr
           Subscription Plans
         </span>
         <h2 className="mt-2 text-2xl font-black md:text-3xl">
-          Simple, GSTIN-Based Pricing for Every Practice
+          One product. Every feature. Pick your GSTIN capacity.
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Unlimited GSTR-1 generations on all active plans. Pay only for the client GSTIN capacity
-          you need.
+        <p className="mx-auto mt-1 max-w-2xl text-sm text-muted-foreground">
+          Every paid plan ships the same toolkit — unlimited GSTR-1 generation, all parsers,
+          reconciliation, AI fixes and audit reports. The only difference between plans is how many
+          client GSTINs you can keep active.
         </p>
       </div>
 
@@ -124,7 +126,8 @@ export function PlanComparisonGrid({ plans, currentSubscription, onRefresh }: Pr
           const isCurrent = currentSubscription.planSlug === plan.slug;
           const isScheduled = currentSubscription.scheduledPlanSlug === plan.slug;
           const isTrial = plan.slug === "free_trial";
-          const isPopular = plan.isPopular;
+          const isComingSoon = plan.comingSoon === true;
+          const isPopular = plan.isPopular && !isComingSoon;
 
           return (
             <div
@@ -134,16 +137,26 @@ export function PlanComparisonGrid({ plans, currentSubscription, onRefresh }: Pr
                   ? "border-primary/50 bg-gradient-to-b from-card via-card to-primary/5 shadow-xl ring-2 ring-primary/20"
                   : isCurrent
                     ? "border-emerald-500/50 bg-emerald-500/5 shadow-md"
-                    : "border-border bg-card shadow-sm hover:border-border/80 hover:shadow-md"
+                    : isComingSoon
+                      ? "border-dashed border-border bg-card/60 shadow-none"
+                      : "border-border bg-card shadow-sm hover:border-border/80 hover:shadow-md"
               }`}
             >
-              {/* Badge */}
-              {plan.badge && (
+              {/* Badge. A coming-soon tier gets its own, not a marketing one. */}
+              {isComingSoon ? (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="inline-flex items-center gap-1 rounded-full brand-gradient px-3 py-0.5 text-[10px] font-extrabold tracking-wider text-white uppercase shadow-sm">
-                    <Sparkles className="size-2.5" /> {plan.badge}
+                  <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-3 py-0.5 text-[10px] font-extrabold tracking-wider text-muted-foreground uppercase">
+                    Coming soon
                   </span>
                 </div>
+              ) : (
+                plan.badge && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                    <span className="inline-flex items-center gap-1 rounded-full brand-gradient px-3 py-0.5 text-[10px] font-extrabold tracking-wider text-white uppercase shadow-sm">
+                      <Sparkles className="size-2.5" /> {plan.badge}
+                    </span>
+                  </div>
+                )
               )}
 
               {isCurrent && (
@@ -172,11 +185,11 @@ export function PlanComparisonGrid({ plans, currentSubscription, onRefresh }: Pr
                   </div>
 
                   <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center rounded-lg bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary-ink">
+                      {plan.includedGSTINs} client GSTINs
+                    </span>
                     <span className="inline-flex items-center rounded-lg bg-emerald-500/10 px-2.5 py-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
                       Unlimited GSTR-1
-                    </span>
-                    <span className="inline-flex items-center rounded-lg bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary-ink">
-                      {plan.includedGSTINs} GSTINs Included
                     </span>
                   </div>
                 </div>
@@ -184,7 +197,7 @@ export function PlanComparisonGrid({ plans, currentSubscription, onRefresh }: Pr
                 {/* Features List */}
                 <div className="space-y-2.5 text-xs">
                   <p className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase">
-                    Plan Features
+                    {isComingSoon ? "Planned for this tier" : "Everything, in every plan"}
                   </p>
                   <ul className="space-y-2">
                     {plan.features.map((feat, idx) => (
@@ -205,7 +218,15 @@ export function PlanComparisonGrid({ plans, currentSubscription, onRefresh }: Pr
 
               {/* Action Button */}
               <div className="mt-8 border-t border-border pt-4">
-                {isCurrent ? (
+                {isComingSoon ? (
+                  <button
+                    type="button"
+                    disabled
+                    className="flex w-full cursor-default items-center justify-center gap-1.5 rounded-xl border border-dashed border-border bg-muted/40 py-2.5 text-xs font-bold text-muted-foreground"
+                  >
+                    <Clock className="size-3.5" /> Coming soon
+                  </button>
+                ) : isCurrent ? (
                   <button
                     type="button"
                     disabled

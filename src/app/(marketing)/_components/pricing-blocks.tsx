@@ -21,7 +21,8 @@ export function MarketingPlanCard({
   featured?: boolean;
 }) {
   const isTrial = plan.slug === "free_trial";
-  const isPopular = plan.isPopular;
+  const isPopular = plan.isPopular && !plan.comingSoon;
+  const isComingSoon = plan.comingSoon === true;
 
   return (
     <Card
@@ -29,7 +30,9 @@ export function MarketingPlanCard({
       className={cn(
         "relative flex flex-col justify-between p-6 transition-all duration-200",
         isPopular && "shadow-xl ring-2 ring-primary/40",
-        featured && "md:-translate-y-2"
+        featured && !isComingSoon && "md:-translate-y-2",
+        // Announced, not sellable: recede rather than compete for attention.
+        isComingSoon && "border-dashed opacity-90"
       )}
     >
       {isPopular && (
@@ -39,6 +42,15 @@ export function MarketingPlanCard({
         >
           <Sparkles className="mr-1 size-2.5" aria-hidden />
           Recommended
+        </Badge>
+      )}
+
+      {isComingSoon && (
+        <Badge
+          variant="neutral"
+          className="absolute -top-3 left-1/2 -translate-x-1/2 text-[10px] font-extrabold tracking-wider uppercase shadow-sm"
+        >
+          Coming soon
         </Badge>
       )}
 
@@ -61,18 +73,18 @@ export function MarketingPlanCard({
           </div>
 
           <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+            <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary-ink">
+              <Building2 className="mr-1 size-3" /> {plan.includedGSTINs} client GSTINs
+            </span>
             <span className="inline-flex items-center rounded-md bg-emerald-500/10 px-2 py-0.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
               <Zap className="mr-1 size-3" /> Unlimited GSTR-1
-            </span>
-            <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary-ink">
-              {plan.includedGSTINs} GSTINs Included
             </span>
           </div>
         </div>
 
         <div className="space-y-2 text-xs">
           <p className="text-[10px] font-extrabold tracking-wider text-muted-foreground uppercase">
-            Included Capabilities
+            {isComingSoon ? "Planned for this tier" : "Everything, in every plan"}
           </p>
           <ul className="space-y-2">
             {plan.features.map((feat, idx) => (
@@ -92,12 +104,21 @@ export function MarketingPlanCard({
       </div>
 
       <div className="mt-6 border-t border-border pt-4">
-        <Button asChild variant={isPopular ? "brand" : "outline"} size="sm" block>
-          <Link href="/register">
-            {isTrial ? "Start 30-Day Free Trial" : `Choose ${plan.name}`}
-            <ArrowRight className="ml-1 size-3.5" />
-          </Link>
-        </Button>
+        {isComingSoon ? (
+          <Button asChild variant="outline" size="sm" block>
+            <Link href="/contact">
+              Join the early-access list
+              <ArrowRight className="ml-1 size-3.5" />
+            </Link>
+          </Button>
+        ) : (
+          <Button asChild variant={isPopular ? "brand" : "outline"} size="sm" block>
+            <Link href="/register">
+              {isTrial ? "Start 30-Day Free Trial" : `Choose ${plan.name}`}
+              <ArrowRight className="ml-1 size-3.5" />
+            </Link>
+          </Button>
+        )}
       </div>
     </Card>
   );

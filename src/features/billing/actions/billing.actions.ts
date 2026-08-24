@@ -4,6 +4,7 @@ import { requireSession } from "@/features/auth";
 import {
   getAllPlans,
   getPlanDefinition,
+  isPurchasable,
   type PlanSlug,
 } from "@/features/billing/config/pricing.config";
 import {
@@ -113,8 +114,15 @@ export async function createPlanSubscriptionOrderAction(planSlug: PlanSlug): Pro
     const userId = session.user.id;
     const plan = getPlanDefinition(planSlug);
 
-    if (plan.monthlyPrice <= 0) {
-      return { success: false, error: "Free trial cannot be purchased with payment." };
+    // Server-side gate: hiding the button is presentation, not enforcement.
+    if (!isPurchasable(plan.slug)) {
+      return {
+        success: false,
+        error:
+          plan.comingSoon === true
+            ? `${plan.name} is not available yet. Contact us to join the early-access list.`
+            : "This plan cannot be purchased.",
+      };
     }
 
     const receipt = `sub_${Date.now().toString(36)}`;
@@ -373,6 +381,9 @@ export async function scheduleDowngradeAction(targetPlanSlug: PlanSlug): Promise
 }> {
   try {
     const session = await requireSession();
+    if (!isPurchasable(targetPlanSlug)) {
+      return { success: false, error: "That plan is not available yet." };
+    }
     const res = await scheduleDowngrade(session.user.id, targetPlanSlug);
     revalidatePath("/billing");
     return { success: res.success, message: res.message };

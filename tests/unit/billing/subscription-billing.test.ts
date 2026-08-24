@@ -5,6 +5,9 @@ import {
   isPaidPlan,
   FREE_TRIAL_GSTIN_LIMIT,
   ADDITIONAL_GSTIN_PRICE_MONTHLY,
+  isPurchasable,
+  getPurchasablePlans,
+  getCapacityRange,
 } from "@/features/billing/config/pricing.config";
 
 describe("GSTPilot Pricing Configuration", () => {
@@ -147,5 +150,49 @@ describe("Subscription Lifecycle & Entitlement Rules", () => {
     };
     expect(newSub.planSlug).toBe("growth");
     expect(newSub.scheduledPlanSlug).toBeNull();
+  });
+});
+
+describe("Plan availability & parity", () => {
+  it("marks only the CA tiers as coming soon", () => {
+    expect(PLANS.ca_pro.comingSoon).toBe(true);
+    expect(PLANS.ca_firm.comingSoon).toBe(true);
+    for (const slug of ["free_trial", "starter", "growth", "business"] as const) {
+      expect(PLANS[slug].comingSoon).toBeUndefined();
+    }
+  });
+
+  it("refuses to sell a coming-soon or free plan", () => {
+    // The order endpoint calls this, so hiding the button is not the only guard.
+    expect(isPurchasable("ca_pro")).toBe(false);
+    expect(isPurchasable("ca_firm")).toBe(false);
+    expect(isPurchasable("free_trial")).toBe(false);
+    expect(isPurchasable("unknown_plan")).toBe(false);
+    expect(isPurchasable(null)).toBe(false);
+
+    expect(isPurchasable("starter")).toBe(true);
+    expect(isPurchasable("growth")).toBe(true);
+    expect(isPurchasable("business")).toBe(true);
+  });
+
+  it("offers exactly the three sellable plans", () => {
+    expect(getPurchasablePlans().map((p) => p.slug)).toEqual(["starter", "growth", "business"]);
+  });
+
+  it("gives every sellable plan identical capabilities — only capacity differs", () => {
+    const sellable = ["free_trial", "starter", "growth", "business"] as const;
+    const reference = JSON.stringify(PLANS.starter.capabilities);
+
+    for (const slug of sellable) {
+      expect(JSON.stringify(PLANS[slug].capabilities)).toBe(reference);
+    }
+
+    // The thing that actually varies.
+    const capacities = sellable.map((s) => PLANS[s].includedGSTINs);
+    expect(new Set(capacities).size).toBe(capacities.length);
+  });
+
+  it("reports the capacity range across sellable plans", () => {
+    expect(getCapacityRange()).toEqual({ min: 10, max: 30 });
   });
 });

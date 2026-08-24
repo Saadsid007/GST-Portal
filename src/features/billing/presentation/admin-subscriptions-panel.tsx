@@ -12,7 +12,7 @@ import {
   type AdminBillingStats,
   type AdminSubscriberItem,
 } from "@/features/billing/actions/admin-subscription.actions";
-import { type PlanSlug } from "@/features/billing/config/pricing.config";
+import { getAllPlans, type PlanSlug } from "@/features/billing/config/pricing.config";
 import {
   Search,
   TrendingUp,
@@ -508,12 +508,16 @@ export function AdminSubscriptionsPanel() {
                   onChange={(e) => setNewPlanSlug(e.target.value as PlanSlug)}
                   className="mt-1.5 w-full rounded-xl border border-border bg-background p-2.5 font-semibold text-foreground focus:outline-none"
                 >
-                  <option value="free_trial">30-Day Free Trial (7 GSTINs, ₹0)</option>
-                  <option value="starter">Starter Plan (10 GSTINs, ₹79)</option>
-                  <option value="growth">Growth Plan (15 GSTINs, ₹129)</option>
-                  <option value="business">Business Plan (30 GSTINs, ₹199)</option>
-                  <option value="ca_pro">CA Pro Plan (75 GSTINs, ₹399)</option>
-                  <option value="ca_firm">CA Firm Plan (200 GSTINs, ₹799)</option>
+                  {/* Driven from the pricing config so this list cannot drift.
+                      Coming-soon tiers stay assignable — self-serve checkout
+                      refuses them, an admin granting one to a pilot customer
+                      is the intended path — but they are labelled as such. */}
+                  {getAllPlans().map((plan) => (
+                    <option key={plan.slug} value={plan.slug}>
+                      {plan.name} ({plan.includedGSTINs} GSTINs, ₹{plan.monthlyPrice})
+                      {plan.comingSoon ? " — coming soon, not publicly sellable" : ""}
+                    </option>
+                  ))}
                 </select>
               </div>
 

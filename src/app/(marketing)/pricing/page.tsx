@@ -9,7 +9,11 @@ import {
   TrustStrip,
   type ComparisonRow,
 } from "@/app/(marketing)/_components/pricing-blocks";
-import { ALL_PLANS } from "@/features/billing/config/pricing.config";
+import {
+  ALL_PLANS,
+  getCapacityRange,
+  getPurchasablePlans,
+} from "@/features/billing/config/pricing.config";
 import { buildPageMetadata } from "@/lib/seo/metadata";
 import { JsonLd } from "@/components/json-ld";
 import { faqPageSchema, productSchema, breadcrumbSchema } from "@/lib/seo/structured-data";
@@ -23,14 +27,15 @@ export const metadata: Metadata = buildPageMetadata({
 
 const COMPARISON_ROWS: ComparisonRow[] = [
   {
-    feature: "Included Client GSTINs",
+    feature: "Included client GSTINs",
     starter: "10 GSTINs",
     growth: "15 GSTINs",
     business: "30 GSTINs",
-    caFirm: "200 GSTINs",
+    caFirm: "Coming soon",
   },
+  { feature: "Monthly price", starter: "₹79", growth: "₹129", business: "₹199", caFirm: "—" },
   {
-    feature: "GSTR-1 Generation Limit",
+    feature: "GSTR-1 generations",
     starter: "Unlimited",
     growth: "Unlimited",
     business: "Unlimited",
@@ -38,74 +43,82 @@ const COMPARISON_ROWS: ComparisonRow[] = [
   },
   { feature: "Per-return charge", starter: "₹0", growth: "₹0", business: "₹0", caFirm: "₹0" },
   {
-    feature: "All 10 Marketplace Parsers",
-    starter: true,
-    growth: true,
-    business: true,
-    caFirm: true,
-  },
-  {
-    feature: "Official GSTN JSON v3.0 + Multi-Sheet Excel",
-    starter: true,
-    growth: true,
-    business: true,
-    caFirm: true,
-  },
-  {
-    feature: "Place of Supply & Tax Validation Engine",
-    starter: true,
-    growth: true,
-    business: true,
-    caFirm: true,
-  },
-  {
-    feature: "Table 14 ECO & Section 52 TCS Reconciliation",
-    starter: false,
-    growth: true,
-    business: true,
-    caFirm: true,
-  },
-  {
-    feature: "One-Click AI Error Auto-Fixers",
-    starter: false,
-    growth: true,
-    business: true,
-    caFirm: true,
-  },
-  {
-    feature: "Advanced Multi-Marketplace Merge",
-    starter: false,
-    growth: true,
-    business: true,
-    caFirm: true,
-  },
-  {
-    feature: "Multi-client Batch Processing & ZIP Export",
-    starter: false,
-    growth: false,
-    business: true,
-    caFirm: true,
-  },
-  {
-    feature: "Team Members & Staff Access",
-    starter: false,
-    growth: false,
-    business: false,
-    caFirm: true,
-  },
-  {
-    feature: "White Label & Firm Branding Reports",
-    starter: false,
-    growth: false,
-    business: false,
-    caFirm: true,
-  },
-  {
-    feature: "Additional GSTIN Add-ons",
+    feature: "Extra GSTIN add-ons",
     starter: "₹6/mo each",
     growth: "₹6/mo each",
     business: "₹6/mo each",
     caFirm: "₹6/mo each",
+  },
+  {
+    feature: "All 10 marketplace parsers",
+    starter: true,
+    growth: true,
+    business: true,
+    caFirm: true,
+  },
+  {
+    feature: "Official GSTN JSON v3.0 + multi-sheet Excel",
+    starter: true,
+    growth: true,
+    business: true,
+    caFirm: true,
+  },
+  {
+    feature: "Place of supply & tax validation engine",
+    starter: true,
+    growth: true,
+    business: true,
+    caFirm: true,
+  },
+  {
+    feature: "Table 14 ECO & Section 52 TCS reconciliation",
+    starter: true,
+    growth: true,
+    business: true,
+    caFirm: true,
+  },
+  {
+    feature: "One-click AI error auto-fixers",
+    starter: true,
+    growth: true,
+    business: true,
+    caFirm: true,
+  },
+  {
+    feature: "Advanced multi-marketplace merge",
+    starter: true,
+    growth: true,
+    business: true,
+    caFirm: true,
+  },
+  {
+    feature: "Multi-client batch processing & ZIP export",
+    starter: true,
+    growth: true,
+    business: true,
+    caFirm: true,
+  },
+  { feature: "Priority support", starter: true, growth: true, business: true, caFirm: true },
+  {
+    feature: "Team members & staff access",
+    starter: false,
+    growth: false,
+    business: false,
+    caFirm: "Coming soon",
+  },
+  {
+    feature: "White label & firm branding",
+    starter: false,
+    growth: false,
+    business: false,
+    caFirm: "Coming soon",
+  },
+  {
+    feature: "API access",
+    starter: false,
+    growth: false,
+    business: false,
+    caFirm: "Coming soon",
   },
 ];
 
@@ -139,10 +152,11 @@ const FAQS = [
 export const revalidate = 300;
 
 export default async function PricingPage() {
+  const capacityRange = getCapacityRange();
   const jsonLd = [
     faqPageSchema(FAQS.map((f) => ({ question: f.q, answer: f.a }))),
     productSchema(
-      ALL_PLANS.map((plan) => ({
+      getPurchasablePlans().map((plan) => ({
         name: plan.name,
         price: plan.monthlyPrice,
         description: `${plan.name} plan with ${plan.includedGSTINs} GSTIN capacity and unlimited GSTR-1 returns.`,
@@ -162,8 +176,8 @@ export default async function PricingPage() {
 
       <PageHero
         eyebrow="Subscription Plans"
-        title="Unlimited GSTR-1 Generation. Simple GSTIN-Based Pricing."
-        description="Every active plan includes unlimited return filings, authentic Excel/JSON exports, and automated reconciliation. Pay only for the client capacity you need."
+        title="One product. Every feature. Pick your GSTIN capacity."
+        description="Every paid plan ships the exact same toolkit — unlimited GSTR-1 generation, all marketplace parsers, reconciliation, AI fixes and audit reports. The only thing that changes between plans is how many client GSTINs you can keep active."
       >
         <div className="mx-auto flex w-fit items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400">
           <Sparkles className="size-3.5" aria-hidden />
@@ -172,6 +186,21 @@ export default async function PricingPage() {
       </PageHero>
 
       <div className="mx-auto max-w-7xl space-y-20 px-6 pt-8">
+        {/* The single fact that decides which plan someone needs. Stated before
+            the cards, so nobody has to diff four feature lists to find it. */}
+        <div className="mx-auto flex max-w-3xl flex-col items-center gap-2 rounded-2xl border border-primary/25 bg-primary/5 px-6 py-5 text-center">
+          <p className="text-sm font-bold text-foreground">
+            Every paid plan includes every feature.
+          </p>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            No tier locks a parser, a report or a reconciliation behind a higher price. Choose a
+            plan purely by how many client GSTINs you keep active — from{" "}
+            <span className="font-semibold text-foreground">{capacityRange.min}</span> to{" "}
+            <span className="font-semibold text-foreground">{capacityRange.max}</span> — and add
+            more at ₹6/GSTIN/month whenever you need them.
+          </p>
+        </div>
+
         {/* All Plans Grid */}
         <section className="space-y-6">
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -211,12 +240,12 @@ export default async function PricingPage() {
         <section className="space-y-6">
           <div className="space-y-1 text-center">
             <span className="text-xs font-bold tracking-wider text-primary-ink uppercase">
-              Full Feature Comparison
+              Only the capacity changes
             </span>
-            <h2 className="text-2xl font-black text-foreground">Compare Plan Capabilities</h2>
+            <h2 className="text-2xl font-black text-foreground">Compare plans</h2>
             <p className="text-xs text-muted-foreground">
-              Choose the right tier for individual sellers, growing e-commerce merchants, and large
-              CA firms.
+              Read the first row, then stop — everything below it is identical. Team seats, white
+              label and API access arrive with the CA tiers.
             </p>
           </div>
 

@@ -45,7 +45,48 @@ export interface PlanDefinition {
   description: string;
   features: string[];
   capabilities: PlanCapabilities;
+  /**
+   * Announced but not yet sellable. Shown on the pricing and billing surfaces
+   * as "Coming soon" and refused by the order endpoints, but still assignable
+   * by an admin — that is how a pilot customer gets one before launch.
+   */
+  comingSoon?: boolean;
 }
+
+/**
+ * Every sellable plan ships the same product. The only thing money buys is GSTIN
+ * capacity, so capability flags are identical across them and this constant is
+ * the single place they are declared. Keeping per-plan copies invited the state
+ * the pricing page was actually in: advertising features as missing from Starter
+ * that Starter has always had.
+ */
+const FULL_CAPABILITIES: PlanCapabilities = {
+  marketplaceImports: true,
+  gstr1Excel: true,
+  gstr1Json: true,
+  validationEngine: true,
+  errorCenter: true,
+  hsnSummary: true,
+  ecoTable14: true,
+  basicReconciliation: true,
+  advancedReconciliation: true,
+  aiCorrections: true,
+  gstr1Comparison: true,
+  bulkProcessing: true,
+  advancedAuditReports: true,
+  teamMembers: false,
+  bulkClientProcessing: true,
+  zipDownloads: true,
+  clientManagement: true,
+  advancedAiReview: true,
+  firmLevelReporting: false,
+  whiteLabel: false,
+  firmBranding: false,
+  clientPortal: false,
+  advancedAnalytics: true,
+  apiAccess: false,
+  prioritySupport: true,
+};
 
 export const FREE_TRIAL_DURATION_DAYS = 30;
 export const FREE_TRIAL_GSTIN_LIMIT = 7;
@@ -83,43 +124,20 @@ export const PLANS: Record<PlanSlug, PlanDefinition> = {
     currency: "INR",
     includedGSTINs: FREE_TRIAL_GSTIN_LIMIT,
     durationDays: FREE_TRIAL_DURATION_DAYS,
-    description: "Full access to test unlimited GSTR-1 generation across 7 GSTINs",
+    description: "Full access for 30 days — every feature, 7 GSTIN slots, nothing held back",
     features: [
       "7 GSTIN client capacity",
-      "Unlimited GSTR-1 generations",
-      "All marketplace imports (Amazon, Meesho, Flipkart, Shopify)",
+      "Unlimited GSTR-1 generations — no per-return charge",
+      "All marketplace imports (Amazon, Meesho, Flipkart, Shopify & more)",
       "Official GSTR-1 Excel & JSON exports",
-      "Validation & Error Centre",
-      "Returns / Credit Notes adjustment",
-      "HSN Summary & ECO Table 14",
+      "Validation engine & Error Centre",
+      "Returns / Credit Notes, HSN Summary & ECO Table 14",
+      "Advanced TCS & sales reconciliation",
+      "AI-assisted corrections & GSTR-1 comparison",
+      "Bulk processing, ZIP downloads & audit reports",
+      "Priority support",
     ],
-    capabilities: {
-      marketplaceImports: true,
-      gstr1Excel: true,
-      gstr1Json: true,
-      validationEngine: true,
-      errorCenter: true,
-      hsnSummary: true,
-      ecoTable14: true,
-      basicReconciliation: true,
-      advancedReconciliation: false,
-      aiCorrections: false,
-      gstr1Comparison: false,
-      bulkProcessing: false,
-      advancedAuditReports: false,
-      teamMembers: false,
-      bulkClientProcessing: false,
-      zipDownloads: false,
-      clientManagement: false,
-      advancedAiReview: false,
-      firmLevelReporting: false,
-      whiteLabel: false,
-      firmBranding: false,
-      clientPortal: false,
-      advancedAnalytics: false,
-      apiAccess: false,
-      prioritySupport: false,
-    },
+    capabilities: FULL_CAPABILITIES,
   },
 
   starter: {
@@ -129,44 +147,20 @@ export const PLANS: Record<PlanSlug, PlanDefinition> = {
     currency: "INR",
     includedGSTINs: 10,
     durationDays: 30,
-    description: "Ideal for individual accountants and growing sellers managing multiple GSTINs",
+    description: "Same complete toolkit as every plan. 10 GSTIN client slots.",
     features: [
       "10 GSTIN client capacity",
-      "Unlimited GSTR-1 generations",
-      "All marketplace imports & auto-detection",
+      "Unlimited GSTR-1 generations — no per-return charge",
+      "All marketplace imports (Amazon, Meesho, Flipkart, Shopify & more)",
       "Official GSTR-1 Excel & JSON exports",
-      "Validation & Error Centre",
-      "HSN Summary & Returns handling",
-      "Basic reconciliation",
-      "Standard email support",
+      "Validation engine & Error Centre",
+      "Returns / Credit Notes, HSN Summary & ECO Table 14",
+      "Advanced TCS & sales reconciliation",
+      "AI-assisted corrections & GSTR-1 comparison",
+      "Bulk processing, ZIP downloads & audit reports",
+      "Priority support",
     ],
-    capabilities: {
-      marketplaceImports: true,
-      gstr1Excel: true,
-      gstr1Json: true,
-      validationEngine: true,
-      errorCenter: true,
-      hsnSummary: true,
-      ecoTable14: true,
-      basicReconciliation: true,
-      advancedReconciliation: false,
-      aiCorrections: false,
-      gstr1Comparison: false,
-      bulkProcessing: false,
-      advancedAuditReports: false,
-      teamMembers: false,
-      bulkClientProcessing: false,
-      zipDownloads: false,
-      clientManagement: false,
-      advancedAiReview: false,
-      firmLevelReporting: false,
-      whiteLabel: false,
-      firmBranding: false,
-      clientPortal: false,
-      advancedAnalytics: false,
-      apiAccess: false,
-      prioritySupport: false,
-    },
+    capabilities: FULL_CAPABILITIES,
   },
 
   growth: {
@@ -178,44 +172,20 @@ export const PLANS: Record<PlanSlug, PlanDefinition> = {
     durationDays: 30,
     badge: "Most Popular",
     isPopular: true,
-    description: "Complete compliance suite with AI corrections, comparison & Table 14",
+    description: "Same complete toolkit as every plan. 15 GSTIN client slots.",
     features: [
       "15 GSTIN client capacity",
-      "Unlimited GSTR-1 generations",
-      "Everything in Starter",
-      "Advanced TCS & Sales reconciliation",
-      "ECO / Table 14 automated reporting",
-      "AI-assisted anomaly & state correction",
-      "GSTR-1 Portal vs Output comparison",
-      "Bulk processing & priority queue",
+      "Unlimited GSTR-1 generations — no per-return charge",
+      "All marketplace imports (Amazon, Meesho, Flipkart, Shopify & more)",
+      "Official GSTR-1 Excel & JSON exports",
+      "Validation engine & Error Centre",
+      "Returns / Credit Notes, HSN Summary & ECO Table 14",
+      "Advanced TCS & sales reconciliation",
+      "AI-assisted corrections & GSTR-1 comparison",
+      "Bulk processing, ZIP downloads & audit reports",
+      "Priority support",
     ],
-    capabilities: {
-      marketplaceImports: true,
-      gstr1Excel: true,
-      gstr1Json: true,
-      validationEngine: true,
-      errorCenter: true,
-      hsnSummary: true,
-      ecoTable14: true,
-      basicReconciliation: true,
-      advancedReconciliation: true,
-      aiCorrections: true,
-      gstr1Comparison: true,
-      bulkProcessing: true,
-      advancedAuditReports: false,
-      teamMembers: false,
-      bulkClientProcessing: false,
-      zipDownloads: false,
-      clientManagement: false,
-      advancedAiReview: false,
-      firmLevelReporting: false,
-      whiteLabel: false,
-      firmBranding: false,
-      clientPortal: false,
-      advancedAnalytics: false,
-      apiAccess: false,
-      prioritySupport: true,
-    },
+    capabilities: FULL_CAPABILITIES,
   },
 
   business: {
@@ -225,47 +195,25 @@ export const PLANS: Record<PlanSlug, PlanDefinition> = {
     currency: "INR",
     includedGSTINs: 30,
     durationDays: 30,
-    description: "Designed for multi-brand e-commerce operators and high-volume practices",
+    description: "Same complete toolkit as every plan. 30 GSTIN client slots.",
     features: [
       "30 GSTIN client capacity",
-      "Unlimited GSTR-1 generations",
-      "Everything in Growth",
-      "Advanced bulk batch processing",
-      "Multi-marketplace automated workflows",
-      "Advanced audit & mismatch reports",
-      "Priority customer support",
+      "Unlimited GSTR-1 generations — no per-return charge",
+      "All marketplace imports (Amazon, Meesho, Flipkart, Shopify & more)",
+      "Official GSTR-1 Excel & JSON exports",
+      "Validation engine & Error Centre",
+      "Returns / Credit Notes, HSN Summary & ECO Table 14",
+      "Advanced TCS & sales reconciliation",
+      "AI-assisted corrections & GSTR-1 comparison",
+      "Bulk processing, ZIP downloads & audit reports",
+      "Priority support",
     ],
-    capabilities: {
-      marketplaceImports: true,
-      gstr1Excel: true,
-      gstr1Json: true,
-      validationEngine: true,
-      errorCenter: true,
-      hsnSummary: true,
-      ecoTable14: true,
-      basicReconciliation: true,
-      advancedReconciliation: true,
-      aiCorrections: true,
-      gstr1Comparison: true,
-      bulkProcessing: true,
-      advancedAuditReports: true,
-      teamMembers: false,
-      bulkClientProcessing: true,
-      zipDownloads: true,
-      clientManagement: true,
-      advancedAiReview: false,
-      firmLevelReporting: false,
-      whiteLabel: false,
-      firmBranding: false,
-      clientPortal: false,
-      advancedAnalytics: false,
-      apiAccess: false,
-      prioritySupport: true,
-    },
+    capabilities: FULL_CAPABILITIES,
   },
 
   ca_pro: {
     slug: "ca_pro",
+    comingSoon: true,
     name: "CA Pro",
     monthlyPrice: 399,
     currency: "INR",
@@ -315,6 +263,7 @@ export const PLANS: Record<PlanSlug, PlanDefinition> = {
 
   ca_firm: {
     slug: "ca_firm",
+    comingSoon: true,
     name: "CA Firm",
     monthlyPrice: 799,
     currency: "INR",
@@ -380,6 +329,31 @@ export const ALL_PLANS: PlanDefinition[] = [
 
 export function getAllPlans(): PlanDefinition[] {
   return ALL_PLANS;
+}
+
+/**
+ * Plans a user can actually buy today. Excludes the free trial (provisioned, not
+ * purchased) and anything still marked coming soon.
+ */
+export function getPurchasablePlans(): PlanDefinition[] {
+  return ALL_PLANS.filter((plan) => !plan.comingSoon && plan.monthlyPrice > 0);
+}
+
+/**
+ * Whether self-serve checkout may sell this plan. The order endpoints call this
+ * so a coming-soon slug cannot be bought via a hand-crafted request just because
+ * the button is hidden. Admin assignment deliberately does not consult it.
+ */
+export function isPurchasable(slug: string | null | undefined): boolean {
+  if (!slug) return false;
+  const plan = ALL_PLANS.find((p) => p.slug === slug);
+  return Boolean(plan && !plan.comingSoon && plan.monthlyPrice > 0);
+}
+
+/** The capacity range on offer, for "only the GSTIN count changes" copy. */
+export function getCapacityRange(): { min: number; max: number } {
+  const counts = getPurchasablePlans().map((p) => p.includedGSTINs);
+  return { min: Math.min(...counts), max: Math.max(...counts) };
 }
 
 export function isPaidPlan(slug: string | null | undefined): boolean {
