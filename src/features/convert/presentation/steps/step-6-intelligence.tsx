@@ -135,6 +135,13 @@ export function Step6Intelligence({ state, onChange, onNext, onBack }: Props) {
     onNext();
   }
 
+  /**
+   * Whether a model was actually consulted. Most uploads are recognised
+   * marketplaces and never reach one, so naming Gemini and Grok unconditionally
+   * advertised work the product did not do.
+   */
+  const aiWasUsed = reports.some((r) => r.aiResult);
+
   if (loading) {
     return (
       <div className="flex min-h-[420px] flex-col items-center justify-center space-y-4 p-8 text-center">
@@ -142,10 +149,10 @@ export function Step6Intelligence({ state, onChange, onNext, onBack }: Props) {
           <Loader2 className="size-12 animate-spin text-primary" />
           <Sparkles className="absolute -top-1 -right-1 size-5 animate-pulse text-amber-500" />
         </div>
-        <h2 className="text-xl font-bold">Dual AI Models Analyzing Excel Columns...</h2>
+        <h2 className="text-xl font-bold">Reading your workbooks…</h2>
         <p className="max-w-md text-sm text-muted-foreground">
-          Gemini + Grok are evaluating spreadsheet headers &amp; sample rows in parallel, followed
-          by Gemini 3rd synthesis pass.
+          Identifying each marketplace, reconstructing the tables and matching columns to GST
+          fields.
         </p>
       </div>
     );
@@ -178,22 +185,29 @@ export function Step6Intelligence({ state, onChange, onNext, onBack }: Props) {
             <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold tracking-wider text-primary-ink uppercase">
               Step 6 of 10
             </span>
-            <span className="flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-bold text-amber-600">
-              <Sparkles className="size-3.5 text-amber-500" /> AI Column Mapping Engine
-            </span>
+            {aiWasUsed && (
+              <span className="flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-bold text-amber-600">
+                <Sparkles className="size-3.5 text-amber-500" /> AI column mapping
+              </span>
+            )}
           </div>
-          <h2 className="mt-2 text-xl font-bold">AI Column Mapping Consensus</h2>
+          <h2 className="mt-2 text-xl font-bold">
+            {aiWasUsed ? "Column mapping needs a look" : "Import understanding"}
+          </h2>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            Our AI models analyzed spreadsheet headers and data rows to map your GST fields.
+            {aiWasUsed
+              ? "One or more sheets were not a known marketplace format, so their columns were matched by AI. Check them before continuing."
+              : "Every file was recognised and mapped by the engine. Review what it found, then continue."}
           </p>
         </div>
 
-        {/* Active Model Badges */}
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          <span className="flex items-center gap-1 rounded-lg border border-border bg-muted/50 px-2.5 py-1 font-semibold">
-            <Bot className="size-3.5 text-blue-500" /> AI Mappers
-          </span>
-        </div>
+        {aiWasUsed && (
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="flex items-center gap-1 rounded-lg border border-border bg-muted/50 px-2.5 py-1 font-semibold">
+              <Bot className="size-3.5 text-blue-500" /> AI mappers
+            </span>
+          </div>
+        )}
       </div>
 
       <div className="space-y-6">
@@ -235,9 +249,8 @@ export function Step6Intelligence({ state, onChange, onNext, onBack }: Props) {
               </div>
               <div className="px-6 pb-6 text-sm text-muted-foreground">
                 <p>
-                  This marketplace was recognized automatically. GSTPilot applied deterministic
-                  canonical mapping and source isolation. No AI mappings or manual overrides are
-                  required for these files.
+                  This marketplace was recognised automatically. GSTPilot applied its deterministic
+                  canonical mapping and kept each source isolated, so nothing here needs your input.
                 </p>
               </div>
             </div>
@@ -270,7 +283,11 @@ export function Step6Intelligence({ state, onChange, onNext, onBack }: Props) {
         )}
 
         {reports.length > 0 && (
-          <h3 className="mt-8 text-lg font-bold">Unrecognized Files (AI Mapping Required)</h3>
+          <h3 className="mt-8 text-lg font-bold">
+            {aiWasUsed
+              ? "Unrecognised files (AI mapping applied)"
+              : "Unrecognised files (check the mapping)"}
+          </h3>
         )}
 
         {reports.map((report) => {
@@ -317,7 +334,7 @@ export function Step6Intelligence({ state, onChange, onNext, onBack }: Props) {
                     <tr className="border-b border-border text-muted-foreground uppercase">
                       <th className="pb-3 font-semibold">Excel Header</th>
                       <th className="pb-3 font-semibold">Mapped GST Canonical Field</th>
-                      <th className="pb-3 font-semibold">AI Reason / Explanation</th>
+                      <th className="pb-3 font-semibold">Why this mapping</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -326,7 +343,7 @@ export function Step6Intelligence({ state, onChange, onNext, onBack }: Props) {
                       const aiExplanation =
                         aiRes?.explanations[header] ||
                         report.resolutions.find((r) => r.column === header)?.evidence[0]?.detail ||
-                        "Mapped by AI analysis";
+                        (aiRes ? "Mapped by AI analysis" : "Matched by the engine");
 
                       return (
                         <tr
