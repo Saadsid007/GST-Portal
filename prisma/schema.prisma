@@ -535,6 +535,10 @@ model Payment {
   userId            String   @map("user_id")
   provider          String   @default("RAZORPAY")
   providerOrderId   String?  @unique @map("provider_order_id")
+  /// Set instead of providerOrderId when the user paid by scanning a UPI QR.
+  /// A QR code is a standalone Razorpay entity, not an order, so exactly one of
+  /// the two locators is populated on any given row.
+  providerQrCodeId  String?  @unique @map("provider_qr_code_id")
   providerPaymentId String?  @unique @map("provider_payment_id")
   amount            Int // In rupees
   currency          String   @default("INR")

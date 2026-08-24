@@ -3,17 +3,12 @@
 import { useState, useTransition } from "react";
 import type { PlanDefinition, PlanSlug } from "@/features/billing/config/pricing.config";
 import type { SubscriptionStatusSummary } from "@/features/billing/services/subscription.service";
+import { scheduleDowngradeAction } from "@/features/billing/actions/billing.actions";
+import { Check, Sparkles, Loader2, ShieldCheck, ArrowRight, Clock, Smartphone } from "lucide-react";
 import {
-  confirmPlanPaymentAction,
-  createPlanSubscriptionOrderAction,
-  scheduleDowngradeAction,
-} from "@/features/billing/actions/billing.actions";
-import { Check, Sparkles, Loader2, ShieldCheck, ArrowRight, Clock } from "lucide-react";
-import {
-  loadRazorpayCheckout,
-  type RazorpayCheckoutResponse,
-  type RazorpayFailureResponse,
-} from "@/features/billing/types/razorpay-checkout";
+  PurchaseQrDialog,
+  type PurchaseIntent,
+} from "@/features/billing/presentation/purchase-qr-dialog";
 
 interface Props {
   plans: PlanDefinition[];
@@ -25,6 +20,9 @@ export function PlanComparisonGrid({ plans, currentSubscription, onRefresh }: Pr
   const [selectedSlug, setSelectedSlug] = useState<PlanSlug | null>(null);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  // Paying is a scan, not a redirect: the hosted checkout page is replaced by a
+  // fixed-amount UPI QR that settles itself.
+  const [qrIntent, setQrIntent] = useState<PurchaseIntent | null>(null);
 
   function handleSelectPlan(planSlug: PlanSlug) {
     if (planSlug === "free_trial" || planSlug === currentSubscription.planSlug) return;
@@ -51,51 +49,13 @@ export function PlanComparisonGrid({ plans, currentSubscription, onRefresh }: Pr
         return;
       }
 
-      // Otherwise -> Initiate Razorpay checkout for Upgrade/New Plan
-      const Checkout = await loadRazorpayCheckout();
-      if (!Checkout) {
-        setError("Failed to load Razorpay SDK. Please check your internet connection.");
-        return;
-      }
-
-      const orderRes = await createPlanSubscriptionOrderAction(planSlug);
-      if (!orderRes.success || !orderRes.data) {
-        setError(orderRes.error || "Failed to create checkout order.");
-        return;
-      }
-
-      const orderData = orderRes.data;
-
-      const options = {
-        key: orderData.keyId,
-        amount: orderData.amountPaise,
-        currency: "INR",
-        name: "GSTPilot",
-        description: `${orderData.planName} Subscription Plan`,
-        order_id: orderData.orderId,
-        handler: async function (response: RazorpayCheckoutResponse) {
-          const confirmRes = await confirmPlanPaymentAction({
-            orderId: response.razorpay_order_id,
-            paymentId: response.razorpay_payment_id,
-            signature: response.razorpay_signature,
-          });
-
-          if (confirmRes.success) {
-            onRefresh?.();
-          } else {
-            setError(confirmRes.error || "Payment verification failed.");
-          }
-        },
-        theme: {
-          color: "#0F172A",
-        },
-      };
-
-      const rzp = new Checkout(options);
-      rzp.on("payment.failed", function (response: RazorpayFailureResponse) {
-        setError(response.error?.description || "Payment was not completed.");
+      // Otherwise: pay by UPI QR. No redirect, no card form — the dialog
+      // generates a fixed-amount code and settles the plan on payment.
+      setQrIntent({
+        kind: "plan",
+        planSlug,
+        planName: plans.find((p) => p.slug === planSlug)?.name ?? planSlug,
       });
-      rzp.open();
     });
   }
 
@@ -257,7 +217,8 @@ export function PlanComparisonGrid({ plans, currentSubscription, onRefresh }: Pr
                       <Loader2 className="size-3.5 animate-spin" />
                     ) : (
                       <>
-                        <span>{isTrial ? "Trial Included" : "Select & Upgrade"}</span>
+                        <Smartphone className="size-3.5" />
+                        <span>{isTrial ? "Trial Included" : "Pay by UPI"}</span>
                         <ArrowRight className="size-3" />
                       </>
                     )}
@@ -268,6 +229,14 @@ export function PlanComparisonGrid({ plans, currentSubscription, onRefresh }: Pr
           );
         })}
       </div>
+
+      {qrIntent && (
+        <PurchaseQrDialog
+          intent={qrIntent}
+          onClose={() => setQrIntent(null)}
+          onSuccess={() => onRefresh?.()}
+        />
+      )}
     </div>
   );
 }

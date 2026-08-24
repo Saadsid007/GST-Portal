@@ -2,17 +2,9 @@
 
 import { useEffect, useState, useTransition } from "react";
 import type { GSTINCapacityStatus } from "@/features/billing/services/capacity.service";
-import {
-  calculateGstinProrationAction,
-  confirmGstinAddonPaymentAction,
-  createGstinAddonOrderAction,
-} from "@/features/billing/actions/billing.actions";
-import { X, Plus, Minus, Loader2, ShieldCheck, Zap } from "lucide-react";
-import {
-  loadRazorpayCheckout,
-  type RazorpayCheckoutResponse,
-  type RazorpayFailureResponse,
-} from "@/features/billing/types/razorpay-checkout";
+import { calculateGstinProrationAction } from "@/features/billing/actions/billing.actions";
+import { X, Plus, Minus, Loader2, ShieldCheck, Smartphone } from "lucide-react";
+import { PurchaseQrDialog } from "@/features/billing/presentation/purchase-qr-dialog";
 
 interface Props {
   open: boolean;
@@ -27,8 +19,8 @@ export function AddGstinModal({ open, onClose, capacity, onSuccess }: Props) {
   const [fullAmount, setFullAmount] = useState(12);
   const [remainingDays, setRemainingDays] = useState(30);
   const [calcPending, startCalc] = useTransition();
-  const [payPending, startPay] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [showQr, setShowQr] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -44,54 +36,11 @@ export function AddGstinModal({ open, onClose, capacity, onSuccess }: Props) {
 
   if (!open) return null;
 
+  // Pay by scanning rather than redirecting to a hosted card page. The QR is
+  // minted for the exact prorated amount and settles the capacity itself.
   function handleCheckout() {
     setError(null);
-    startPay(async () => {
-      const Checkout = await loadRazorpayCheckout();
-      if (!Checkout) {
-        setError("Failed to load Razorpay SDK. Please check your internet connection.");
-        return;
-      }
-
-      const orderRes = await createGstinAddonOrderAction(quantity);
-      if (!orderRes.success || !orderRes.data) {
-        setError(orderRes.error || "Failed to create order.");
-        return;
-      }
-
-      const orderData = orderRes.data;
-
-      const options = {
-        key: orderData.keyId,
-        amount: orderData.amountPaise,
-        currency: "INR",
-        name: "GSTPilot",
-        description: `Add ${quantity} GSTIN slot(s) for ${remainingDays} remaining days`,
-        order_id: orderData.orderId,
-        handler: async function (response: RazorpayCheckoutResponse) {
-          const confirmRes = await confirmGstinAddonPaymentAction({
-            orderId: response.razorpay_order_id,
-            paymentId: response.razorpay_payment_id,
-            signature: response.razorpay_signature,
-          });
-
-          if (confirmRes.success) {
-            onSuccess();
-          } else {
-            setError(confirmRes.error || "Payment verification failed.");
-          }
-        },
-        theme: {
-          color: "#0F172A",
-        },
-      };
-
-      const rzp = new Checkout(options);
-      rzp.on("payment.failed", function (response: RazorpayFailureResponse) {
-        setError(response.error?.description || "Payment was not completed.");
-      });
-      rzp.open();
-    });
+    setShowQr(true);
   }
 
   return (
@@ -123,7 +72,7 @@ export function AddGstinModal({ open, onClose, capacity, onSuccess }: Props) {
               <button
                 type="button"
                 onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                disabled={quantity <= 1 || payPending}
+                disabled={quantity <= 1 || showQr}
                 className="flex size-8 items-center justify-center rounded-lg border border-border text-foreground transition hover:bg-accent disabled:opacity-40"
               >
                 <Minus className="size-3.5" />
@@ -132,7 +81,7 @@ export function AddGstinModal({ open, onClose, capacity, onSuccess }: Props) {
               <button
                 type="button"
                 onClick={() => setQuantity((q) => q + 1)}
-                disabled={payPending}
+                disabled={showQr}
                 className="flex size-8 items-center justify-center rounded-lg border border-border text-foreground transition hover:bg-accent disabled:opacity-40"
               >
                 <Plus className="size-3.5" />
@@ -190,21 +139,37 @@ export function AddGstinModal({ open, onClose, capacity, onSuccess }: Props) {
           <button
             type="button"
             onClick={handleCheckout}
-            disabled={payPending || calcPending}
+            disabled={showQr || calcPending}
             className="flex w-full items-center justify-center gap-2 rounded-xl brand-gradient py-3 text-sm font-bold text-white shadow-lg transition hover:brightness-110 active:scale-98 disabled:opacity-50"
           >
-            {payPending ? <Loader2 className="size-4 animate-spin" /> : <Zap className="size-4" />}
+            {showQr ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Smartphone className="size-4" />
+            )}
             <span>
-              Pay ₹{proratedAmount} &amp; Activate {quantity} GSTINs
+              Scan &amp; pay ₹{proratedAmount} for {quantity} GSTIN
+              {quantity === 1 ? "" : "s"}
             </span>
           </button>
 
           <div className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
             <ShieldCheck className="size-3.5 text-emerald-500" />
-            <span>Instant activation via Razorpay • 100% Secure Checkout</span>
+            <span>Scan with any UPI app • activates the moment payment lands</span>
           </div>
         </div>
       </div>
+
+      {showQr && (
+        <PurchaseQrDialog
+          intent={{ kind: "gstin-addon", quantity }}
+          onClose={() => setShowQr(false)}
+          onSuccess={() => {
+            setShowQr(false);
+            onSuccess();
+          }}
+        />
+      )}
     </div>
   );
 }

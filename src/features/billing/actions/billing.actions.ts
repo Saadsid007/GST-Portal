@@ -31,6 +31,13 @@ import {
   scheduleDowngrade,
   type SubscriptionStatusSummary,
 } from "@/features/billing/services/subscription.service";
+import {
+  createGstinAddonQr,
+  createPlanQr,
+  settlePurchaseQr,
+  type PurchaseQr,
+  type PurchaseQrState,
+} from "@/features/billing/services/subscription-qr.service";
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
@@ -450,4 +457,77 @@ export async function checkCanCreateGstinAction(): Promise<{
     return { allowed: false, reason: res.reason, capacity: res.capacity };
   }
   return { allowed: true };
+}
+
+/* ── UPI QR purchase ──────────────────────────────────────────────────────
+   Preferred over the hosted checkout page: one scan, one approval in the
+   user's own UPI app, and the screen settles itself the moment payment lands.
+   Amount, plan and quantity are all fixed server-side on the QR. */
+
+/** Creates a fixed-amount UPI QR for a plan subscription. */
+export async function createPlanQrOrderAction(planSlug: PlanSlug): Promise<{
+  success: boolean;
+  data?: PurchaseQr;
+  error?: string;
+}> {
+  try {
+    const session = await requireSession();
+    return { success: true, data: await createPlanQr(session.user.id, planSlug) };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Could not generate the QR code.",
+    };
+  }
+}
+
+/** Creates a fixed-amount UPI QR for extra GSTIN capacity. */
+export async function createGstinAddonQrOrderAction(quantity: number): Promise<{
+  success: boolean;
+  data?: PurchaseQr;
+  error?: string;
+}> {
+  try {
+    const session = await requireSession();
+    if (quantity < 1) return { success: false, error: "Minimum 1 additional GSTIN required." };
+    return { success: true, data: await createGstinAddonQr(session.user.id, quantity) };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Could not generate the QR code.",
+    };
+  }
+}
+
+/**
+ * Polled by the QR dialog while the user pays.
+ *
+ * The webhook stays the authoritative settlement path; this exists so the screen
+ * updates in a second or two rather than whenever delivery happens. Both go
+ * through the same conditional CREATED → SUCCESS claim, so the entitlement is
+ * granted exactly once regardless of which arrives first.
+ */
+export async function getPurchaseQrStatusAction(qrCodeId: string): Promise<{
+  success: boolean;
+  data?: PurchaseQrState;
+  error?: string;
+}> {
+  try {
+    const session = await requireSession();
+    const state = await settlePurchaseQr(session.user.id, qrCodeId);
+
+    if (state.state === "paid") {
+      revalidatePath("/billing");
+      revalidatePath("/profile");
+      revalidatePath("/dashboard");
+    }
+    return { success: true, data: state };
+  } catch (error) {
+    // A polling failure is not a payment failure — stay pending and let the
+    // next tick, or the webhook, resolve it.
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Could not check payment status.",
+    };
+  }
 }
