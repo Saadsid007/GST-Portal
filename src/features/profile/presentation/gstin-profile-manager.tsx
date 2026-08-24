@@ -15,6 +15,10 @@ import {
   AlertTriangle,
   Archive,
   RotateCcw,
+  ArrowRight,
+  Check,
+  ShieldCheck,
+  FileText,
 } from "lucide-react";
 import { filterGstinProfiles } from "@/features/profile/domain/gstin-search";
 import { Button, EmptyState, Input, Modal } from "@/components/ui";
@@ -46,6 +50,81 @@ const EMPTY_FORM = {
   businessType: "ECOMMERCE_SELLER",
   isDefault: false,
 };
+
+/**
+ * The profile being acted on, restated inside the dialog. A confirmation that
+ * only names the business in a subtitle is too easy to misread when several
+ * clients share a similar name — the GSTIN is the unambiguous identifier.
+ */
+function ProfileIdentityCard({ profile, muted }: { profile: GstinProfile; muted?: boolean }) {
+  return (
+    <div
+      className={`flex items-start gap-3 rounded-xl border border-border p-3.5 ${muted ? "bg-muted/40" : "bg-subtle"}`}
+    >
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-background">
+        <Building2 className="size-4 text-muted-foreground" aria-hidden />
+      </span>
+      <div className="min-w-0">
+        <p className="truncate text-sm font-semibold text-foreground">{profile.legalName}</p>
+        <p className="mt-0.5 font-mono text-xs tracking-tight text-muted-foreground">
+          {profile.gstinNumber}
+        </p>
+        <p className="mt-1 flex items-center gap-1 text-2xs text-muted-foreground">
+          <MapPin className="size-3" aria-hidden />
+          {profile.stateName} ({profile.stateCode})
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/** A single capacity figure shown as before → after, so the change is legible. */
+function SlotFigure({
+  label,
+  from,
+  to,
+  highlight,
+}: {
+  label: string;
+  from: number;
+  to: number;
+  highlight?: boolean;
+}) {
+  return (
+    <div className="min-w-0 flex-1">
+      <p className="text-2xs text-muted-foreground">{label}</p>
+      <p className="mt-0.5 flex items-baseline gap-1.5 tabular-nums">
+        <span className="text-xs text-muted-foreground line-through">{from}</span>
+        <span className={`text-lg font-bold ${highlight ? "text-success-ink" : "text-foreground"}`}>
+          {to}
+        </span>
+      </p>
+    </div>
+  );
+}
+
+const OUTCOME_TONES = {
+  success: "text-success-ink",
+  warning: "text-warning-ink",
+  neutral: "text-muted-foreground",
+} as const;
+
+function OutcomeRow({
+  tone,
+  icon: Icon,
+  children,
+}: {
+  tone: keyof typeof OUTCOME_TONES;
+  icon: typeof Check;
+  children: React.ReactNode;
+}) {
+  return (
+    <li className="flex items-start gap-2.5">
+      <Icon className={`mt-0.5 size-3.5 shrink-0 ${OUTCOME_TONES[tone]}`} aria-hidden />
+      <span className="text-muted-foreground">{children}</span>
+    </li>
+  );
+}
 
 export function GstinProfileManager({ initialActive, initialArchived, capacity }: Props) {
   const [active, setActive] = useState(initialActive);
@@ -517,42 +596,81 @@ export function GstinProfileManager({ initialActive, initialArchived, capacity }
           if (!busyId) setArchiveTarget(null);
         }}
         size="md"
-        icon={<Archive className="size-5 text-foreground" />}
-        title="Archive this GSTIN profile?"
-        description={
-          archiveTarget ? `${archiveTarget.legalName} · ${archiveTarget.gstinNumber}` : undefined
-        }
+        icon={<Archive className="size-4 text-primary-ink" />}
+        title="Archive this GSTIN?"
         footer={
-          <div className="flex justify-end gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={busyId !== null}
-              onClick={() => setArchiveTarget(null)}
-            >
-              Cancel
-            </Button>
-            <Button variant="primary" size="sm" disabled={busyId !== null} onClick={confirmArchive}>
-              {busyId ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Archive className="size-4" />
-              )}
-              Archive
-            </Button>
+          <div className="flex w-full items-center justify-between gap-2">
+            <span className="text-2xs text-muted-foreground">Reversible · nothing is deleted</span>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={busyId !== null}
+                onClick={() => setArchiveTarget(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={busyId !== null}
+                onClick={confirmArchive}
+              >
+                {busyId ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Archive className="size-4" />
+                )}
+                Archive
+              </Button>
+            </div>
           </div>
         }
       >
-        <div className="space-y-3 text-sm text-muted-foreground">
-          <p>
-            Archiving frees this GSTIN&rsquo;s capacity slot immediately. All conversion history,
-            reports and settings are preserved.
-          </p>
-          <p>
-            You can restore it into any free slot later at no extra cost, or add a different GSTIN
-            in its place.
-          </p>
-        </div>
+        {archiveTarget && (
+          <div className="space-y-4 px-5 py-4">
+            <ProfileIdentityCard profile={archiveTarget} />
+
+            {/* The number the user is really deciding about. */}
+            <div className="rounded-xl border border-success/25 bg-success/5 p-3.5">
+              <p className="text-2xs font-bold tracking-wider text-success-ink uppercase">
+                Capacity after archiving
+              </p>
+              <div className="mt-2 flex items-center gap-3">
+                <SlotFigure label="Active" from={cap.used} to={cap.used - 1} />
+                <ArrowRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                <SlotFigure
+                  label="Free slots"
+                  from={cap.available}
+                  to={cap.available + 1}
+                  highlight
+                />
+              </div>
+            </div>
+
+            <ul className="space-y-2 text-xs">
+              <OutcomeRow tone="success" icon={Check}>
+                The slot frees up <strong className="font-semibold text-foreground">now</strong> —
+                use it for another GSTIN, or restore this one later.
+              </OutcomeRow>
+              <OutcomeRow tone="success" icon={ShieldCheck}>
+                Conversion history, reports and settings stay{" "}
+                <strong className="font-semibold text-foreground">fully preserved</strong>.
+              </OutcomeRow>
+              <OutcomeRow tone="neutral" icon={RotateCcw}>
+                Restoring costs <strong className="font-semibold text-foreground">nothing</strong>{" "}
+                as long as a slot is free.
+              </OutcomeRow>
+              {archiveTarget.isDefault && (
+                <OutcomeRow tone="warning" icon={Star}>
+                  This is your{" "}
+                  <strong className="font-semibold text-foreground">default GSTIN</strong> — you
+                  will need to pick a new default.
+                </OutcomeRow>
+              )}
+            </ul>
+          </div>
+        )}
       </Modal>
 
       {/* Permanent delete confirmation */}
@@ -562,53 +680,72 @@ export function GstinProfileManager({ initialActive, initialArchived, capacity }
           if (!busyId) setDeleteTarget(null);
         }}
         size="md"
-        icon={<AlertTriangle className="size-5 text-destructive" />}
-        title="Delete this GSTIN permanently?"
-        description={
-          deleteTarget
-            ? `${deleteTarget.profile.legalName} · ${deleteTarget.profile.gstinNumber}`
-            : undefined
-        }
+        icon={<AlertTriangle className="size-4 text-destructive" />}
+        title="Delete permanently?"
         footer={
-          <div className="flex justify-end gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={busyId !== null}
-              onClick={() => setDeleteTarget(null)}
-            >
-              Keep archived
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              disabled={busyId !== null || !deleteTarget?.impact}
-              onClick={confirmDelete}
-            >
-              {busyId ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-              Delete permanently
-            </Button>
+          <div className="flex w-full items-center justify-between gap-2">
+            <span className="text-2xs font-medium text-destructive-ink">Cannot be undone</span>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={busyId !== null}
+                onClick={() => setDeleteTarget(null)}
+              >
+                Keep archived
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={busyId !== null || !deleteTarget?.impact}
+                onClick={confirmDelete}
+              >
+                {busyId ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Trash2 className="size-4" />
+                )}
+                Delete permanently
+              </Button>
+            </div>
           </div>
         }
       >
         {!deleteTarget?.impact ? (
-          <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+          <div className="flex items-center justify-center gap-2 px-5 py-10 text-sm text-muted-foreground">
             <Loader2 className="size-4 animate-spin" /> Checking historical records…
           </div>
         ) : (
-          <div className="space-y-3 text-sm">
-            <p className="text-muted-foreground">
-              This removes the profile permanently. Its filing history is kept for your records and
-              is not deleted.
-            </p>
-            <div className="rounded-xl border border-border bg-muted/40 p-3.5 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">GSTR-1 / conversion records preserved</span>
-                <span className="font-bold text-foreground">{deleteTarget.impact.reportCount}</span>
-              </div>
+          <div className="space-y-4 px-5 py-4">
+            <ProfileIdentityCard profile={deleteTarget.profile} muted />
+
+            <div className="flex items-start gap-2.5 rounded-xl border border-destructive/30 bg-destructive/5 p-3.5">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden />
+              <p className="text-xs text-muted-foreground">
+                This removes the profile and its saved details for good. There is no undo — you
+                would have to re-enter the GSTIN from scratch.
+              </p>
             </div>
+
+            {/* What survives, stated as a number rather than a promise. */}
+            <div className="rounded-xl border border-border bg-subtle p-3.5">
+              <div className="flex items-center justify-between gap-3">
+                <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <FileText className="size-3.5" aria-hidden />
+                  Filing records kept for {deleteTarget.impact.gstinNumber}
+                </span>
+                <span className="text-lg font-bold text-foreground tabular-nums">
+                  {deleteTarget.impact.reportCount}
+                </span>
+              </div>
+              <p className="mt-1.5 text-2xs text-muted-foreground">
+                Conversion and GSTR-1 history is stored against the GSTIN, so it survives this
+                deletion.
+              </p>
+            </div>
+
             <p className="text-2xs text-muted-foreground">
-              This does not free a capacity slot — the profile is already archived.
+              This frees no capacity — the profile is already archived and not using a slot.
             </p>
           </div>
         )}
