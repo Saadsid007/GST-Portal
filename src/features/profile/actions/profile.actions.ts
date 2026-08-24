@@ -2,12 +2,21 @@
 
 import { requireSession } from "@/features/auth";
 import {
-  canCreateGstin,
-  getGstinDeletionImpact,
-  type GstinDeletionImpact,
+  canActivateGstin,
+  archiveGstinProfile,
+  restoreGstinProfile,
+  permanentlyDeleteGstinProfile,
+  getPermanentDeleteImpact,
+  CapacityError,
+  type PermanentDeleteImpact,
 } from "@/features/billing/services/capacity.service";
-import { recordGstinCreation } from "@/features/billing/services/gstin-slot.service";
-import { normalizeGstin } from "@/features/billing/domain/gstin-slot-usage";
+import {
+  recordNewActivation,
+  recordCapacityAudit,
+  CAPACITY_AUDIT_ACTIONS,
+} from "@/features/billing/services/gstin-activity.service";
+import { getOrCreateSubscription } from "@/features/billing/services/subscription.service";
+import { normalizeGstin, GstinStatus } from "@/features/billing/domain/gstin-capacity";
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -24,6 +33,15 @@ const addSchema = z.object({
   isDefault: z.boolean().default(false),
 });
 
+/**
+ * Creates and activates a new GSTIN profile.
+ *
+ * A GSTIN the workspace already holds — active or archived — is never
+ * duplicated: the caller is told to restore the archived one instead. Capacity
+ * and the anti-abuse ceiling are enforced server-side, and the create + its
+ * activation-ledger row commit in one transaction so a profile can never exist
+ * without being counted.
+ */
 export async function addGstinProfileAction(input: {
   gstinNumber: string;
   legalName: string;
@@ -32,110 +50,169 @@ export async function addGstinProfileAction(input: {
   isDefault?: boolean;
 }) {
   const session = await requireSession();
+  const userId = session.user.id;
   const parsed = addSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message };
 
   const { legalName, tradeName, businessType, isDefault } = parsed.data;
   const gstinNumber = normalizeGstin(parsed.data.gstinNumber);
 
-  const duplicate = await prisma.gstinProfile.findFirst({
-    where: { userId: session.user.id, gstinNumber },
-    select: { id: true },
+  const existing = await prisma.gstinProfile.findFirst({
+    where: { userId, gstinNumber },
+    select: { id: true, status: true },
   });
-  if (duplicate) {
-    return { success: false, error: "This GSTIN is already in your profiles." };
+  if (existing) {
+    return {
+      success: false,
+      error:
+        existing.status === GstinStatus.ACTIVE
+          ? "This GSTIN is already in your active profiles."
+          : "This GSTIN is archived. Restore it instead of adding it again.",
+    };
   }
 
-  // The GSTIN is passed so a number that already consumed a slot this period —
-  // one the user deleted by mistake — can be re-added without paying twice.
-  const gate = await canCreateGstin(session.user.id, gstinNumber);
+  const gate = await canActivateGstin(userId, gstinNumber);
   if (!gate.allowed) return { success: false, error: gate.reason };
 
   const stateCode = gstinNumber.substring(0, 2);
   const stateName = getStateName(stateCode);
+  const sub = await getOrCreateSubscription(userId);
+  const now = new Date();
 
-  const profile = await prisma.$transaction(async (tx) => {
-    if (isDefault) {
-      await tx.gstinProfile.updateMany({
-        where: { userId: session.user.id },
-        data: { isDefault: false },
+  try {
+    const profile = await prisma.$transaction(async (tx) => {
+      if (isDefault) {
+        await tx.gstinProfile.updateMany({
+          where: { userId },
+          data: { isDefault: false },
+        });
+      }
+
+      const created = await tx.gstinProfile.create({
+        data: {
+          userId,
+          gstinNumber,
+          legalName,
+          tradeName: tradeName || null,
+          businessType,
+          stateCode,
+          stateName,
+          isDefault: isDefault ?? false,
+          status: GstinStatus.ACTIVE,
+          statusChangedAt: now,
+        },
       });
-    }
 
-    const created = await tx.gstinProfile.create({
-      data: {
-        userId: session.user.id,
+      // Same transaction as the profile: an activation the ceiling never saw
+      // would let the abuse cap be bypassed.
+      await recordNewActivation(tx, {
+        userId,
+        profileId: created.id,
         gstinNumber,
-        legalName,
-        tradeName: tradeName || null,
-        businessType,
-        stateCode,
-        stateName,
-        isDefault: isDefault ?? false,
-      },
+        periodStart: sub.startDate,
+      });
+
+      await recordCapacityAudit(tx, {
+        userId,
+        action: CAPACITY_AUDIT_ACTIONS.ACTIVATED,
+        metadata: { profileId: created.id, gstinNumber },
+      });
+
+      return created;
     });
 
-    // Same transaction as the profile: a profile without a ledger row would be
-    // a slot the plan never charged for.
-    await recordGstinCreation(tx, {
-      userId: session.user.id,
-      profileId: created.id,
-      gstinNumber,
-    });
-
-    return created;
-  });
-
-  revalidatePath("/profile");
-  revalidatePath("/billing");
-  return { success: true, data: profile };
+    revalidatePath("/profile");
+    revalidatePath("/billing");
+    return { success: true, data: profile };
+  } catch (err) {
+    // Unique (userId, gstinNumber) — a parallel request won the race.
+    if (err && typeof err === "object" && "code" in err && err.code === "P2002") {
+      return { success: false, error: "This GSTIN is already in your profiles." };
+    }
+    throw err;
+  }
 }
 
 /**
- * What the user gives up by deleting a profile, for the confirmation dialog.
- * Returns null when the profile is not theirs or already gone.
+ * Archives an active profile. Frees the capacity slot immediately; the profile
+ * and all its data are preserved and can be restored.
  */
-export async function getGstinDeletionImpactAction(
-  profileId: string
-): Promise<{ success: boolean; data?: GstinDeletionImpact; error?: string }> {
+export async function archiveGstinProfileAction(profileId: string) {
   const session = await requireSession();
-  const impact = await getGstinDeletionImpact(session.user.id, profileId);
+  try {
+    const capacity = await archiveGstinProfile(session.user.id, profileId);
+    revalidatePath("/profile");
+    revalidatePath("/billing");
+    return { success: true, capacity };
+  } catch (err) {
+    if (err instanceof CapacityError) return { success: false, error: err.message };
+    throw err;
+  }
+}
+
+/**
+ * Restores an archived profile back to active. Requires a free capacity slot.
+ */
+export async function restoreGstinProfileAction(profileId: string) {
+  const session = await requireSession();
+  try {
+    const capacity = await restoreGstinProfile(session.user.id, profileId);
+    revalidatePath("/profile");
+    revalidatePath("/billing");
+    return { success: true, capacity };
+  } catch (err) {
+    if (err instanceof CapacityError) return { success: false, error: err.message };
+    throw err;
+  }
+}
+
+/**
+ * Historical records tied to a profile, for the permanent-delete confirmation.
+ */
+export async function getPermanentDeleteImpactAction(
+  profileId: string
+): Promise<{ success: boolean; data?: PermanentDeleteImpact; error?: string }> {
+  const session = await requireSession();
+  const impact = await getPermanentDeleteImpact(session.user.id, profileId);
   if (!impact) return { success: false, error: "Profile not found." };
   return { success: true, data: impact };
 }
 
-export async function deleteGstinProfileAction(profileId: string) {
+/**
+ * Permanently deletes an archived profile. Filing history is preserved.
+ */
+export async function permanentlyDeleteGstinProfileAction(profileId: string) {
   const session = await requireSession();
-
-  // Read the impact before the row disappears, so the response can tell the
-  // user exactly what happened to the slot.
-  const impact = await getGstinDeletionImpact(session.user.id, profileId);
-
-  const { count } = await prisma.gstinProfile.deleteMany({
-    where: { id: profileId, userId: session.user.id },
-  });
-  if (count === 0) return { success: false, error: "Profile not found." };
-
-  // The creation log is deliberately left intact — it is the record that keeps
-  // the slot consumed until renewal and the audit trail for the period.
-  revalidatePath("/profile");
-  revalidatePath("/billing");
-  return {
-    success: true,
-    slotRetained: impact?.slotRetained ?? false,
-    releasesOn: impact?.releasesOn ?? null,
-  };
+  try {
+    await permanentlyDeleteGstinProfile(session.user.id, profileId);
+    revalidatePath("/profile");
+    revalidatePath("/billing");
+    return { success: true };
+  } catch (err) {
+    if (err instanceof CapacityError) return { success: false, error: err.message };
+    throw err;
+  }
 }
 
 export async function setDefaultGstinAction(profileId: string) {
   const session = await requireSession();
-  await prisma.gstinProfile.updateMany({
-    where: { userId: session.user.id },
-    data: { isDefault: false },
+  // Only an active profile can be the default filing target.
+  const target = await prisma.gstinProfile.findFirst({
+    where: { id: profileId, userId: session.user.id, status: GstinStatus.ACTIVE },
+    select: { id: true },
   });
-  await prisma.gstinProfile.updateMany({
-    where: { id: profileId, userId: session.user.id },
-    data: { isDefault: true },
+  if (!target)
+    return { success: false, error: "Only active GSTIN profiles can be set as default." };
+
+  await prisma.$transaction(async (tx) => {
+    await tx.gstinProfile.updateMany({
+      where: { userId: session.user.id },
+      data: { isDefault: false },
+    });
+    await tx.gstinProfile.update({
+      where: { id: profileId },
+      data: { isDefault: true },
+    });
   });
   revalidatePath("/profile");
   return { success: true };

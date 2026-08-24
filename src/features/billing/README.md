@@ -22,30 +22,52 @@ running total that must always equal the newest ledger row's `balanceAfter`.
 There is no `prisma.wallet.update({ data: { balance } })` anywhere else in the codebase.
 Keep it that way — it is what makes the ledger reconcilable and the CSV export truthful.
 
-## GSTIN slots
+## GSTIN capacity (active-capacity + archive model)
 
-**A slot is consumed by a GSTIN number, not by a profile row, and deleting a profile does
-not refund it.** Quota is measured against `GstinCreationLog` — an append-only ledger
-written in the same transaction as the profile — not against the live `gstin_profile`
-count. Without this, a ₹79 Starter plan (10 GSTINs) could serve unlimited clients in one
-month by deleting each profile after filing, and every plan limit would be decorative.
+**Capacity is the number of ACTIVE GSTIN profiles, not how many were ever created.** A plan
+grants `base` active slots; add-ons grant more. `total = base + additional`, and a slot is
+consumed only while a profile is `ACTIVE`. All arithmetic lives in `domain/gstin-capacity.ts`
+(pure, unit-tested); nothing derives capacity from a raw client count.
 
-Consumed slots for the current period are `active profiles ∪ ledger rows since
-Subscription.startDate` (see `domain/gstin-slot-usage.ts`, pure and unit-tested):
+Profiles have an explicit lifecycle (`GstinStatus`): `ACTIVE`, `ARCHIVED`,
+`INACTIVE_FOR_BILLING`, `PENDING_DELETE`. Never a single boolean.
 
-- Active profiles always count, even when created in an earlier period.
-- A profile deleted mid-period keeps its slot **retained** until renewal. It surfaces as
-  `retainedSlots` / `retainedGstins` on `GSTINCapacityStatus`, is shown in the usage
-  widget, and is spelled out in the delete confirmation dialog before the user commits.
-- Re-adding the same GSTIN in the same period is **free** — `canCreateGstin` takes the
-  GSTIN and lets a retained number back in even at the limit. An accidental delete must
-  never cost the user twice.
+- **Archiving frees the slot immediately** and preserves everything — history, reports,
+  imports, audit. The freed slot is reusable at no cost: restore the archived GSTIN, or
+  activate a different one. An add-on is _capacity_, never welded to one GSTIN.
+- **Permanent delete** is a separate flow, allowed only on an already-archived profile, so
+  it can never be used to free a live slot. Filing history keys off `gstinNumber`, not the
+  profile id, so it survives the delete.
+- **Deleting is never how a slot is freed** — archiving is.
 
-Retention expires with no cleanup job: usage is counted from `Subscription.startDate`, so
-renewal, upgrade and downgrade all move the window forward and release retained slots.
+### Anti-abuse (create → file → archive → repeat)
 
-The ledger is never deleted — it is both the quota record and the audit trail for the
-period, and it applies identically to free-trial and paid workspaces.
+Archives are _not_ frozen, so a CA replacing a client stays smooth. Abuse is bounded two
+ways instead (thresholds in `pricing.config.ts` → `GSTIN_ANTI_ABUSE`, never hardcoded):
+
+- **Per-cycle activation ceiling** = `total + replacementAllowancePerCycle`. Counts distinct
+  brand-new GSTINs activated since `Subscription.startDate` (the `GstinCreationLog` ledger).
+  Restoring a GSTIN already activated this period does **not** count — undoing an accidental
+  archive is always free. The window resets at renewal because it is measured from
+  `startDate`.
+- **Churn rate-limit**: capacity ops (activate/archive/restore) per hour. Over the ceiling,
+  the op is refused and a `ABUSE_REVIEW_TRIGGERED` audit event is written — the user is never
+  auto-banned.
+
+### Enforcement & integrity
+
+- Every gate is server-side (`canActivateGstin`). Activation, restore and permanent-delete
+  run in a `$transaction` that re-reads the live active count, so two tabs cannot both take
+  the last slot; `@@unique([userId, gstinNumber])` is the structural backstop.
+- One profile per GSTIN per workspace across all statuses — a known GSTIN is restored, never
+  duplicated.
+- Every capacity change writes a `BillingAuditLog` event (`GSTIN_ACTIVATED`, `_ARCHIVED`,
+  `_RESTORED`, `_PERMANENTLY_DELETED`, `ABUSE_REVIEW_TRIGGERED`).
+- Subscription expiry locks processing only; it never deletes or archives data.
+
+> Not yet built (later phases): renewal/downgrade capacity-resolution screens when the new
+> plan holds fewer than the currently-active count, add-on carryover rules, and multi-member
+> workspace sharing. Today `userId` is the workspace boundary.
 
 ## Free trial
 

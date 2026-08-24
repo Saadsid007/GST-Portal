@@ -88,25 +88,18 @@ export function GstinUsageWidget({ capacity, subscription, onRefresh }: Props) {
           </div>
         </div>
 
-        {/* Slots still billed for GSTINs the user deleted mid-period. Shown
-            unconditionally when present, so the number never looks like a bug. */}
-        {capacity.retainedSlots > 0 && (
+        {/* Archived profiles keep their data and can reclaim any free slot. */}
+        {capacity.archivedProfiles > 0 && (
           <div className="flex items-start gap-2.5 rounded-xl border border-border bg-muted/40 p-3.5 text-xs">
             <History className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
             <div>
               <p className="font-bold text-foreground">
-                {capacity.retainedSlots} slot{capacity.retainedSlots === 1 ? "" : "s"} reserved by
-                deleted GSTIN{capacity.retainedSlots === 1 ? "" : "s"}
+                {capacity.archivedProfiles} archived GSTIN
+                {capacity.archivedProfiles === 1 ? "" : "s"}
               </p>
               <p className="mt-0.5 text-muted-foreground">
-                {capacity.retainedGstins.join(", ")} — deleted during this billing period, so{" "}
-                {capacity.retainedSlots === 1 ? "the slot stays" : "these slots stay"} counted until{" "}
-                {new Date(capacity.periodEnd).toLocaleDateString("en-IN", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                })}
-                . Re-adding the same GSTIN costs nothing.
+                Archived profiles don&rsquo;t use capacity. Restore any of them into a free slot at
+                no extra cost, or delete permanently from the GST profiles page.
               </p>
             </div>
           </div>

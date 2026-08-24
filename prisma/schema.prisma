@@ -117,22 +117,33 @@ model GstinProfile {
   stateCode    String   @map("state_code")
   stateName    String   @map("state_name")
   isDefault    Boolean  @default(false) @map("is_default")
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  /// Lifecycle status. Only ACTIVE consumes capacity. Allowed values live in
+  /// features/billing/domain/gstin-capacity.ts (GstinStatus). Kept as a plain
+  /// string so adding a state is a data change, not a migration.
+  status          String    @default("ACTIVE")
+  archivedAt      DateTime? @map("archived_at") @db.Timestamptz
+  statusChangedAt DateTime  @default(now()) @map("status_changed_at") @db.Timestamptz
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  /// One profile per GSTIN per workspace across all statuses: a GSTIN the user
+  /// once had is restored, never duplicated. Also the transactional guard that
+  /// makes concurrent "add the same GSTIN" requests safe.
+  @@unique([userId, gstinNumber])
   @@index([userId])
+  @@index([userId, status])
   @@index([gstinNumber])
   @@map("gstin_profile")
 }
 
-/// Append-only ledger of every GSTIN profile creation. This — not the live
-/// gstin_profile count — is what quota is measured against: a user who deletes
-/// a profile has still consumed the slot for the current billing period, so
-/// delete-then-recreate cannot be used to cycle past the plan limit. The count
-/// resets naturally each period because usage is always counted from the
-/// subscription's startDate, which moves forward on renewal.
+/// Append-only ledger of GSTIN activations. Under the active-capacity model this
+/// is no longer the quota meter (capacity is the live count of ACTIVE profiles);
+/// it is the per-billing-period record of how many distinct brand-new GSTINs a
+/// workspace has activated, which bounds create-and-recreate abuse via the
+/// activation ceiling in features/billing/config/pricing.config.ts. The window
+/// is the subscription period, since rows are counted from startDate.
 model GstinCreationLog {
   id          String   @id @default(uuid()) @db.Uuid
   userId      String   @map("user_id")

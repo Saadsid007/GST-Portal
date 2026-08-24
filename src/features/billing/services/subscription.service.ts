@@ -13,7 +13,7 @@ import {
   type PlanSlug,
 } from "@/features/billing/config/pricing.config";
 import { billingLogger } from "@/features/billing/services/billing.logger";
-import { readGstinSlotUsage } from "@/features/billing/services/gstin-slot.service";
+import { GstinStatus } from "@/features/billing/domain/gstin-capacity";
 import { EmailService } from "@/features/email/services/email.service";
 
 export interface SubscriptionStatusSummary {
@@ -282,9 +282,10 @@ export async function activatePaidPlan(input: {
     // 3. Update GSTIN capacity
     const currentCap = await tx.gSTINCapacity.findUnique({ where: { userId } });
     const additional = currentCap?.additionalGSTINs ?? 0;
-    // The new period starts now, so the previous period's ledger stops counting
-    // here: retained slots from deleted profiles are released by the purchase.
-    const { consumed: used } = await readGstinSlotUsage(userId, startDate, tx);
+    // Capacity is consumed by ACTIVE profiles only; archived ones do not count.
+    const used = await tx.gstinProfile.count({
+      where: { userId, status: GstinStatus.ACTIVE },
+    });
 
     await tx.gSTINCapacity.upsert({
       where: { userId },

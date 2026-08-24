@@ -13,49 +13,58 @@ import {
   Search,
   X,
   AlertTriangle,
+  Archive,
+  RotateCcw,
 } from "lucide-react";
 import { filterGstinProfiles } from "@/features/profile/domain/gstin-search";
 import { Button, EmptyState, Input, Modal } from "@/components/ui";
 import type { GstinProfile } from "@/generated/prisma/client";
-import type { GstinDeletionImpact } from "@/features/billing/services/capacity.service";
+import type {
+  GSTINCapacityStatus,
+  PermanentDeleteImpact,
+} from "@/features/billing/services/capacity.service";
 import { BUSINESS_TYPE_OPTIONS, businessTypeMeta } from "@/features/profile/domain/business-type";
 import {
   addGstinProfileAction,
-  deleteGstinProfileAction,
-  getGstinDeletionImpactAction,
+  archiveGstinProfileAction,
+  restoreGstinProfileAction,
+  permanentlyDeleteGstinProfileAction,
+  getPermanentDeleteImpactAction,
   setDefaultGstinAction,
 } from "@/features/profile/actions/profile.actions";
 
-const dateFmt = new Intl.DateTimeFormat("en-IN", {
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-});
-
 interface Props {
-  initialProfiles: GstinProfile[];
+  initialActive: GstinProfile[];
+  initialArchived: GstinProfile[];
+  capacity: GSTINCapacityStatus;
 }
 
-export function GstinProfileManager({ initialProfiles }: Props) {
-  const [profiles, setProfiles] = useState(initialProfiles);
+const EMPTY_FORM = {
+  gstinNumber: "",
+  legalName: "",
+  tradeName: "",
+  businessType: "ECOMMERCE_SELLER",
+  isDefault: false,
+};
+
+export function GstinProfileManager({ initialActive, initialArchived, capacity }: Props) {
+  const [active, setActive] = useState(initialActive);
+  const [archived, setArchived] = useState(initialArchived);
+  const [cap, setCap] = useState(capacity);
   const [query, setQuery] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
-  // Deleting is quota-relevant, so the dialog waits on the server's verdict
-  // rather than guessing whether the slot comes back.
-  const [pendingDelete, setPendingDelete] = useState<{
-    id: string;
-    impact: GstinDeletionImpact | null;
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [form, setForm] = useState(EMPTY_FORM);
+
+  // Confirmation flows are capacity-relevant, so both wait on the server.
+  const [archiveTarget, setArchiveTarget] = useState<GstinProfile | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    profile: GstinProfile;
+    impact: PermanentDeleteImpact | null;
   } | null>(null);
-  const [impactLoading, setImpactLoading] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [form, setForm] = useState({
-    gstinNumber: "",
-    legalName: "",
-    tradeName: "",
-    businessType: "ECOMMERCE_SELLER",
-    isDefault: false,
-  });
+
+  const atCapacity = cap.available <= 0;
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -63,17 +72,17 @@ export function GstinProfileManager({ initialProfiles }: Props) {
     try {
       const res = await addGstinProfileAction(form);
       if (res.success && res.data) {
-        setProfiles((prev) => {
+        setActive((prev) => {
           const updated = form.isDefault ? prev.map((p) => ({ ...p, isDefault: false })) : prev;
           return [res.data!, ...updated];
         });
-        setForm({
-          gstinNumber: "",
-          legalName: "",
-          tradeName: "",
-          businessType: "ECOMMERCE_SELLER",
-          isDefault: false,
-        });
+        setCap((c) => ({
+          ...c,
+          used: c.used + 1,
+          activeProfiles: c.activeProfiles + 1,
+          available: Math.max(0, c.available - 1),
+        }));
+        setForm(EMPTY_FORM);
         setShowForm(false);
         toast.success("GSTIN profile added");
       } else {
@@ -86,72 +95,131 @@ export function GstinProfileManager({ initialProfiles }: Props) {
     }
   }
 
-  async function openDeleteDialog(id: string) {
-    setPendingDelete({ id, impact: null });
-    setImpactLoading(true);
+  async function confirmArchive() {
+    if (!archiveTarget) return;
+    const target = archiveTarget;
+    setBusyId(target.id);
     try {
-      const res = await getGstinDeletionImpactAction(id);
+      const res = await archiveGstinProfileAction(target.id);
+      if (!res.success) {
+        toast.error(res.error || "Failed to archive");
+        return;
+      }
+      setActive((prev) => prev.filter((p) => p.id !== target.id));
+      setArchived((prev) => [{ ...target, status: "ARCHIVED", isDefault: false }, ...prev]);
+      if (res.capacity) setCap(res.capacity);
+      setArchiveTarget(null);
+      toast.success("Profile archived — slot freed. Data is preserved.");
+    } catch {
+      toast.error("Something went wrong");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handleRestore(profile: GstinProfile) {
+    setBusyId(profile.id);
+    try {
+      const res = await restoreGstinProfileAction(profile.id);
+      if (!res.success) {
+        toast.error(res.error || "Failed to restore");
+        return;
+      }
+      setArchived((prev) => prev.filter((p) => p.id !== profile.id));
+      setActive((prev) => [{ ...profile, status: "ACTIVE" }, ...prev]);
+      if (res.capacity) setCap(res.capacity);
+      toast.success("Profile restored to active");
+    } catch {
+      toast.error("Something went wrong");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function openDeleteDialog(profile: GstinProfile) {
+    setDeleteTarget({ profile, impact: null });
+    try {
+      const res = await getPermanentDeleteImpactAction(profile.id);
       if (res.success && res.data) {
-        setPendingDelete({ id, impact: res.data });
+        setDeleteTarget({ profile, impact: res.data });
       } else {
-        setPendingDelete(null);
+        setDeleteTarget(null);
         toast.error(res.error || "Could not load profile");
       }
     } catch {
-      setPendingDelete(null);
+      setDeleteTarget(null);
       toast.error("Something went wrong");
-    } finally {
-      setImpactLoading(false);
     }
   }
 
   async function confirmDelete() {
-    if (!pendingDelete) return;
-    const { id } = pendingDelete;
-    setDeleting(true);
+    if (!deleteTarget) return;
+    const { profile } = deleteTarget;
+    setBusyId(profile.id);
     try {
-      const res = await deleteGstinProfileAction(id);
+      const res = await permanentlyDeleteGstinProfileAction(profile.id);
       if (!res.success) {
-        toast.error(res.error || "Failed to delete profile");
+        toast.error(res.error || "Failed to delete");
         return;
       }
-      setProfiles((prev) => prev.filter((p) => p.id !== id));
-      setPendingDelete(null);
-      toast.success(
-        res.slotRetained && res.releasesOn
-          ? `Profile deleted. The GSTIN slot stays reserved until ${dateFmt.format(new Date(res.releasesOn))}.`
-          : "Profile deleted"
-      );
+      setArchived((prev) => prev.filter((p) => p.id !== profile.id));
+      setDeleteTarget(null);
+      toast.success("Profile permanently deleted. Filing history is preserved.");
     } catch {
       toast.error("Something went wrong");
     } finally {
-      setDeleting(false);
+      setBusyId(null);
     }
   }
 
   async function handleSetDefault(id: string) {
-    await setDefaultGstinAction(id);
-    setProfiles((prev) => prev.map((p) => ({ ...p, isDefault: p.id === id })));
+    const res = await setDefaultGstinAction(id);
+    if (!res.success) {
+      toast.error(res.error || "Failed to set default");
+      return;
+    }
+    setActive((prev) => prev.map((p) => ({ ...p, isDefault: p.id === id })));
     toast.success("Default GSTIN updated");
   }
 
-  // Search appears only once the list stops being scannable at a glance.
-  // From two profiles up. At one, a search field is noise.
-  const showSearch = profiles.length >= 2;
-  const visible = useMemo(() => filterGstinProfiles(profiles, query), [profiles, query]);
+  const showSearch = active.length >= 2;
+  const visibleActive = useMemo(() => filterGstinProfiles(active, query), [active, query]);
 
   return (
-    <div className="space-y-4">
-      {/* Add Button */}
-      <div className="flex justify-end">
+    <div className="space-y-5">
+      {/* Capacity summary */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-1.5 text-sm">
+          <span>
+            <span className="font-bold text-foreground">{cap.used}</span>
+            <span className="text-muted-foreground"> / {cap.totalCapacity} active</span>
+          </span>
+          <span className="text-muted-foreground">
+            {cap.available} slot{cap.available === 1 ? "" : "s"} available
+          </span>
+          {cap.archivedProfiles > 0 && (
+            <span className="text-muted-foreground">{cap.archivedProfiles} archived</span>
+          )}
+          <span className="text-2xs text-muted-foreground">{cap.planName}</span>
+        </div>
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => setShowForm((v) => !v)}
           className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
         >
           <Plus className="size-4" />
           Add GSTIN
         </button>
       </div>
+
+      {atCapacity && showForm && (
+        <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3.5 text-xs">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+          <p className="text-muted-foreground">
+            You&rsquo;re at capacity ({cap.used}/{cap.totalCapacity}). Archive an active GSTIN to
+            free a slot, restore one you already have, or add capacity on the billing page.
+          </p>
+        </div>
+      )}
 
       {/* Add Form */}
       {showForm && (
@@ -277,21 +345,21 @@ export function GstinProfileManager({ initialProfiles }: Props) {
             }
           />
           <p className="text-2xs text-muted-foreground">
-            Showing {visible.length} of {profiles.length} profiles
+            Showing {visibleActive.length} of {active.length} active profiles
           </p>
         </div>
       )}
 
-      {/* Profiles List */}
-      {profiles.length === 0 ? (
+      {/* Active profiles */}
+      {active.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border p-10 text-center">
           <Building2 className="mx-auto mb-3 size-10 text-muted-foreground" />
-          <p className="text-sm font-medium">No GSTIN profiles yet</p>
+          <p className="text-sm font-medium">No active GSTIN profiles</p>
           <p className="mt-1 text-xs text-muted-foreground">
             Add your first GSTIN to start generating GSTR-1
           </p>
         </div>
-      ) : visible.length === 0 ? (
+      ) : visibleActive.length === 0 ? (
         <EmptyState
           icon={Search}
           title="No matching GST profile"
@@ -304,7 +372,7 @@ export function GstinProfileManager({ initialProfiles }: Props) {
         />
       ) : (
         <div className="space-y-3">
-          {visible.map((profile) => (
+          {visibleActive.map((profile) => (
             <div
               key={profile.id}
               className={`flex flex-col gap-3 rounded-xl border p-5 transition sm:flex-row sm:items-start sm:justify-between ${profile.isDefault ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}
@@ -334,9 +402,8 @@ export function GstinProfileManager({ initialProfiles }: Props) {
                   )}
                   <p className="mt-1 inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-2xs font-medium text-muted-foreground">
                     {
-                      businessTypeMeta(
-                        (profile as unknown as { businessType?: string }).businessType || ""
-                      ).label
+                      businessTypeMeta((profile as { businessType?: string }).businessType || "")
+                        .label
                     }
                   </p>
                   <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
@@ -358,10 +425,82 @@ export function GstinProfileManager({ initialProfiles }: Props) {
                   </button>
                 )}
                 <button
-                  onClick={() => openDeleteDialog(profile.id)}
-                  title="Delete profile"
-                  aria-label={`Delete ${profile.legalName}`}
-                  className="rounded-lg p-2 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
+                  onClick={() => setArchiveTarget(profile)}
+                  title="Archive profile"
+                  aria-label={`Archive ${profile.legalName}`}
+                  disabled={busyId === profile.id}
+                  className="rounded-lg p-2 text-muted-foreground transition hover:bg-accent hover:text-foreground disabled:opacity-50"
+                >
+                  {busyId === profile.id ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Archive className="size-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Archived profiles */}
+      {archived.length > 0 && (
+        <div className="space-y-3 pt-2">
+          <div className="flex items-center gap-2">
+            <Archive className="size-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold text-muted-foreground">
+              Archived ({archived.length})
+            </h2>
+          </div>
+          <p className="text-2xs text-muted-foreground">
+            Archived profiles keep all data and don&rsquo;t use capacity. Restore into a free slot
+            at no cost, or delete permanently.
+          </p>
+          {archived.map((profile) => (
+            <div
+              key={profile.id}
+              className="flex flex-col gap-3 rounded-xl border border-border bg-muted/30 p-5 sm:flex-row sm:items-start sm:justify-between"
+            >
+              <div className="flex min-w-0 items-start gap-3">
+                <div className="flex size-9 flex-shrink-0 items-center justify-center rounded-lg bg-muted">
+                  <Building2 className="size-4 text-muted-foreground" />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-muted-foreground">
+                    {profile.legalName}
+                  </p>
+                  <p className="mt-0.5 font-mono text-xs text-muted-foreground">
+                    {profile.gstinNumber}
+                  </p>
+                  <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                    <MapPin className="size-3" />
+                    <span>
+                      {profile.stateName} ({profile.stateCode})
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-shrink-0 items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={busyId === profile.id || atCapacity}
+                  title={atCapacity ? "No free slot — archive or add capacity first" : "Restore"}
+                  onClick={() => handleRestore(profile)}
+                >
+                  {busyId === profile.id ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <RotateCcw className="size-4" />
+                  )}
+                  Restore
+                </Button>
+                <button
+                  onClick={() => openDeleteDialog(profile)}
+                  title="Delete permanently"
+                  aria-label={`Delete ${profile.legalName} permanently`}
+                  disabled={busyId === profile.id}
+                  className="rounded-lg p-2 text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
                 >
                   <Trash2 className="size-4" />
                 </button>
@@ -371,17 +510,63 @@ export function GstinProfileManager({ initialProfiles }: Props) {
         </div>
       )}
 
+      {/* Archive confirmation */}
       <Modal
-        open={pendingDelete !== null}
+        open={archiveTarget !== null}
         onClose={() => {
-          if (!deleting) setPendingDelete(null);
+          if (!busyId) setArchiveTarget(null);
+        }}
+        size="md"
+        icon={<Archive className="size-5 text-foreground" />}
+        title="Archive this GSTIN profile?"
+        description={
+          archiveTarget ? `${archiveTarget.legalName} · ${archiveTarget.gstinNumber}` : undefined
+        }
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={busyId !== null}
+              onClick={() => setArchiveTarget(null)}
+            >
+              Cancel
+            </Button>
+            <Button variant="primary" size="sm" disabled={busyId !== null} onClick={confirmArchive}>
+              {busyId ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Archive className="size-4" />
+              )}
+              Archive
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-3 text-sm text-muted-foreground">
+          <p>
+            Archiving frees this GSTIN&rsquo;s capacity slot immediately. All conversion history,
+            reports and settings are preserved.
+          </p>
+          <p>
+            You can restore it into any free slot later at no extra cost, or add a different GSTIN
+            in its place.
+          </p>
+        </div>
+      </Modal>
+
+      {/* Permanent delete confirmation */}
+      <Modal
+        open={deleteTarget !== null}
+        onClose={() => {
+          if (!busyId) setDeleteTarget(null);
         }}
         size="md"
         icon={<AlertTriangle className="size-5 text-destructive" />}
-        title="Delete this GSTIN profile?"
+        title="Delete this GSTIN permanently?"
         description={
-          pendingDelete?.impact
-            ? `${pendingDelete.impact.legalName} · ${pendingDelete.impact.gstinNumber}`
+          deleteTarget
+            ? `${deleteTarget.profile.legalName} · ${deleteTarget.profile.gstinNumber}`
             : undefined
         }
         footer={
@@ -389,75 +574,42 @@ export function GstinProfileManager({ initialProfiles }: Props) {
             <Button
               variant="outline"
               size="sm"
-              disabled={deleting}
-              onClick={() => setPendingDelete(null)}
+              disabled={busyId !== null}
+              onClick={() => setDeleteTarget(null)}
             >
-              Keep profile
+              Keep archived
             </Button>
             <Button
               variant="destructive"
               size="sm"
-              disabled={deleting || impactLoading}
+              disabled={busyId !== null || !deleteTarget?.impact}
               onClick={confirmDelete}
             >
-              {deleting ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Trash2 className="size-4" />
-              )}
-              Delete anyway
+              {busyId ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+              Delete permanently
             </Button>
           </div>
         }
       >
-        {impactLoading || !pendingDelete?.impact ? (
+        {!deleteTarget?.impact ? (
           <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" /> Checking your plan usage…
+            <Loader2 className="size-4 animate-spin" /> Checking historical records…
           </div>
         ) : (
           <div className="space-y-3 text-sm">
             <p className="text-muted-foreground">
-              Deleting removes the profile and its saved details from your workspace. Conversion
-              history stays intact.
+              This removes the profile permanently. Its filing history is kept for your records and
+              is not deleted.
             </p>
-
-            {pendingDelete.impact.slotRetained ? (
-              <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3.5 text-xs">
-                <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                <div className="space-y-1">
-                  <p className="font-bold text-foreground">
-                    This will not free up a GSTIN slot right now
-                  </p>
-                  <p className="text-muted-foreground">
-                    This GSTIN was added during your current billing period, so it stays counted
-                    against your {pendingDelete.impact.planName} quota until{" "}
-                    <span className="font-semibold text-foreground">
-                      {dateFmt.format(new Date(pendingDelete.impact.releasesOn))}
-                    </span>
-                    . You will still have{" "}
-                    <span className="font-semibold text-foreground">
-                      {pendingDelete.impact.availableAfterDelete} of{" "}
-                      {pendingDelete.impact.totalCapacity}
-                    </span>{" "}
-                    slots available after deleting.
-                  </p>
-                  <p className="text-muted-foreground">
-                    Re-adding this same GSTIN later in this period is free — it will not consume
-                    another slot.
-                  </p>
-                </div>
+            <div className="rounded-xl border border-border bg-muted/40 p-3.5 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">GSTR-1 / conversion records preserved</span>
+                <span className="font-bold text-foreground">{deleteTarget.impact.reportCount}</span>
               </div>
-            ) : (
-              <div className="rounded-xl border border-border bg-muted/40 p-3.5 text-xs text-muted-foreground">
-                This GSTIN was not added during your current billing period, so deleting it frees a
-                slot immediately —{" "}
-                <span className="font-semibold text-foreground">
-                  {pendingDelete.impact.availableAfterDelete} of{" "}
-                  {pendingDelete.impact.totalCapacity}
-                </span>{" "}
-                slots will be available.
-              </div>
-            )}
+            </div>
+            <p className="text-2xs text-muted-foreground">
+              This does not free a capacity slot — the profile is already archived.
+            </p>
           </div>
         )}
       </Modal>

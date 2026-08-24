@@ -3,13 +3,7 @@
  * Single authoritative source of truth for plans, pricing, feature flags, GSTIN capacity, and add-on rates.
  */
 
-export type PlanSlug =
-  | "free_trial"
-  | "starter"
-  | "growth"
-  | "business"
-  | "ca_pro"
-  | "ca_firm";
+export type PlanSlug = "free_trial" | "starter" | "growth" | "business" | "ca_pro" | "ca_firm";
 
 export interface PlanCapabilities {
   marketplaceImports: boolean;
@@ -57,6 +51,29 @@ export const FREE_TRIAL_DURATION_DAYS = 30;
 export const FREE_TRIAL_GSTIN_LIMIT = 7;
 export const ADDITIONAL_GSTIN_PRICE_MONTHLY = 6;
 export const MIN_GSTIN_ADDON_PACK = 1;
+
+/**
+ * Anti-abuse limits for GSTIN capacity, centralized so no threshold is ever
+ * hardcoded in a service or a UI component. Tuned to stay invisible to normal
+ * CA/business workflows and to bite only on high-frequency churn.
+ */
+export const GSTIN_ANTI_ABUSE = {
+  /**
+   * Extra brand-new GSTIN activations allowed per billing period beyond total
+   * capacity. Covers legitimate client replacement (a client leaves, another
+   * joins) without an upgrade, while still bounding create-and-recreate cycles.
+   * Restoring a GSTIN already activated this period does not count against it.
+   */
+  replacementAllowancePerCycle: 5,
+  /**
+   * Ceiling on capacity-changing operations (activate / archive / restore) in a
+   * trailing one-hour window. Beyond this the operation is rate-limited and an
+   * admin-review event is raised — the user is never auto-banned.
+   */
+  maxCapacityOpsPerHour: 30,
+  /** Width of the churn window in milliseconds. */
+  churnWindowMs: 60 * 60 * 1000,
+} as const;
 
 export const PLANS: Record<PlanSlug, PlanDefinition> = {
   free_trial: {
