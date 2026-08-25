@@ -1,4 +1,53 @@
 import type { NormalizedInvoiceRow } from "@/features/convert/types/convert.types";
+
+/**
+ * The slice of a generated row this comparison actually reads.
+ *
+ * Declared as a Pick so the compiler proves the list is complete. It exists
+ * because the comparison runs in a Server Action: shipping ~3,000 whole rows —
+ * descriptions, source file names, review notes — up to the server made the
+ * request several times larger than it needed to be, for fields nothing here
+ * looks at.
+ */
+export type ComparableRow = Pick<
+  NormalizedInvoiceRow,
+  | "invoiceNumber"
+  | "invoiceType"
+  | "transactionType"
+  | "errors"
+  | "placeOfSupply"
+  | "buyerGstin"
+  | "taxableValue"
+  | "totalValue"
+  | "igstAmount"
+  | "cgstAmount"
+  | "sgstAmount"
+  | "cessAmount"
+  | "igstRate"
+  | "cgstRate"
+  | "sgstRate"
+>;
+
+/** Narrows a full row to what the comparison needs, for the wire. */
+export function toComparableRow(row: NormalizedInvoiceRow): ComparableRow {
+  return {
+    invoiceNumber: row.invoiceNumber,
+    invoiceType: row.invoiceType,
+    transactionType: row.transactionType,
+    errors: row.errors,
+    placeOfSupply: row.placeOfSupply,
+    buyerGstin: row.buyerGstin,
+    taxableValue: row.taxableValue,
+    totalValue: row.totalValue,
+    igstAmount: row.igstAmount,
+    cgstAmount: row.cgstAmount,
+    sgstAmount: row.sgstAmount,
+    cessAmount: row.cessAmount,
+    igstRate: row.igstRate,
+    cgstRate: row.cgstRate,
+    sgstRate: row.sgstRate,
+  };
+}
 import type { ParsedGstr1Template } from "./gstr1-template.parser";
 
 // ── Comparison Result Types ───────────────────────────────────────────────────
@@ -61,11 +110,11 @@ function r2(n: number) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
-function totalTax(row: NormalizedInvoiceRow): number {
+function totalTax(row: ComparableRow): number {
   return r2(row.igstAmount + row.cgstAmount + row.sgstAmount);
 }
 
-function gstRate(row: NormalizedInvoiceRow): number {
+function gstRate(row: ComparableRow): number {
   return row.igstRate > 0 ? row.igstRate : row.cgstRate + row.sgstRate;
 }
 
@@ -91,7 +140,7 @@ function statusFor(diffTaxable: number, diffTax: number): ComparisonStatus {
  * Tolerance: ₹2 rounding difference is treated as MATCHED.
  */
 export class Gstr1Comparator {
-  static compare(ourRows: NormalizedInvoiceRow[], ref: ParsedGstr1Template): Gstr1ComparisonResult {
+  static compare(ourRows: ComparableRow[], ref: ParsedGstr1Template): Gstr1ComparisonResult {
     const result: Gstr1ComparisonResult = {
       referenceSourceType: ref.sourceType,
       totalOurInvoices: 0,
@@ -114,7 +163,7 @@ export class Gstr1Comparator {
       (r) => r.invoiceType === "B2B" && r.transactionType === "Sales" && r.errors.length === 0
     );
     // Aggregate B2B rows by invoice number so multi-line invoices (like BLR7-T-7) match ref 1:1
-    const aggregatedB2bMap = new Map<string, NormalizedInvoiceRow>();
+    const aggregatedB2bMap = new Map<string, ComparableRow>();
     for (const r of ourB2bRaw) {
       const key = r.invoiceNumber.trim().toLowerCase();
       if (!aggregatedB2bMap.has(key)) {

@@ -2,8 +2,10 @@
 
 import { requireSession } from "@/features/auth";
 import { parseGstr1Buffer } from "@/features/convert/engine/comparison/gstr1-template.parser";
-import { Gstr1Comparator } from "@/features/convert/engine/comparison/gstr1.comparator";
-import type { NormalizedInvoiceRow } from "@/features/convert/types/convert.types";
+import {
+  Gstr1Comparator,
+  type ComparableRow,
+} from "@/features/convert/engine/comparison/gstr1.comparator";
 
 /**
  * Compares our generated GSTR-1 rows against an uploaded reference GSTR-1 file.
@@ -15,12 +17,28 @@ import type { NormalizedInvoiceRow } from "@/features/convert/types/convert.type
  *
  * The reference file is NEVER merged with our data — it is used only for comparison.
  * This enforces the rule: MTR is primary; GSTR-1 reference is validation-only.
+ *
+ * `ourRows` is the narrowed ComparableRow, not the full generated row: a month
+ * of invoices is thousands of rows, and sending the parts this never reads made
+ * the request needlessly large on a path that already carries a workbook.
  */
-export async function compareGstr1Action(ourRows: NormalizedInvoiceRow[], referenceFile: File) {
+export async function compareGstr1Action(ourRows: ComparableRow[], referenceFile: File) {
   await requireSession();
 
-  const buffer = Buffer.from(await referenceFile.arrayBuffer());
-  const parsedRef = parseGstr1Buffer(buffer, referenceFile.name);
+  let parsedRef;
+  try {
+    const buffer = Buffer.from(await referenceFile.arrayBuffer());
+    parsedRef = parseGstr1Buffer(buffer, referenceFile.name);
+  } catch (error) {
+    // The reason matters: an unreadable workbook and a rejected upload look
+    // identical to the user otherwise, and they need different fixes.
+    return {
+      success: false as const,
+      error: `Could not read "${referenceFile.name}". ${
+        error instanceof Error ? error.message : "The file may be corrupt or password protected."
+      }`,
+    };
+  }
 
   const b2bCount = parsedRef.b2b.length;
   const b2csCount = parsedRef.b2cs.length;
