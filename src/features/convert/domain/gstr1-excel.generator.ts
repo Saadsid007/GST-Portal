@@ -143,6 +143,82 @@ function cellXml(
  * Injects data rows and formula values into a worksheet XML file,
  * preserving rows 1..4 intact with all styles, help buttons, and formula structures.
  */
+/** Escapes a literal for embedding in a RegExp source. */
+function escapeForRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Canonicalises an HSN code for Table 12.
+ *
+ * Marketplace feeds spell the same commodity several ways — "4419" on one line
+ * and "441900" on the next — which split one HSN into two rows that then
+ * disagree with the CA's return. A 4-digit chapter heading is padded to the
+ * 6-digit form the rest of the file uses, so both land in the same bucket.
+ *
+ * Returns "" for a code that classifies nothing: absent, or all zeros. Such a
+ * row is rejected by the portal, and carrying it forward only hides the fact
+ * that those items were never classified.
+ */
+function normalizeHsn(raw: string | undefined): string {
+  const digits = String(raw ?? "").replace(/\D/g, "");
+  if (!digits || /^0+$/.test(digits)) return "";
+  // 2-digit chapters are too coarse to report; 4 pads to 6, 6 and 8 stand.
+  if (digits.length < 4) return "";
+  if (digits.length === 4) return `${digits}00`;
+  if (digits.length === 5) return `${digits}0`;
+  if (digits.length === 7) return digits.slice(0, 6);
+  return digits.length > 8 ? digits.slice(0, 8) : digits;
+}
+
+/**
+ * One readable description per HSN row.
+ *
+ * Aggregation used to concatenate every product title that shared an HSN,
+ * producing a single cell holding six titles joined by semicolons — unreadable,
+ * and long enough to look like corruption. Table 12 wants the commodity, not the
+ * catalogue.
+ */
+function hsnDescription(raw: string | undefined): string {
+  const first = String(raw ?? "")
+    .split(";")[0]!
+    .replace(/\s+/g, " ")
+    .trim();
+  return first.length > 60 ? `${first.slice(0, 57)}...` : first;
+}
+
+/**
+ * The series stem of a document number — everything before its trailing digits.
+ *
+ * "IN-1024" and "IN-707" share the stem "IN-"; "2026-2027/57" gives
+ * "2026-2027/". Table 13 wants one row per series with its own from/to range,
+ * and mixing series produced a range that spanned two unrelated books.
+ */
+function documentSeries(invoiceNumber: string): string {
+  return invoiceNumber.replace(/\d+\s*$/, "") || "#";
+}
+
+/**
+ * Collapses stems that are not really series.
+ *
+ * A marketplace order id like "00016573357568_1" yields a stem unique to itself,
+ * so keying on the stem alone turns a thousand orders into a thousand Table 13
+ * rows. A genuine series is shared: many documents carry the same stem. Anything
+ * that appears once and carries no letters is an order id, and they are reported
+ * together as one block rather than enumerated.
+ */
+function isRealSeries(stem: string, documentCount: number): boolean {
+  // A marketplace order id is a long unbroken run of digits — 14 of them here —
+  // whereas a real series stem is short and punctuated: "IN-", "CN-",
+  // "2026-2027/". Counting documents alone is not enough: one order that was
+  // split across two shipments shares a stem and would otherwise pass as a
+  // two-document series.
+  const longestDigitRun = Math.max(0, ...(stem.match(/\d+/g) ?? []).map((run) => run.length));
+  if (longestDigitRun >= 10) return false;
+
+  return documentCount > 1 || /[A-Za-z]/.test(stem);
+}
+
 function updateSheetXml(
   xml: string,
   dataRowsXml: string[],
@@ -162,16 +238,30 @@ function updateSheetXml(
   let row3 = rows[2] || "";
   const row4 = rows[3] || "";
 
-  // Update formula summary <v> tags in row 3
+  // Update the cached values behind row 3's summary formulas.
+  //
+  // The template writes a shared formula across G3:K3: G3 carries the master
+  // `<f t="shared" ref="G3:K3" si="0">SUM(G5:G2000)</f>` and H3:K3 carry a
+  // SELF-CLOSING `<f t="shared" si="0"/>`. An earlier pattern only recognised
+  // `<f …>text</f>`, so those four cells never matched and kept the blank
+  // template's cached zero — every HSN sheet shipped with its tax totals
+  // reading 0.00 while the rows beneath it plainly had tax.
+  //
+  // Cells can also be self-closing when the template leaves them empty, which
+  // needs the `<c …/>` form expanded before a value can go in.
   if (summaryFormulaValues && row3) {
     for (const [cellRef, val] of Object.entries(summaryFormulaValues)) {
-      const cellRegex = new RegExp(
-        `(<c r="${cellRef}"[^>]*>)(?:<f[^>]*>[^<]*<\\/f>)?(?:<v>[^<]*<\\/v>)?(<\\/c>)`,
-        "g"
+      const openTag = `<c r="${cellRef}"`;
+      const selfClosing = new RegExp(`${escapeForRegExp(openTag)}([^>]*)\\/>`, "g");
+      row3 = row3.replace(
+        selfClosing,
+        (_m, attrs: string) => `${openTag}${attrs}><v>${val}</v></c>`
       );
-      row3 = row3.replace(cellRegex, (match, prefix, suffix) => {
-        const fMatch = match.match(/<f[^>]*>[^<]*<\/f>/);
-        const fTag = fMatch ? fMatch[0] : "";
+
+      const paired = new RegExp(`(${escapeForRegExp(openTag)}[^>]*>)([\\s\\S]*?)(<\\/c>)`, "g");
+      row3 = row3.replace(paired, (_m, prefix: string, body: string, suffix: string) => {
+        // Keep whichever form the formula takes; only the cached value changes.
+        const fTag = body.match(/<f[^>]*\/>|<f[^>]*>[\s\S]*?<\/f>/)?.[0] ?? "";
         return `${prefix}${fTag}<v>${val}</v>${suffix}`;
       });
     }
@@ -244,7 +334,7 @@ export async function generateGstr1Excel(
       cellXml("J", rowNum, 23, "") +
       cellXml("K", rowNum, 37, rate, "num") +
       cellXml("L", rowNum, 37, r.taxableValue, "num") +
-      cellXml("M", rowNum, 37, r.cessAmount || "", r.cessAmount ? "num" : "str") +
+      cellXml("M", rowNum, 37, r2(r.cessAmount), "num") +
       `</row>`
     );
   });
@@ -283,7 +373,7 @@ export async function generateGstr1Excel(
       cellXml("E", rowNum, 69, "") +
       cellXml("F", rowNum, 37, r2(r.igstRate), "num") +
       cellXml("G", rowNum, 37, r.taxableValue, "num") +
-      cellXml("H", rowNum, 37, r.cessAmount || "", r.cessAmount ? "num" : "str") +
+      cellXml("H", rowNum, 37, r2(r.cessAmount), "num") +
       cellXml("I", rowNum, 18, r.ecoGstin ? ensureTcsGstin(r.ecoGstin) : "") +
       `</row>`
     );
@@ -384,7 +474,7 @@ export async function generateGstr1Excel(
       cellXml("J", rowNum, 69, "") +
       cellXml("K", rowNum, 37, rate, "num") +
       cellXml("L", rowNum, 37, Math.abs(r.taxableValue), "num") +
-      cellXml("M", rowNum, 37, Math.abs(r.cessAmount) || "", r.cessAmount ? "num" : "str") +
+      cellXml("M", rowNum, 37, r2(Math.abs(r.cessAmount)), "num") +
       `</row>`
     );
   });
@@ -426,7 +516,7 @@ export async function generateGstr1Excel(
       cellXml("G", rowNum, 69, "") +
       cellXml("H", rowNum, 37, rate, "num") +
       cellXml("I", rowNum, 37, Math.abs(r.taxableValue), "num") +
-      cellXml("J", rowNum, 37, Math.abs(r.cessAmount) || "", r.cessAmount ? "num" : "str") +
+      cellXml("J", rowNum, 37, r2(Math.abs(r.cessAmount)), "num") +
       `</row>`
     );
   });
@@ -465,7 +555,7 @@ export async function generateGstr1Excel(
       cellXml("G", rowNum, 23, toExcelDate(r.shippingBillDate || "")) +
       cellXml("H", rowNum, 37, r2(r.igstRate), "num") +
       cellXml("I", rowNum, 37, r.taxableValue, "num") +
-      cellXml("J", rowNum, 37, r.cessAmount || "", r.cessAmount ? "num" : "str") +
+      cellXml("J", rowNum, 37, r2(r.cessAmount), "num") +
       `</row>`
     );
   });
@@ -504,18 +594,23 @@ export async function generateGstr1Excel(
   const hsnB2cAgg = new Map<string, HsnAgg>();
 
   for (const r of validRows) {
-    if (!r.hsnCode) continue;
+    const hsn = normalizeHsn(r.hsnCode);
+    // An all-zero or absent code is not a classification. Emitting it puts a
+    // row on the portal that will be rejected; leaving it out keeps Table 12
+    // honest about what was actually classified.
+    if (!hsn) continue;
+
     const isB2B = r.invoiceType === "B2B" || r.invoiceType === "CDNR";
     const targetMap = isB2B ? hsnB2bAgg : hsnB2cAgg;
 
     const rt = r2(r.igstRate > 0 ? r.igstRate : r.cgstRate + r.sgstRate);
     const uqc = r.uqc || "PCS";
-    const key = `${r.hsnCode}|${rt}|${uqc}`;
+    const key = `${hsn}|${rt}|${uqc}`;
 
     if (!targetMap.has(key)) {
       targetMap.set(key, {
-        hsn: r.hsnCode,
-        desc: r.itemDescription || "",
+        hsn,
+        desc: hsnDescription(r.itemDescription),
         uqc,
         qty: 0,
         totalVal: 0,
@@ -530,7 +625,7 @@ export async function generateGstr1Excel(
 
     const sign = r.invoiceType === "CDNR" || r.invoiceType === "CDNCS" ? -1 : 1;
     const b = targetMap.get(key)!;
-    if (!b.desc && r.itemDescription) b.desc = r.itemDescription;
+    if (!b.desc) b.desc = hsnDescription(r.itemDescription);
     b.qty = r2(b.qty + r.quantity * sign);
     b.totalVal = r2(b.totalVal + Math.abs(r.totalValue) * sign);
     b.txval = r2(b.txval + Math.abs(r.taxableValue) * sign);
@@ -561,10 +656,10 @@ export async function generateGstr1Excel(
       cellXml("E", rowNum, 38, v.totalVal, "num") +
       cellXml("F", rowNum, 38, v.rt, "num") +
       cellXml("G", rowNum, 38, v.txval, "num") +
-      cellXml("H", rowNum, 38, v.iamt || "", v.iamt ? "num" : "str") +
-      cellXml("I", rowNum, 38, v.camt || "", v.camt ? "num" : "str") +
-      cellXml("J", rowNum, 38, v.samt || "", v.samt ? "num" : "str") +
-      cellXml("K", rowNum, 38, v.csamt || "", v.csamt ? "num" : "str") +
+      cellXml("H", rowNum, 38, v.iamt, "num") +
+      cellXml("I", rowNum, 38, v.camt, "num") +
+      cellXml("J", rowNum, 38, v.samt, "num") +
+      cellXml("K", rowNum, 38, v.csamt, "num") +
       `</row>`
     );
   });
@@ -606,10 +701,10 @@ export async function generateGstr1Excel(
       cellXml("E", rowNum, 38, v.totalVal, "num") +
       cellXml("F", rowNum, 38, v.rt, "num") +
       cellXml("G", rowNum, 38, v.txval, "num") +
-      cellXml("H", rowNum, 38, v.iamt || "", v.iamt ? "num" : "str") +
-      cellXml("I", rowNum, 38, v.camt || "", v.camt ? "num" : "str") +
-      cellXml("J", rowNum, 38, v.samt || "", v.samt ? "num" : "str") +
-      cellXml("K", rowNum, 38, v.csamt || "", v.csamt ? "num" : "str") +
+      cellXml("H", rowNum, 38, v.iamt, "num") +
+      cellXml("I", rowNum, 38, v.camt, "num") +
+      cellXml("J", rowNum, 38, v.samt, "num") +
+      cellXml("K", rowNum, 38, v.csamt, "num") +
       `</row>`
     );
   });
@@ -633,15 +728,42 @@ export async function generateGstr1Excel(
   // ─────────────────────────────────────────────────────────────────────────────
   // 8. docs Sheet (xl/worksheets/sheet21.xml)
   // ─────────────────────────────────────────────────────────────────────────────
+  // Table 13 reports each document *series* separately. Grouping only by
+  // document type collapsed unrelated series into one row and printed a range
+  // spanning both — "2026-2027/57 to IN-1026" describes no series that exists,
+  // and a marketplace order id turned up as the first credit note. The series
+  // stem (everything before the trailing number) is what separates them.
+  /** Separates document type from series in a group key. Neither contains it. */
+  const SERIES_KEY_SEP = "::";
+
   const invoiceGroups = new Map<string, string[]>();
   validRows.forEach((r) => {
+    const number = r.invoiceNumber?.trim();
+    if (!number) return;
+
     const isCreditNote = r.invoiceType === "CDNR" || r.invoiceType === "CDNCS";
-    const groupName = isCreditNote ? "Credit Note" : "Invoices for outward supply";
-    if (!invoiceGroups.has(groupName)) invoiceGroups.set(groupName, []);
-    if (r.invoiceNumber) {
-      invoiceGroups.get(groupName)!.push(r.invoiceNumber.trim());
-    }
+    const docType = isCreditNote ? "Credit Note" : "Invoices for outward supply";
+    invoiceGroups.set(
+      `${docType}${SERIES_KEY_SEP}${documentSeries(number)}`,
+      (invoiceGroups.get(`${docType}${SERIES_KEY_SEP}${documentSeries(number)}`) ?? []).concat(
+        number
+      )
+    );
   });
+
+  // Fold the one-off, letterless stems back together per document type, so a
+  // thousand marketplace order ids report as one block rather than a thousand
+  // single-document "series".
+  for (const [key, numbers] of Array.from(invoiceGroups.entries())) {
+    const sepAt = key.indexOf(SERIES_KEY_SEP);
+    const docType = key.slice(0, sepAt);
+    const stem = key.slice(sepAt + SERIES_KEY_SEP.length);
+    if (isRealSeries(stem, new Set(numbers).size)) continue;
+
+    const bucket = `${docType}${SERIES_KEY_SEP}#`;
+    invoiceGroups.set(bucket, (invoiceGroups.get(bucket) ?? []).concat(numbers));
+    invoiceGroups.delete(key);
+  }
 
   const docRowsData: {
     name: string;
@@ -651,7 +773,7 @@ export async function generateGstr1Excel(
     cancel: number;
   }[] = [];
 
-  invoiceGroups.forEach((invNumbers, name) => {
+  invoiceGroups.forEach((invNumbers, key) => {
     if (invNumbers.length === 0) return;
 
     const uniqueInvoices = Array.from(new Set(invNumbers));
@@ -659,19 +781,28 @@ export async function generateGstr1Excel(
       a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" })
     );
 
-    const from = uniqueInvoices[0]!;
-    const to = uniqueInvoices[uniqueInvoices.length - 1]!;
-    const totnum = uniqueInvoices.length;
-    const cancel = 0;
-
+    // The key carries the series so rows stay separate; only the document type
+    // belongs in the sheet's "Nature of Document" column.
     docRowsData.push({
-      name,
-      from,
-      to,
-      totnum,
-      cancel,
+      name: key.slice(0, key.indexOf(SERIES_KEY_SEP)),
+      from: uniqueInvoices[0]!,
+      to: uniqueInvoices[uniqueInvoices.length - 1]!,
+      totnum: uniqueInvoices.length,
+      // Cancellations are not derivable from the marketplace exports we read —
+      // a cancelled invoice simply never appears. Reporting 0 states what we
+      // know rather than implying we checked.
+      cancel: 0,
     });
   });
+
+  // Invoices first, then credit notes — the order Table 13 is read in, and the
+  // one the CA's return uses. Alphabetical would put credit notes on top.
+  const DOC_TYPE_ORDER = ["Invoices for outward supply", "Credit Note"];
+  docRowsData.sort(
+    (a, b) =>
+      DOC_TYPE_ORDER.indexOf(a.name) - DOC_TYPE_ORDER.indexOf(b.name) ||
+      a.from.localeCompare(b.from, undefined, { numeric: true })
+  );
 
   const docsTotalNum = docRowsData.reduce((s, d) => s + d.totnum, 0);
   const docsTotalCancel = docRowsData.reduce((s, d) => s + d.cancel, 0);
@@ -750,10 +881,10 @@ export async function generateGstr1Excel(
       cellXml("B", rowNum, 255, etin) +
       cellXml("C", rowNum, 215, v.ecoName) +
       cellXml("D", rowNum, 199, v.txval, "num") +
-      cellXml("E", rowNum, 199, v.iamt || "", v.iamt ? "num" : "str") +
-      cellXml("F", rowNum, 199, v.camt || "", v.camt ? "num" : "str") +
-      cellXml("G", rowNum, 199, v.samt || "", v.samt ? "num" : "str") +
-      cellXml("H", rowNum, 199, v.csamt || "", v.csamt ? "num" : "str") +
+      cellXml("E", rowNum, 199, v.iamt, "num") +
+      cellXml("F", rowNum, 199, v.camt, "num") +
+      cellXml("G", rowNum, 199, v.samt, "num") +
+      cellXml("H", rowNum, 199, v.csamt, "num") +
       `</row>`
     );
   });
