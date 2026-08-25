@@ -1,10 +1,8 @@
 import type { ExtractedInvoice, ExtractedLineItem } from "@/features/pdf-extractor/domain/types";
 import { classifyInvoice } from "@/features/pdf-extractor/domain/classifier";
-import {
-  normalizeStateCode,
-  STATE_CODES,
-} from "@/features/convert/domain/state-codes";
+import { normalizeStateCode, STATE_CODES } from "@/features/convert/domain/state-codes";
 import { transformDate } from "@/features/convert/engine/transformation/transformers";
+import { parseAmazonVendorInvoice } from "@/features/pdf-extractor/engine/amazon-vendor-invoice.parser";
 
 function r2(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
@@ -31,6 +29,56 @@ export function extractInvoiceFromText(params: {
 }): ExtractedInvoice {
   const { text, fileName, fileSizeBytes, pageCount, knownSupplierGstin } = params;
   const notes: string[] = [];
+
+  // Known layouts are read exactly rather than guessed at. The generic patterns
+  // below are a last resort: on an Amazon Vendor invoice they read the PO number
+  // as the invoice total and "1," of "1,793.40" as a 1% tax rate.
+  const vendor = parseAmazonVendorInvoice(text);
+  if (vendor) {
+    const classification = classifyInvoice({
+      buyerGstin: vendor.buyerGstin,
+      supplierGstin: vendor.supplierGstin,
+      placeOfSupply: vendor.placeOfSupply,
+      totalInvoiceValue: vendor.totalInvoiceValue,
+      isCreditDebitNote: /credit\s*note/i.test(text),
+      isExport: /export/i.test(text),
+    });
+
+    return {
+      id: crypto.randomUUID(),
+      fileName,
+      fileSizeBytes,
+      pageCount,
+      invoiceNumber: vendor.invoiceNumber,
+      invoiceDate: vendor.invoiceDate,
+      classification,
+      documentType: /credit\s*note/i.test(text) ? "Credit Note" : "Invoice",
+      supplierName: vendor.supplierName || "Supplier",
+      supplierGstin: knownSupplierGstin || vendor.supplierGstin,
+      buyerName: vendor.buyerName || (classification === "B2B" ? "Registered Buyer" : "Consumer"),
+      buyerGstin: vendor.buyerGstin,
+      placeOfSupply: vendor.placeOfSupply,
+      placeOfSupplyStateName: vendor.placeOfSupplyStateName || vendor.placeOfSupply,
+      reverseCharge: false,
+      taxableValue: vendor.taxableValue,
+      igstAmount: vendor.igstAmount,
+      cgstAmount: vendor.cgstAmount,
+      sgstAmount: vendor.sgstAmount,
+      cessAmount: vendor.cessAmount,
+      totalTaxAmount: vendor.totalTaxAmount,
+      totalInvoiceValue: vendor.totalInvoiceValue,
+      gstRate: vendor.gstRate,
+      lineItems: vendor.lineItems,
+      rawText: text,
+      confidenceScore: 100,
+      notes:
+        vendor.layout === "vendor-portal-print"
+          ? [
+              "Per-line values are not recoverable from this portal print; totals are exact and the line is a summary.",
+            ]
+          : [],
+    };
+  }
 
   // 1. Find all GSTINs in text
   const gstinMatches = Array.from(new Set(text.match(GSTIN_REGEX) || []));
@@ -97,7 +145,10 @@ export function extractInvoiceFromText(params: {
   for (const pat of invPatterns) {
     const m = text.match(pat);
     if (m?.[1] && m[1].length >= 2 && !/^(date|dated|original|duplicate|tax)$/i.test(m[1].trim())) {
-      invoiceNumber = m[1].replace(/\s*\/\s*/g, "/").replace(/\s*-\s*/g, "-").trim();
+      invoiceNumber = m[1]
+        .replace(/\s*\/\s*/g, "/")
+        .replace(/\s*-\s*/g, "-")
+        .trim();
       break;
     }
   }
@@ -123,7 +174,9 @@ export function extractInvoiceFromText(params: {
   let posName = "";
 
   // 4a. Explicit "Place of Supply:"
-  const posMatch = text.match(/Place\s*of\s*Supply\s*[:\s-]*([A-Za-z\s&]+?)(?:\n|\r|\t|Billing|Shipping|Order|$)/i);
+  const posMatch = text.match(
+    /Place\s*of\s*Supply\s*[:\s-]*([A-Za-z\s&]+?)(?:\n|\r|\t|Billing|Shipping|Order|$)/i
+  );
   if (posMatch?.[1]) {
     const candidate = posMatch[1].trim();
     posCode = normalizeStateCode(candidate);
@@ -143,9 +196,13 @@ export function extractInvoiceFromText(params: {
 
   // 4c. Search state names in Buyer / Delivery Address section
   if (!posCode) {
-    const headerSplit = text.split(/(?:TAX\s*INVOICE|GSTN\s*:\s*[0-9A-Z]{15}|GSTIN\s*[:\-]\s*[0-9A-Z]{15})/i);
+    const headerSplit = text.split(
+      /(?:TAX\s*INVOICE|GSTN\s*:\s*[0-9A-Z]{15}|GSTIN\s*[:\-]\s*[0-9A-Z]{15})/i
+    );
     const relevantText = headerSplit.length > 1 ? headerSplit.slice(1).join("\n") : text;
-    const tableSplit = relevantText.split(/(?:Sr\.no|Sl\.\s*No|Description\s*of\s*goods|Item\s*Description|Bank\s*Account|Terms\s*&)/i);
+    const tableSplit = relevantText.split(
+      /(?:Sr\.no|Sl\.\s*No|Description\s*of\s*goods|Item\s*Description|Bank\s*Account|Terms\s*&)/i
+    );
     const buyerBlock = tableSplit[0] || relevantText;
 
     const stateNameToCode: Record<string, string> = {};
@@ -166,7 +223,9 @@ export function extractInvoiceFromText(params: {
 
     // Check "State Code : XX" in buyer block
     if (!posCode) {
-      const stateCodeMatches = Array.from(buyerBlock.matchAll(/(?:State\s*(?:\(Code\)|Code)?)\s*[:\s-]*(\d{1,2})/gi));
+      const stateCodeMatches = Array.from(
+        buyerBlock.matchAll(/(?:State\s*(?:\(Code\)|Code)?)\s*[:\s-]*(\d{1,2})/gi)
+      );
       if (stateCodeMatches.length > 0) {
         const lastMatch = stateCodeMatches[stateCodeMatches.length - 1];
         if (lastMatch?.[1]) {
@@ -222,7 +281,9 @@ export function extractInvoiceFromText(params: {
     if (cgstMatch[2]) cgstAmount = parseAmount(cgstMatch[2]);
   }
 
-  const sgstMatch = text.match(/(?:ADD\s*)?(?:SGST|UTGST)(?:%|\s*@)?\s*(\d+\.?\d*)%?\s*[:\s₹`]*([0-9,]+\.?[0-9]*)/i);
+  const sgstMatch = text.match(
+    /(?:ADD\s*)?(?:SGST|UTGST)(?:%|\s*@)?\s*(\d+\.?\d*)%?\s*[:\s₹`]*([0-9,]+\.?[0-9]*)/i
+  );
   if (sgstMatch) {
     if (sgstMatch[1]) sgstRate = parseFloat(sgstMatch[1]) || 0;
     if (sgstMatch[2]) sgstAmount = parseAmount(sgstMatch[2]);
@@ -312,11 +373,20 @@ export function extractInvoiceFromText(params: {
   const lineItems: ExtractedLineItem[] = [];
 
   // Strategy A: Pebble Crafts Multi-item Table (Column Grouped or Single Line)
-  const pebbleMatch = text.match(/Sr\.no\s*Description\s*of\s*goods\s*Hsn\s*code\s*GST\s*Rate\s*Quantity\s*Basic\s*Rate[^\n]*Amount[^\n]*\n([\s\S]*?)(?:TOTAL|\bSub\s*total|Bank\s*Account)/i);
+  const pebbleMatch = text.match(
+    /Sr\.no\s*Description\s*of\s*goods\s*Hsn\s*code\s*GST\s*Rate\s*Quantity\s*Basic\s*Rate[^\n]*Amount[^\n]*\n([\s\S]*?)(?:TOTAL|\bSub\s*total|Bank\s*Account)/i
+  );
   if (pebbleMatch?.[1]) {
-    const rawLines = pebbleMatch[1].split("\n").map((l) => l.trim()).filter((l) => l && l !== "`");
+    const rawLines = pebbleMatch[1]
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l && l !== "`");
     let countN = 0;
-    while (countN < rawLines.length && /^\d+$/.test(rawLines[countN]!) && parseInt(rawLines[countN]!) === countN + 1) {
+    while (
+      countN < rawLines.length &&
+      /^\d+$/.test(rawLines[countN]!) &&
+      parseInt(rawLines[countN]!) === countN + 1
+    ) {
       countN++;
     }
 
@@ -328,7 +398,7 @@ export function extractInvoiceFromText(params: {
       const amounts: number[] = [];
 
       let hsnStart = -1;
-      for (let i = countN; i <= rawLines.length - (5 * countN); i++) {
+      for (let i = countN; i <= rawLines.length - 5 * countN; i++) {
         let allHsn = true;
         for (let j = 0; j < countN; j++) {
           if (!/^\d{4,8}$/.test(rawLines[i + j]!)) {
@@ -390,9 +460,15 @@ export function extractInvoiceFromText(params: {
 
     if (lineItems.length === 0) {
       const singleTokens = rawLines.filter((l) => l !== "`");
-      const trailingNums = singleTokens[singleTokens.length - 1]?.match(/(\d{4,8})\s+(\d{1,2})\s+(\d+)\s+([\d.]+)\s+([\d.]+)/);
+      const trailingNums = singleTokens[singleTokens.length - 1]?.match(
+        /(\d{4,8})\s+(\d{1,2})\s+(\d+)\s+([\d.]+)\s+([\d.]+)/
+      );
       if (trailingNums) {
-        const desc = singleTokens.slice(0, singleTokens.length - 1).join(" ").replace(/^\d+\s*/, "").trim();
+        const desc = singleTokens
+          .slice(0, singleTokens.length - 1)
+          .join(" ")
+          .replace(/^\d+\s*/, "")
+          .trim();
         const hsn = trailingNums[1]!;
         const rate = parseFloat(trailingNums[2]!) || gstRate || 5;
         const qty = parseFloat(trailingNums[3]!) || 1;
@@ -425,14 +501,18 @@ export function extractInvoiceFromText(params: {
 
   // Strategy B: Craftykart D2C Invoices Item Blocks
   if (lineItems.length === 0) {
-    const tableMatch = text.match(/#\s*Item\s*Description\s*Qty\s*MRP[\s\S]*?Total\s*Amount\n([\s\S]*?)(?:Amount\s*in\s*Words|Total\s*\(\s*excluding\s*Tax\)|Total\s*Amount:)/i);
+    const tableMatch = text.match(
+      /#\s*Item\s*Description\s*Qty\s*MRP[\s\S]*?Total\s*Amount\n([\s\S]*?)(?:Amount\s*in\s*Words|Total\s*\(\s*excluding\s*Tax\)|Total\s*Amount:)/i
+    );
     if (tableMatch?.[1]) {
       const tableBody = tableMatch[1];
       const itemBlocks = tableBody.split(/\n(?=\d+\n[\s\S]*?HSN:\s*\d+)/i).filter((b) => b.trim());
 
       for (const blk of itemBlocks) {
         const srMatch = blk.match(/^(\d+)\n([\s\S]*?)HSN:\s*(\d{4,8})/i);
-        const numLineMatch = blk.match(/(\d+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+(?:IGST|CGST|SGST|GST)[:\s]*([\d.]+)%?\s+(?:IGST|CGST|SGST)[:\s]*([\d.]+)\s+([\d.]+)/i);
+        const numLineMatch = blk.match(
+          /(\d+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+(?:IGST|CGST|SGST|GST)[:\s]*([\d.]+)%?\s+(?:IGST|CGST|SGST)[:\s]*([\d.]+)\s+([\d.]+)/i
+        );
 
         if (srMatch && numLineMatch) {
           const itemTaxable = parseFloat(numLineMatch[4]!);
@@ -491,7 +571,9 @@ export function extractInvoiceFromText(params: {
   // Strategy D: Fallback Single Line Item
   if (lineItems.length === 0) {
     let fallbackHsn = "4419";
-    const hsnMatch = text.match(/(?:HSN|SAC|HSN\s*\/|\bSAC\s*Code|\bHSN\s*Code)\s*[:#\s-]*(\d{4,8})/i);
+    const hsnMatch = text.match(
+      /(?:HSN|SAC|HSN\s*\/|\bSAC\s*Code|\bHSN\s*Code)\s*[:#\s-]*(\d{4,8})/i
+    );
     const sacMatch = text.match(/\b(99\d{4})\b/);
     if (hsnMatch?.[1]) fallbackHsn = hsnMatch[1].trim();
     else if (sacMatch?.[1]) fallbackHsn = sacMatch[1].trim();
@@ -522,7 +604,9 @@ export function extractInvoiceFromText(params: {
   const soldByMatch = text.match(/(?:Sold\s*By|From)\s*[:\s]*\n*([^\n\r]+)/i);
   if (soldByMatch?.[1]) supplierName = soldByMatch[1].trim();
 
-  const billedToMatch = text.match(/(?:Issued\s*To|Billed\s*To|Goods\s*Shipped\s*to\s*:|Billing\s*Address)\s*[:\s]*\n*(?:M\/s\.?\s*)?([^\n\r]+)/i);
+  const billedToMatch = text.match(
+    /(?:Issued\s*To|Billed\s*To|Goods\s*Shipped\s*to\s*:|Billing\s*Address)\s*[:\s]*\n*(?:M\/s\.?\s*)?([^\n\r]+)/i
+  );
   if (billedToMatch?.[1]) {
     const raw = billedToMatch[1].trim();
     if (!raw.toLowerCase().includes("invoice no")) {
