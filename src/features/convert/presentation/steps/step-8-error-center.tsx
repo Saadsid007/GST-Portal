@@ -20,12 +20,12 @@ import {
 } from "@/features/convert/engine/error-center/rate-suggester";
 import { RowEditDialog } from "@/features/convert/presentation/steps/row-edit-dialog";
 import { reconcileTcsAction } from "@/features/convert/actions/tcs.actions";
-import { compareGstr1Action } from "@/features/convert/actions/gstr1-compare.actions";
 import type { TcsReconciliationResult } from "@/features/convert/engine/tcs/tcs.reconciler";
 import {
   toComparableRow,
   type Gstr1ComparisonResult,
 } from "@/features/convert/engine/comparison/gstr1.comparator";
+import { compareGstr1InBrowser } from "@/features/convert/engine/comparison/compare-in-browser";
 import { formatCurrency, cn } from "@/lib/utils";
 import {
   Wand2,
@@ -85,33 +85,6 @@ function displaySuggestion(row: NormalizedInvoiceRow, rows: NormalizedInvoiceRow
 function applicableSuggestion(row: NormalizedInvoiceRow, rows: NormalizedInvoiceRow[]) {
   const suggestion = displaySuggestion(row, rows);
   return isConfidentSuggestion(suggestion) ? suggestion : null;
-}
-
-/**
- * Turns a failed comparison upload into something the user can act on.
- *
- * The generic "Failed to process" message hid the one failure that only ever
- * happens in production: a proxy in front of the app rejecting the request by
- * size before Next sees it. The user is then told to check a file that was
- * never read.
- */
-function describeUploadFailure(error: unknown, file: File): string {
-  const message = error instanceof Error ? error.message : String(error ?? "");
-  const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
-
-  // A rejected body surfaces as a network/fetch failure or an explicit 413,
-  // depending on which layer refused it.
-  if (/413|too large|entity too large|body exceeded|payload/i.test(message)) {
-    return `The request was rejected as too large (${file.name} is ${sizeMb} MB). Ask your administrator to raise the upload limit, or compare against a smaller export.`;
-  }
-
-  if (/fetch|network|load failed|connection/i.test(message)) {
-    return `The upload did not reach the server (${file.name}, ${sizeMb} MB). This is usually an upload size or timeout limit on the server, not a problem with the file.`;
-  }
-
-  return message
-    ? `Could not compare "${file.name}": ${message}`
-    : `Could not compare "${file.name}". Please check it is an Amazon GSTR-1 export or the Government GSTR-1 Template V2.1.`;
 }
 
 export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
@@ -284,10 +257,10 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
   async function handleGstr1Compare(file: File) {
     setGstr1Comparing(true);
     try {
-      // Only the fields the comparison reads travel to the server. A month of
-      // invoices is thousands of rows, and this request already carries a
-      // workbook alongside them.
-      const res = await compareGstr1Action(rows.map(toComparableRow), file);
+      // Runs in the browser: the reference workbook is never uploaded. A
+      // Government template is ~7 MB and the deployment refuses request bodies
+      // over 4.5 MB, so sending it to the server could not succeed.
+      const res = await compareGstr1InBrowser(rows.map(toComparableRow), file);
       if (!res.success) {
         toast.error(res.error);
         return;
@@ -301,7 +274,11 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
       // Say what actually failed. A blanket "failed to process" sent users
       // hunting through their spreadsheet when the request had been rejected
       // before it ever reached the parser — the reason only production hit it.
-      toast.error(describeUploadFailure(error, file));
+      toast.error(
+        error instanceof Error
+          ? `Could not compare "${file.name}": ${error.message}`
+          : `Could not compare "${file.name}".`
+      );
     } finally {
       setGstr1Comparing(false);
     }

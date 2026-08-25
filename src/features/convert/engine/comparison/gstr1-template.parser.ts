@@ -506,6 +506,25 @@ export function parseGstr1File(workbook: XLSX.WorkBook): ParsedGstr1Template {
 /**
  * Detects whether buffer is JSON or XLSX, then parses accordingly.
  */
+/**
+ * Byte-based entry point, usable in the browser as well as on the server.
+ *
+ * The comparison parses its reference file client-side — a government template
+ * is around 7 MB and the deployment's request limit is 4.5 MB, so uploading it
+ * to a Server Action can never succeed.
+ */
+export function parseGstr1Bytes(bytes: Uint8Array, fileName?: string): ParsedGstr1Template {
+  const head = new TextDecoder("utf-8").decode(bytes.subarray(0, Math.min(100, bytes.length)));
+  const isJson = fileName?.toLowerCase().endsWith(".json") || head.trim().startsWith("{");
+
+  if (isJson) {
+    return parseGstr1Json(new TextDecoder("utf-8").decode(bytes));
+  }
+
+  const { workbook } = readWorkbookSafely(bytes, { raw: true });
+  return parseGstr1File(workbook);
+}
+
 export function parseGstr1Buffer(buffer: Buffer, fileName?: string): ParsedGstr1Template {
   const isJson =
     fileName?.toLowerCase().endsWith(".json") ||

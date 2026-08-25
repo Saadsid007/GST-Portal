@@ -76,7 +76,9 @@ function safeDecodeRange(ref: string): XLSX.Range | null {
  * directly — a broken range is invisible until it silently drops rows.
  */
 export function readWorkbookSafely(
-  buffer: Buffer,
+  // Uint8Array rather than Buffer: this also runs in the browser, where the
+  // GSTR-1 comparison parses its reference file locally.
+  buffer: Uint8Array,
   options: XLSX.ParsingOptions = {}
 ): { workbook: XLSX.WorkBook; repairedSheets: string[] } {
   const workbook = XLSX.read(buffer, { type: "buffer", ...options });
