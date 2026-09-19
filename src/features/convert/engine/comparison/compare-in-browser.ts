@@ -1,6 +1,21 @@
 import type { ComparableRow, Gstr1ComparisonResult } from "./gstr1.comparator";
 
 /**
+ * Named so the header says which file was actually read.
+ *
+ * The portal's JSON and an accountant's workbook were both shown as
+ * "Government GSTR-1 Template V2.1", so a user comparing against the filed
+ * return could not tell it from a working draft — and a draft is exactly
+ * where a difference is most likely to be the draft's.
+ */
+const SOURCE_LABELS: Record<string, string> = {
+  amazon_gstr1: "Amazon Auto-Generated GSTR-1",
+  govt_template: "Government GSTR-1 Template V2.1",
+  gstn_json: "GSTR-1 JSON filed on the portal",
+  unknown: "GSTR-1 Reference File",
+};
+
+/**
  * Runs the GSTR-1 comparison entirely in the browser.
  *
  * The reference file never leaves the machine. That is not a privacy flourish —
@@ -62,12 +77,7 @@ export async function compareGstr1InBrowser(
     success: true,
     data: {
       ...result,
-      sourceLabel:
-        parsedRef.sourceType === "amazon_gstr1"
-          ? "Amazon Auto-Generated GSTR-1"
-          : parsedRef.sourceType === "govt_template"
-            ? "Government GSTR-1 Template V2.1"
-            : "GSTR-1 Reference File",
+      sourceLabel: SOURCE_LABELS[parsedRef.sourceType] ?? SOURCE_LABELS.unknown!,
     },
   };
 }

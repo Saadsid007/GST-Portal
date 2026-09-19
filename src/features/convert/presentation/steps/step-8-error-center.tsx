@@ -665,9 +665,10 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
                 <GitCompare className="size-5 text-primary-ink" /> GSTR-1 Comparison
               </h3>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Upload Amazon&apos;s auto-generated GSTR-1 or the Government GSTR-1 Template V2.1 to
-                compare against our output. Reference data is <strong>never merged</strong> —
-                it&apos;s validation-only.
+                Upload the GSTR-1 JSON filed on the portal, Amazon&apos;s auto-generated GSTR-1, or
+                the Government GSTR-1 Template V2.1. The JSON is the strongest check — it is what
+                was actually filed, where a workbook may still be a working draft. Reference data is{" "}
+                <strong>never merged</strong> — it&apos;s validation-only.
               </p>
             </div>
             <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90">
@@ -679,7 +680,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
               <span>Upload GSTR-1 for Comparison</span>
               <input
                 type="file"
-                accept=".xlsx,.xls"
+                accept=".xlsx,.xls,.json"
                 className="hidden"
                 onChange={(e) => {
                   const f = e.target.files?.[0];

@@ -65,7 +65,7 @@ export interface TemplateCdnurEntry {
 }
 
 export interface ParsedGstr1Template {
-  sourceType: "amazon_gstr1" | "govt_template" | "unknown";
+  sourceType: "amazon_gstr1" | "govt_template" | "gstn_json" | "unknown";
   b2b: TemplateB2bInvoice[];
   b2cs: TemplateB2csRow[];
   b2cl: TemplateB2clInvoice[];
@@ -459,7 +459,11 @@ export function parseGstr1Json(jsonStr: string): ParsedGstr1Template {
     }
 
     return {
-      sourceType: "govt_template",
+      // Its own type, not "govt_template". Both were labelled the same in the
+      // comparison header, so a user checking against the portal's own JSON
+      // could not tell it apart from an accountant's working workbook — and
+      // the two do not always say the same thing.
+      sourceType: "gstn_json",
       b2b,
       b2cs,
       b2cl,
