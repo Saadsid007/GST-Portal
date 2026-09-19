@@ -30,7 +30,8 @@
     "prepare": "husky",
     "postinstall": "prisma generate",
     "harvest:columns": "tsx scripts/harvest-column-exemplars.ts",
-    "verify:corpus": "tsx scripts/verify-corpus.ts"
+    "verify:corpus": "tsx scripts/verify-corpus.ts",
+    "verify:pdfs": "tsx scripts/verify-pdfs.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.5.7",

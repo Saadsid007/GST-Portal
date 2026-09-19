@@ -6,9 +6,13 @@ export interface ParsedPdfDocument {
   info?: Record<string, unknown>;
 }
 
-export async function extractTextFromPdfBuffer(buffer: Buffer | Uint8Array): Promise<ParsedPdfDocument> {
+export async function extractTextFromPdfBuffer(
+  buffer: Buffer | Uint8Array
+): Promise<ParsedPdfDocument> {
   // Convert Node.js Buffer to a pure standard Uint8Array to satisfy unpdf checks
-  const uint8 = new Uint8Array(buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength));
+  const uint8 = new Uint8Array(
+    buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength)
+  );
   const pdf = await getDocumentProxy(uint8);
   const { text, totalPages } = await extractText(pdf, { mergePages: true });
 

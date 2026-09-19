@@ -1,3 +1,4 @@
+import { amountsAreConsistent } from "@/features/pdf-extractor/engine/amount-reconciler";
 import type { ExtractedLineItem } from "@/features/pdf-extractor/domain/types";
 import { STATE_CODES, normalizeStateCode } from "@/features/convert/domain/state-codes";
 
@@ -112,7 +113,20 @@ function applyTax(
 }
 
 export function parseAmazonVendorInvoice(text: string): AmazonVendorInvoice | null {
-  return parsePrintedGstInvoice(text) ?? parseVendorPortalPrint(text);
+  const parsed = parsePrintedGstInvoice(text) ?? parseVendorPortalPrint(text);
+  if (!parsed) return null;
+
+  // A layout parser reads by position, and position is the first thing a long
+  // invoice breaks: on a thirteen-page order the window that should hold the
+  // totals block holds three line prices instead, which produced a CGST equal
+  // to the taxable value and a total of zero — reported at full confidence.
+  //
+  // So the parser has to satisfy the same identity as anything else. Figures
+  // that do not describe one invoice are withdrawn, and the caller's generic
+  // path reconciles the document instead of trusting this.
+  if (!amountsAreConsistent(parsed)) return null;
+
+  return parsed;
 }
 
 /* ── Layout A: the printed "GST Invoice" ─────────────────────────────────── */

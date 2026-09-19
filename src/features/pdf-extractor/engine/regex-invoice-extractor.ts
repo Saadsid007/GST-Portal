@@ -3,6 +3,11 @@ import { classifyInvoice } from "@/features/pdf-extractor/domain/classifier";
 import { normalizeStateCode, STATE_CODES } from "@/features/convert/domain/state-codes";
 import { transformDate } from "@/features/convert/engine/transformation/transformers";
 import { parseAmazonVendorInvoice } from "@/features/pdf-extractor/engine/amazon-vendor-invoice.parser";
+import {
+  collectAmounts,
+  reconcileAmounts,
+  amountsAreConsistent,
+} from "@/features/pdf-extractor/engine/amount-reconciler";
 
 function r2(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
@@ -133,6 +138,12 @@ export function extractInvoiceFromText(params: {
   // 2. Invoice Number
   let invoiceNumber = "";
   const invPatterns = [
+    // "Invoice Number" on its own line with the value beneath it. Matched
+    // first because the looser "Invoice No.?" pattern below otherwise bites
+    // into the word "Number" and returns "mber".
+    /Invoice\s*Number\s*[:#\s]*([A-Za-z0-9][A-Za-z0-9\-\/_]{2,24})/i,
+    // Amazon Vendor Central labels it "Invoice ID".
+    /Invoice\s*ID\s*[:#\s]*([A-Za-z0-9][A-Za-z0-9\-\/_]{2,24})/i,
     /Invoice\s*(?:#|No\.?|Number)\s*[:#\s]*([A-Za-z0-9]+(?:\s*[\/\-_]\s*[A-Za-z0-9]+)+)/i,
     /Tax\s*Invoice\s*(?:#|No\.?)\s*[:#\s]*([A-Za-z0-9]+(?:\s*[\/\-_]\s*[A-Za-z0-9]+)+)/i,
     /Bill\s*No\.?\s*[:#\s]*([A-Za-z0-9]+(?:\s*[\/\-_]\s*[A-Za-z0-9]+)+)/i,
@@ -142,9 +153,16 @@ export function extractInvoiceFromText(params: {
     /Bill\s*No\.?\s*[:#\s-]*([A-Za-z0-9\-\/_]+)/i,
     /Invoice\s*[:#\s-]*([A-Za-z0-9\-\/_]{3,25})/i,
   ];
+  // Words that follow "Invoice" on a form but are part of the next label, not
+  // the number. The loosest pattern below reads whatever comes after the word
+  // "Invoice", and on an Amazon Vendor print that is "Reference" — which was
+  // then reported as the invoice number of a real filed document.
+  const NOT_AN_INVOICE_NUMBER =
+    /^(date|dated|original|duplicate|tax|reference|number|no|id|value|amount|total|details|to|from|for|copy|type|period)$/i;
+
   for (const pat of invPatterns) {
     const m = text.match(pat);
-    if (m?.[1] && m[1].length >= 2 && !/^(date|dated|original|duplicate|tax)$/i.test(m[1].trim())) {
+    if (m?.[1] && m[1].length >= 2 && !NOT_AN_INVOICE_NUMBER.test(m[1].trim())) {
       invoiceNumber = m[1]
         .replace(/\s*\/\s*/g, "/")
         .replace(/\s*-\s*/g, "-")
@@ -174,11 +192,28 @@ export function extractInvoiceFromText(params: {
   let posName = "";
 
   // 4a. Explicit "Place of Supply:"
-  const posMatch = text.match(
-    /Place\s*of\s*Supply\s*[:\s-]*([A-Za-z\s&]+?)(?:\n|\r|\t|Billing|Shipping|Order|$)/i
+  //
+  // The state code is printed beside the name as often as not — Meesho writes
+  // "Place of Supply : 19 West Bengal", Zoho writes "Maharashtra (27)" — and
+  // the code is the authoritative half. Reading only the name meant a line
+  // beginning with digits matched nothing at all, and the place of supply then
+  // fell back to the supplier's own state. That turns an inter-state supply
+  // into an intra-state one: IGST becomes CGST/SGST, in the wrong state's
+  // name, on a filed return.
+  const posWithLeadingCode = text.match(/Place\s*of\s*Supply\s*[:\s-]*(\d{2})\s+[A-Za-z]/i);
+  const posWithTrailingCode = text.match(
+    /Place\s*of\s*Supply\s*[:\s-]*[A-Za-z\s&]+?\s*\(\s*(\d{2})\s*\)/i
   );
-  if (posMatch?.[1]) {
-    const candidate = posMatch[1].trim();
+  const posByName = text.match(
+    /Place\s*of\s*Supply\s*[:\s-]*([A-Za-z\s&]+?)(?:\n|\r|\t|\(|Billing|Shipping|Order|$)/i
+  );
+
+  const explicitCode = posWithLeadingCode?.[1] ?? posWithTrailingCode?.[1];
+  if (explicitCode && STATE_CODES[explicitCode]) {
+    posCode = explicitCode;
+    posName = STATE_CODES[explicitCode] ?? "";
+  } else if (posByName?.[1]) {
+    const candidate = posByName[1].trim();
     posCode = normalizeStateCode(candidate);
     if (posCode && STATE_CODES[posCode]) {
       posName = STATE_CODES[posCode] ?? "";
@@ -365,6 +400,46 @@ export function extractInvoiceFromText(params: {
         }
         totalInvoiceValue = r2(taxableValue + totalTaxAmount);
       }
+    }
+  }
+
+  // 5c. Reconcile when the labels did not survive the layout.
+  //
+  // A PDF emits text in drawing order, so on many invoices the amount column
+  // arrives as one block and its labels as another. Every pattern above then
+  // matches nothing and the invoice came through with all values zero — 51 of
+  // the 144 sample PDFs did exactly that. The solver works from the identity
+  // taxable + tax = total at a notified slab instead, which needs no labels.
+  //
+  // Entered only when the label pass produced figures that do not describe one
+  // invoice: where they do, the document's own words are the better authority.
+  if (
+    !amountsAreConsistent({
+      taxableValue,
+      cgstAmount,
+      sgstAmount,
+      igstAmount,
+      cessAmount,
+      totalInvoiceValue,
+    })
+  ) {
+    const reconciled = reconcileAmounts(collectAmounts(text), {
+      preferInterState: Boolean(supplierGstin && posCode && supplierGstin.slice(0, 2) !== posCode),
+    });
+
+    if (reconciled) {
+      taxableValue = reconciled.taxableValue;
+      cgstAmount = reconciled.cgstAmount;
+      sgstAmount = reconciled.sgstAmount;
+      igstAmount = reconciled.igstAmount;
+      totalInvoiceValue = reconciled.totalInvoiceValue;
+      totalTaxAmount = r2(cgstAmount + sgstAmount + igstAmount + cessAmount);
+      gstRate = reconciled.gstRate;
+      notes.push(
+        `Amounts recovered by reconciling the figures on this invoice (${reconciled.basis}): ` +
+          `taxable ${taxableValue} + tax ${totalTaxAmount} = ${totalInvoiceValue} at ${gstRate}%. ` +
+          `Please confirm against the document.`
+      );
     }
   }
 

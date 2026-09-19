@@ -48,9 +48,10 @@ export function formatGstr1BatchResult(invoices: ExtractedInvoice[]): PdfExtract
     } else {
       b2cCount++;
       // B2CS Aggregation
-      const posFormatted = inv.placeOfSupply && STATE_CODES[inv.placeOfSupply]
-        ? `${inv.placeOfSupply}-${STATE_CODES[inv.placeOfSupply]}`
-        : inv.placeOfSupply;
+      const posFormatted =
+        inv.placeOfSupply && STATE_CODES[inv.placeOfSupply]
+          ? `${inv.placeOfSupply}-${STATE_CODES[inv.placeOfSupply]}`
+          : inv.placeOfSupply;
       const key = `${posFormatted}|${inv.gstRate}`;
       if (!b2csMap.has(key)) {
         b2csMap.set(key, {
@@ -224,9 +225,10 @@ export function formatGstr1BatchResult(invoices: ExtractedInvoice[]): PdfExtract
   ];
   const b2bLines = [b2bHeaders.join("\t")];
   for (const b of b2bInvoices) {
-    const pos = b.placeOfSupply && STATE_CODES[b.placeOfSupply]
-      ? `${b.placeOfSupply}-${STATE_CODES[b.placeOfSupply]}`
-      : b.placeOfSupply;
+    const pos =
+      b.placeOfSupply && STATE_CODES[b.placeOfSupply]
+        ? `${b.placeOfSupply}-${STATE_CODES[b.placeOfSupply]}`
+        : b.placeOfSupply;
     b2bLines.push(
       [
         b.buyerGstin,
@@ -324,7 +326,13 @@ export function formatGstr1BatchResult(invoices: ExtractedInvoice[]): PdfExtract
   }
 
   // 5. Format Docs TSV String
-  const docsHeaders = ["Nature of Document", "Sr. No. From", "Sr. No. To", "Total Number", "Cancelled"];
+  const docsHeaders = [
+    "Nature of Document",
+    "Sr. No. From",
+    "Sr. No. To",
+    "Total Number",
+    "Cancelled",
+  ];
   const docsLines = [docsHeaders.join("\t")];
   if (invoices.length > 0) {
     docsLines.push(
@@ -371,14 +379,14 @@ export function generatePdfInvoicesExcel(invoices: ExtractedInvoice[]): Uint8Arr
   const lineItemRows = batch.allLineItems.map((it) => ({
     "Invoice Number": it.invoiceNumber,
     "Invoice Date": it.invoiceDate,
-    "Type": it.classification,
+    Type: it.classification,
     "Buyer Name": it.buyerName,
     "Buyer GSTIN": it.buyerGstin,
     "Place of Supply": it.placeOfSupply,
     "HSN/SAC Code": it.hsnCode,
     "Item Description": it.itemDescription,
-    "UQC": it.uqc,
-    "Quantity": it.quantity,
+    UQC: it.uqc,
+    Quantity: it.quantity,
     "GST Rate (%)": it.rate,
     "Taxable Value (Rs)": it.taxableValue,
     "IGST (Rs)": it.igstAmount,
@@ -395,7 +403,7 @@ export function generatePdfInvoicesExcel(invoices: ExtractedInvoice[]): Uint8Arr
     "File Name": inv.fileName,
     "Invoice Number": inv.invoiceNumber,
     "Invoice Date": inv.invoiceDate,
-    "Classification": inv.classification,
+    Classification: inv.classification,
     "Document Type": inv.documentType,
     "Buyer GSTIN": inv.buyerGstin,
     "Buyer Name": inv.buyerName,
@@ -421,14 +429,15 @@ export function generatePdfInvoicesExcel(invoices: ExtractedInvoice[]): Uint8Arr
     "Invoice Number": inv.invoiceNumber,
     "Invoice date": inv.invoiceDate,
     "Invoice Value": inv.totalInvoiceValue,
-    "Place Of Supply": inv.placeOfSupply && STATE_CODES[inv.placeOfSupply]
-      ? `${inv.placeOfSupply}-${STATE_CODES[inv.placeOfSupply]}`
-      : inv.placeOfSupply,
+    "Place Of Supply":
+      inv.placeOfSupply && STATE_CODES[inv.placeOfSupply]
+        ? `${inv.placeOfSupply}-${STATE_CODES[inv.placeOfSupply]}`
+        : inv.placeOfSupply,
     "Reverse Charge": inv.reverseCharge ? "Y" : "N",
     "Applicable % of Tax Rate": "",
     "Invoice Type": "Regular B2B",
     "E-Commerce GSTIN": inv.ecommerceGstin || "",
-    "Rate": inv.gstRate,
+    Rate: inv.gstRate,
     "Taxable Value": inv.taxableValue,
     "Cess Amount": inv.cessAmount || 0,
   }));
@@ -437,10 +446,10 @@ export function generatePdfInvoicesExcel(invoices: ExtractedInvoice[]): Uint8Arr
 
   // Sheet 4: B2CS Table
   const b2csRows = batch.b2csSummary.map((s) => ({
-    "Type": s.type,
+    Type: s.type,
     "Place Of Supply": s.placeOfSupply,
     "Applicable % of Tax Rate": s.applicablePercentage,
-    "Rate": s.rate,
+    Rate: s.rate,
     "Taxable Value": s.taxableValue,
     "Cess Amount": s.cessAmount,
     "E-Commerce GSTIN": s.ecommerceGstin,
@@ -450,12 +459,12 @@ export function generatePdfInvoicesExcel(invoices: ExtractedInvoice[]): Uint8Arr
 
   // Sheet 5: HSN (B2B Table 12)
   const b2bHsnRows = batch.b2bHsnSummary.map((h) => ({
-    "HSN": h.hsnCode,
-    "Description": h.description,
-    "UQC": h.uqc,
+    HSN: h.hsnCode,
+    Description: h.description,
+    UQC: h.uqc,
     "Total Quantity": h.totalQuantity,
     "Total Value": h.totalValue,
-    "Rate": h.rate,
+    Rate: h.rate,
     "Taxable Value": h.taxableValue,
     "Integrated Tax Amount": h.igstAmount,
     "Central Tax Amount": h.cgstAmount,
@@ -467,12 +476,12 @@ export function generatePdfInvoicesExcel(invoices: ExtractedInvoice[]): Uint8Arr
 
   // Sheet 6: HSN (All Invoices Table 12)
   const allHsnRows = batch.hsnSummary.map((h) => ({
-    "HSN": h.hsnCode,
-    "Description": h.description,
-    "UQC": h.uqc,
+    HSN: h.hsnCode,
+    Description: h.description,
+    UQC: h.uqc,
     "Total Quantity": h.totalQuantity,
     "Total Value": h.totalValue,
-    "Rate": h.rate,
+    Rate: h.rate,
     "Taxable Value": h.taxableValue,
     "Integrated Tax Amount": h.igstAmount,
     "Central Tax Amount": h.cgstAmount,
