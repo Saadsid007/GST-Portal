@@ -136,13 +136,17 @@ describe("GSTR-1 workbook: documents issued (Table 13)", () => {
     expect(ranges).toContain("2026-2027/57→2026-2027/72 (2)");
   });
 
-  it("folds marketplace order ids into one block", () => {
-    // Each order id has a stem unique to itself, which would otherwise put a
-    // thousand orders on a thousand rows.
-    const orderBlock = dataRows(sheets.docs!).find((r) => String(r[1]).startsWith("000165"));
+  it("leaves marketplace order ids out of Table 13 altogether", () => {
+    // Table 13 lists the series the taxpayer issued. An order id is not one:
+    // the range it produces is the smallest and largest of a sorted list of
+    // order numbers and describes no book that exists. Every filed return in
+    // the corpus omits them and reports only the seller's own series, because
+    // the marketplace issues and reports its own documents.
+    const rows = dataRows(sheets.docs!);
+    const orderIds = rows.filter((r) => /^\d{10,}/.test(String(r[1])));
 
-    expect(orderBlock, "order ids should share one row").toBeDefined();
-    expect(Number(orderBlock![3])).toBe(3);
+    expect(orderIds, "order references are not a document series").toHaveLength(0);
+    expect(rows.map((r) => String(r[1]))).toContain("IN-707");
   });
 
   it("keeps credit notes separate from invoices, and lists invoices first", () => {

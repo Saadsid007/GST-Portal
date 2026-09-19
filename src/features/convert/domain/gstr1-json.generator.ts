@@ -10,6 +10,10 @@ import type {
 } from "@/features/convert/types/convert.types";
 import { ensureTcsGstin } from "@/features/convert/config/eco-registry";
 import { isCdnurNote } from "@/features/convert/domain/gst-rules";
+import {
+  buildDocumentSeries,
+  type DocumentSeries,
+} from "@/features/convert/domain/document-series";
 
 type HsnBucket = {
   hsn: string;
@@ -345,91 +349,48 @@ export function generateGstr1Json(
   // --- Document Summary (Table 13) ---
   // Table 13 reports serial ranges of tax invoices and credit notes issued.
   // Marketplace sub-orders or numbers with underscores (e.g. Meesho sub_order_num) are excluded.
+  // Excluding every Meesho row used to stand here. That was a blunt proxy for
+  // the real distinction, and it cut the wrong way twice: Amazon's MTR carries
+  // the invoice numbers the seller actually issued — the filed returns report
+  // IN-113 to IN-123 — while Meesho's TCS export carries order references. And
+  // when Meesho's tax invoice details sheet *is* uploaded, its real numbers
+  // form a genuine series that should be reported. Whether a number belongs to
+  // a series is the test; which marketplace it came from is not.
+  //
+  // A stock transfer moves goods between the seller's own registrations and
+  // issues no document to a customer.
   const isEligibleDocInvoice = (r: NormalizedInvoiceRow): boolean => {
     if (isStockTransferRow(r, gstin)) return false;
-    if (r.sourcePlatformId === "meesho") return false;
     const inv = r.invoiceNumber.trim();
     return /^[a-zA-Z0-9\-\/]{1,16}$/.test(inv);
   };
 
-  const invoiceDocs = validRows.filter(
-    (r) => r.invoiceType !== "CDNR" && r.invoiceType !== "CDNCS" && isEligibleDocInvoice(r)
-  );
-  const noteDocs = validRows.filter(
-    (r) => (r.invoiceType === "CDNR" || r.invoiceType === "CDNCS") && isEligibleDocInvoice(r)
-  );
+  // Built by the shared domain helper so the JSON and the Excel of one return
+  // cannot disagree. This file grew its own prefix-grouping with no test of
+  // whether a "series" was one, and enumerated every marketplace order
+  // reference as a separate entry.
+  const series = buildDocumentSeries(validRows.filter(isEligibleDocInvoice));
 
-  const docSeries = (docNum: number, docTyp: string, list: NormalizedInvoiceRow[]) => {
-    if (list.length === 0) {
-      return null;
-    }
-
-    const prefixGroups = new Map<string, NormalizedInvoiceRow[]>();
-    for (const r of list) {
-      const inv = r.invoiceNumber.trim();
-      const lastSlash = inv.lastIndexOf("/");
-      const lastDash = inv.lastIndexOf("-");
-      let prefix = inv;
-      if (lastSlash > 0) {
-        prefix = inv.substring(0, lastSlash);
-      } else if (lastDash > 0) {
-        prefix = inv.substring(0, lastDash);
-      } else {
-        const matchLetter = inv.match(/^[A-Za-z0-9]*[A-Za-z]+/);
-        if (matchLetter) prefix = matchLetter[0];
-      }
-      if (!prefixGroups.has(prefix)) prefixGroups.set(prefix, []);
-      prefixGroups.get(prefix)!.push(r);
-    }
-
-    const docsArr: Array<{
-      num: number;
-      from: string;
-      to: string;
-      totnum: number;
-      cancel: number;
-      net_issue: number;
-    }> = [];
-    let numIdx = 1;
-
-    for (const [, items] of prefixGroups) {
-      const sorted = [...items].sort((a, b) => {
-        const numA = parseInt((a.invoiceNumber.match(/\d+/g) || []).pop() || "0", 10);
-        const numB = parseInt((b.invoiceNumber.match(/\d+/g) || []).pop() || "0", 10);
-        return numA - numB;
-      });
-
-      const first = sorted[0]?.invoiceNumber ?? "";
-      const last = sorted[sorted.length - 1]?.invoiceNumber ?? "";
-      const firstNum = parseInt((first.match(/\d+/g) || []).pop() || "0", 10);
-      const lastNum = parseInt((last.match(/\d+/g) || []).pop() || "0", 10);
-
-      const actualCount = items.length;
-      const totnum = lastNum >= firstNum && firstNum > 0 ? lastNum - firstNum + 1 : actualCount;
-      const cancel = Math.max(0, totnum - actualCount);
-      const netIssue = totnum - cancel;
-
-      docsArr.push({
-        num: numIdx++,
-        from: first,
-        to: last,
-        totnum,
-        cancel,
-        net_issue: netIssue,
-      });
-    }
-
+  const docSeries = (docNum: number, docTyp: DocumentSeries["documentType"]) => {
+    const mine = series.filter((s) => s.documentType === docTyp);
+    if (mine.length === 0) return null;
     return {
       doc_num: docNum,
       doc_typ: docTyp,
-      docs: docsArr,
+      docs: mine.map((s, index) => ({
+        num: index + 1,
+        from: s.from,
+        to: s.to,
+        totnum: s.totalNumber,
+        cancel: s.cancelled,
+        net_issue: s.totalNumber - s.cancelled,
+      })),
     };
   };
 
-  const docDet = [
-    ...(invoiceDocs.length > 0 ? [docSeries(1, "Invoices for outward supply", invoiceDocs)] : []),
-    ...(noteDocs.length > 0 ? [docSeries(4, "Credit Note", noteDocs)] : []),
-  ].filter((d): d is NonNullable<typeof d> => d !== null);
+  const docDet = [docSeries(1, "Invoices for outward supply"), docSeries(4, "Credit Note")].filter(
+    (d): d is NonNullable<typeof d> => d !== null
+  );
 
   const docIssue = docDet.length > 0 ? { doc_det: docDet } : undefined;
 

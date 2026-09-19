@@ -9,6 +9,7 @@ import JSZip from "jszip";
 import type { NormalizedInvoiceRow } from "@/features/convert/types/convert.types";
 import { getStateName } from "./state-codes";
 import { isCdnurNote } from "@/features/convert/domain/gst-rules";
+import { buildDocumentSeries } from "@/features/convert/domain/document-series";
 import { ensureTcsGstin } from "@/features/convert/config/eco-registry";
 import { getGstr1TemplateBuffer } from "@/features/convert/templates/template-loader";
 
@@ -186,38 +187,6 @@ function hsnDescription(raw: string | undefined): string {
     .replace(/\s+/g, " ")
     .trim();
   return first.length > 60 ? `${first.slice(0, 57)}...` : first;
-}
-
-/**
- * The series stem of a document number — everything before its trailing digits.
- *
- * "IN-1024" and "IN-707" share the stem "IN-"; "2026-2027/57" gives
- * "2026-2027/". Table 13 wants one row per series with its own from/to range,
- * and mixing series produced a range that spanned two unrelated books.
- */
-function documentSeries(invoiceNumber: string): string {
-  return invoiceNumber.replace(/\d+\s*$/, "") || "#";
-}
-
-/**
- * Collapses stems that are not really series.
- *
- * A marketplace order id like "00016573357568_1" yields a stem unique to itself,
- * so keying on the stem alone turns a thousand orders into a thousand Table 13
- * rows. A genuine series is shared: many documents carry the same stem. Anything
- * that appears once and carries no letters is an order id, and they are reported
- * together as one block rather than enumerated.
- */
-function isRealSeries(stem: string, documentCount: number): boolean {
-  // A marketplace order id is a long unbroken run of digits — 14 of them here —
-  // whereas a real series stem is short and punctuated: "IN-", "CN-",
-  // "2026-2027/". Counting documents alone is not enough: one order that was
-  // split across two shipments shares a stem and would otherwise pass as a
-  // two-document series.
-  const longestDigitRun = Math.max(0, ...(stem.match(/\d+/g) ?? []).map((run) => run.length));
-  if (longestDigitRun >= 10) return false;
-
-  return documentCount > 1 || /[A-Za-z]/.test(stem);
 }
 
 function updateSheetXml(
@@ -729,81 +698,16 @@ export async function generateGstr1Excel(
   // ─────────────────────────────────────────────────────────────────────────────
   // 8. docs Sheet (xl/worksheets/sheet21.xml)
   // ─────────────────────────────────────────────────────────────────────────────
-  // Table 13 reports each document *series* separately. Grouping only by
-  // document type collapsed unrelated series into one row and printed a range
-  // spanning both — "2026-2027/57 to IN-1026" describes no series that exists,
-  // and a marketplace order id turned up as the first credit note. The series
-  // stem (everything before the trailing number) is what separates them.
-  /** Separates document type from series in a group key. Neither contains it. */
-  const SERIES_KEY_SEP = "::";
-
-  const invoiceGroups = new Map<string, string[]>();
-  validRows.forEach((r) => {
-    const number = r.invoiceNumber?.trim();
-    if (!number) return;
-
-    const isCreditNote = r.invoiceType === "CDNR" || r.invoiceType === "CDNCS";
-    const docType = isCreditNote ? "Credit Note" : "Invoices for outward supply";
-    invoiceGroups.set(
-      `${docType}${SERIES_KEY_SEP}${documentSeries(number)}`,
-      (invoiceGroups.get(`${docType}${SERIES_KEY_SEP}${documentSeries(number)}`) ?? []).concat(
-        number
-      )
-    );
-  });
-
-  // Fold the one-off, letterless stems back together per document type, so a
-  // thousand marketplace order ids report as one block rather than a thousand
-  // single-document "series".
-  for (const [key, numbers] of Array.from(invoiceGroups.entries())) {
-    const sepAt = key.indexOf(SERIES_KEY_SEP);
-    const docType = key.slice(0, sepAt);
-    const stem = key.slice(sepAt + SERIES_KEY_SEP.length);
-    if (isRealSeries(stem, new Set(numbers).size)) continue;
-
-    const bucket = `${docType}${SERIES_KEY_SEP}#`;
-    invoiceGroups.set(bucket, (invoiceGroups.get(bucket) ?? []).concat(numbers));
-    invoiceGroups.delete(key);
-  }
-
-  const docRowsData: {
-    name: string;
-    from: string;
-    to: string;
-    totnum: number;
-    cancel: number;
-  }[] = [];
-
-  invoiceGroups.forEach((invNumbers, key) => {
-    if (invNumbers.length === 0) return;
-
-    const uniqueInvoices = Array.from(new Set(invNumbers));
-    uniqueInvoices.sort((a, b) =>
-      a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" })
-    );
-
-    // The key carries the series so rows stay separate; only the document type
-    // belongs in the sheet's "Nature of Document" column.
-    docRowsData.push({
-      name: key.slice(0, key.indexOf(SERIES_KEY_SEP)),
-      from: uniqueInvoices[0]!,
-      to: uniqueInvoices[uniqueInvoices.length - 1]!,
-      totnum: uniqueInvoices.length,
-      // Cancellations are not derivable from the marketplace exports we read —
-      // a cancelled invoice simply never appears. Reporting 0 states what we
-      // know rather than implying we checked.
-      cancel: 0,
-    });
-  });
-
-  // Invoices first, then credit notes — the order Table 13 is read in, and the
-  // one the CA's return uses. Alphabetical would put credit notes on top.
-  const DOC_TYPE_ORDER = ["Invoices for outward supply", "Credit Note"];
-  docRowsData.sort(
-    (a, b) =>
-      DOC_TYPE_ORDER.indexOf(a.name) - DOC_TYPE_ORDER.indexOf(b.name) ||
-      a.from.localeCompare(b.from, undefined, { numeric: true })
-  );
+  // Table 13 is built by the shared domain helper, so the Excel and the JSON
+  // of one return cannot disagree about the seller's own books. They had
+  // separate implementations of this and did disagree.
+  const docRowsData = buildDocumentSeries(validRows).map((s) => ({
+    name: s.documentType,
+    from: s.from,
+    to: s.to,
+    totnum: s.totalNumber,
+    cancel: s.cancelled,
+  }));
 
   const docsTotalNum = docRowsData.reduce((s, d) => s + d.totnum, 0);
   const docsTotalCancel = docRowsData.reduce((s, d) => s + d.cancel, 0);
