@@ -161,14 +161,18 @@ export function transformStateCode(val: unknown, buyerGstin?: string): string {
 /** Stand-in used when a row carries no buyer name, so downstream code can spot a real value. */
 export const FALLBACK_BUYER_NAME = "Customer";
 
-/** Stand-in used when a row carries no HSN at all, so downstream code can spot a real value. */
-export const FALLBACK_HSN = "998313";
-
 /**
  * HSN Code Transformer
- * Strips non-digit characters, keeps leading zeros
+ * Strips non-digit characters, keeps leading zeros.
+ *
+ * Returns an empty string when the row has no HSN, and no adapter may
+ * substitute one. The old default was 998313 — "information technology
+ * consulting services" — which every goods seller with a blank cell was
+ * silently given, declaring in Table 12 a commodity they had never sold. A
+ * fabricated code passes validation and files a wrong return; an empty one is
+ * caught by VAL-005 and lands in the error centre where it can be corrected.
  */
-export function transformHsn(val: unknown, defaultHsn = FALLBACK_HSN): string {
+export function transformHsn(val: unknown, defaultHsn = ""): string {
   if (!val) return defaultHsn;
   const digits = String(val).replace(/\D/g, "");
   return digits || defaultHsn;

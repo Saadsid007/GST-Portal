@@ -1,4 +1,4 @@
-import { FALLBACK_BUYER_NAME, FALLBACK_HSN } from "./transformation/transformers";
+import { FALLBACK_BUYER_NAME } from "./transformation/transformers";
 import type { NormalizedInvoiceRow } from "@/features/convert/types/convert.types";
 
 export interface ParsedFileBatch {
@@ -56,7 +56,7 @@ function inheritSaleAttributesForReturns(rows: NormalizedInvoiceRow[]): void {
     if (posWasMissing) row.placeOfSupply = sale.placeOfSupply;
     if (!row.buyerGstin) row.buyerGstin = sale.buyerGstin;
     if (!row.buyerName || row.buyerName === FALLBACK_BUYER_NAME) row.buyerName = sale.buyerName;
-    if (!row.hsnCode || row.hsnCode === FALLBACK_HSN) row.hsnCode = sale.hsnCode;
+    if (!row.hsnCode) row.hsnCode = sale.hsnCode;
     if (!row.itemDescription) row.itemDescription = sale.itemDescription;
     if (!row.uqc || row.uqc === "OTH") row.uqc = sale.uqc;
     if (!row.ecoGstin) {

@@ -9,7 +9,6 @@ import {
   transformDate,
   transformHsn,
   FALLBACK_BUYER_NAME,
-  FALLBACK_HSN,
 } from "@/features/convert/engine/transformation/transformers";
 
 function round2(num: number): number {
@@ -141,7 +140,7 @@ export class OfflineInvoicesAdapter {
 
       // 6. HSN & Line Description
       const rawHsn = getVal(row, "HSN/SAC Code", "HSN/SAC", "HSN Code", "HSN", "SAC", "SAC Code");
-      const hsnCode = transformHsn(rawHsn) || (rawHsn ? rawHsn.replace(/\D/g, "") : FALLBACK_HSN);
+      const hsnCode = transformHsn(rawHsn);
 
       const itemDescription =
         getVal(

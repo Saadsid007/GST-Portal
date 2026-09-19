@@ -47,24 +47,17 @@ export class RuleEngine {
   static applyRowRules(rows: NormalizedInvoiceRow[], platformId: string): NormalizedInvoiceRow[] {
     const rule = getPlatformRule(platformId);
 
-    return (
-      rows
-        // Marketplace exports include cancelled / free-replacement lines that carry no value at all;
-        // they are not supplies and must not reach GSTR-1.
-        .filter(
-          (row) => rule.allowZeroTaxableValue || row.taxableValue !== 0 || row.totalValue !== 0
-        )
-        .map((row) => {
-          let updatedHsn = row.hsnCode;
-          if (!updatedHsn && rule.defaultHsnCode) {
-            updatedHsn = rule.defaultHsnCode;
-          }
-
-          return {
-            ...row,
-            hsnCode: updatedHsn,
-          };
-        })
+    // A blank HSN used to be backfilled here with a per-platform default of
+    // 998313 — "information technology consulting services" — which is what
+    // every goods seller's unclassified line was declared as in Table 12. It
+    // defeated the adapters, which had already stopped inventing codes, and it
+    // is why a wrong commodity could reach a filed return while every check
+    // passed. There is no correct default: the row now stays blank and the
+    // validator asks for it.
+    return rows.filter(
+      // Marketplace exports include cancelled / free-replacement lines that carry no value at all;
+      // they are not supplies and must not reach GSTR-1.
+      (row) => rule.allowZeroTaxableValue || row.taxableValue !== 0 || row.totalValue !== 0
     );
   }
 }

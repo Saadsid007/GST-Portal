@@ -190,7 +190,10 @@ export class StockTransferAdapter {
           taxableValue + igstAmount + cgstAmount + sgstAmount + cessAmount
       );
 
-      const hsnCode = transformHsn(row["Hsn Code"] || row["HSN Code"]) || "441900";
+      // No substitute code. The line that stood here fell back to 441900
+      // (wooden articles) for any blank cell, which declared a commodity the
+      // seller may never have moved.
+      const hsnCode = transformHsn(row["Hsn Code"] || row["HSN Code"]);
       const txTypeFinal: TransactionType = isOrphanCancel ? "Return" : "Sales";
 
       // ── Validation ───────────────────────────────────────────────────────

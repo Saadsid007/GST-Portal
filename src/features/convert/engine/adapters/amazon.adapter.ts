@@ -8,7 +8,6 @@ import {
   transformStateCode,
   transformDate,
   transformHsn,
-  FALLBACK_HSN,
 } from "@/features/convert/engine/transformation/transformers";
 import { resolveEcoGstin } from "@/features/convert/config/eco-registry";
 
@@ -95,10 +94,10 @@ export class AmazonAdapter {
       // 2. Identities
       const rawInvoiceNumber = String(
         row["Credit Note No"] ||
-        row["Invoice Number"] ||
-        row["Invoice number"] ||
-        row["Order Id"] ||
-        ""
+          row["Invoice Number"] ||
+          row["Invoice number"] ||
+          row["Order Id"] ||
+          ""
       ).trim();
       // Amazon Order IDs (like 407-9328146-3126765) are 19 chars and exceed GST's 16-char limit.
       // Truncate to 16 characters; the row will carry a review note to alert the user.
@@ -107,19 +106,16 @@ export class AmazonAdapter {
 
       const rawInvoiceDate = String(
         row["Credit Note Date"] ||
-        row["Invoice Date"] ||
-        row["Invoice date"] ||
-        row["Order Date"] ||
-        ""
+          row["Invoice Date"] ||
+          row["Invoice date"] ||
+          row["Order Date"] ||
+          ""
       ).trim();
       const invoiceDate = transformDate(rawInvoiceDate) || rawInvoiceDate;
 
       const buyerGstin = String(row["Buyer Gstin"] || row["Customer Bill To Gstid"] || "").trim();
       const rawPos = String(
-        row["Ship To State"] ||
-        row["Customer Bill To State"] ||
-        row["Bill To State"] ||
-        ""
+        row["Ship To State"] || row["Customer Bill To State"] || row["Bill To State"] || ""
       ).trim();
       const pos = transformStateCode(rawPos) || rawPos;
 
@@ -336,11 +332,15 @@ export class AmazonAdapter {
           const asin = String(row["ASIN"] || "").trim();
           if (rawHsn.trim()) return transformHsn(rawHsn); // has its own HSN
           if (asin && asinHsnMap.has(asin)) return asinHsnMap.get(asin)!; // filled from map
-          // No HSN known — flag as review, use generic fallback
+          // Nothing in the file says what this is. Left blank rather than
+          // given a stand-in code: a review note asking the user to verify a
+          // wrong HSN is easy to scroll past, and the wrong code still reaches
+          // Table 12 if they do. Blank fails validation, which cannot be
+          // scrolled past.
           rowReviews.push(
-            `HSN/SAC missing for ASIN ${asin || "unknown"} — using fallback code ${FALLBACK_HSN}. Please verify.`
+            `No HSN/SAC for ASIN ${asin || "unknown"}. Set one before filing — Table 12 needs it.`
           );
-          return FALLBACK_HSN;
+          return "";
         })(),
         uqc: "NOS",
         quantity: parseInt(row["Quantity"] || "1", 10) || 1,

@@ -76,9 +76,9 @@ export const PLATFORMS_SEO_DATA: Record<string, PlatformSeoItem> = {
       {
         title: "Missing HSN codes in raw Amazon MTR export",
         description:
-          "GSTPilot automatically applies default 6-digit HSN codes (e.g. 998313 or product HSN) if missing in raw Amazon reports.",
+          "Amazon leaves the HSN/SAC column blank for some ASINs. GSTPilot fills those from other rows in the same report that do carry an HSN for that ASIN, and flags whatever is still unknown instead of substituting a placeholder code.",
         resolution:
-          "Use GSTPilot's Smart Error Resolution Center to auto-fix missing HSN codes in one click.",
+          "Set the remaining HSN codes in the Error Resolution Center before filing — Table 12 reports them as the commodity you sold.",
       },
     ],
   },

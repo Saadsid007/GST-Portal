@@ -4,7 +4,6 @@ export interface PlatformRuleConfig {
   optionalFileTypes: string[];
   creditNoteClassification: "auto" | "explicit_cdnr_only" | "b2cs_adjustment_preferred";
   allowZeroTaxableValue: boolean;
-  defaultHsnCode: string;
   duplicatePolicy: "warn" | "reject" | "merge";
 }
 
@@ -15,7 +14,6 @@ export const PLATFORM_RULES: Record<string, PlatformRuleConfig> = {
     optionalFileTypes: ["b2c", "credit_notes"],
     creditNoteClassification: "auto",
     allowZeroTaxableValue: false,
-    defaultHsnCode: "998313",
     duplicatePolicy: "warn",
   },
   meesho: {
@@ -24,7 +22,6 @@ export const PLATFORM_RULES: Record<string, PlatformRuleConfig> = {
     optionalFileTypes: ["tax_invoice"],
     creditNoteClassification: "auto",
     allowZeroTaxableValue: false,
-    defaultHsnCode: "998313",
     duplicatePolicy: "warn",
   },
   flipkart: {
@@ -33,7 +30,6 @@ export const PLATFORM_RULES: Record<string, PlatformRuleConfig> = {
     optionalFileTypes: ["returns"],
     creditNoteClassification: "auto",
     allowZeroTaxableValue: false,
-    defaultHsnCode: "998313",
     duplicatePolicy: "warn",
   },
   custom: {
@@ -42,7 +38,6 @@ export const PLATFORM_RULES: Record<string, PlatformRuleConfig> = {
     optionalFileTypes: [],
     creditNoteClassification: "auto",
     allowZeroTaxableValue: false,
-    defaultHsnCode: "998313",
     duplicatePolicy: "warn",
   },
 };
@@ -55,7 +50,6 @@ export function getPlatformRule(platformId: string): PlatformRuleConfig {
       optionalFileTypes: [],
       creditNoteClassification: "auto",
       allowZeroTaxableValue: false,
-      defaultHsnCode: "998313",
       duplicatePolicy: "warn",
     }
   );
