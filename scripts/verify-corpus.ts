@@ -22,7 +22,10 @@ import * as XLSX from "xlsx";
 
 import { ImportSessionManager } from "@/features/convert/engine/pipeline/import-session.manager";
 import { reconstructWorkbook } from "@/features/convert/engine/universal/table-reconstructor";
-import { parseGstr1Buffer } from "@/features/convert/engine/comparison/gstr1-template.parser";
+import {
+  parseGstr1Buffer,
+  parseGstr1Json,
+} from "@/features/convert/engine/comparison/gstr1-template.parser";
 import {
   Gstr1Comparator,
   toComparableRow,
@@ -124,10 +127,25 @@ interface ComparisonOutcome {
  * PDF extractor's output are also in these folders, and measuring against
  * those would be marking our own homework.
  */
-const CA_RETURN_PATTERNS = [/^GSTR1_[0-9]{2}[A-Z]{5}.*\.xlsx$/i];
+const CA_RETURN_PATTERNS = [/^GSTR1_[0-9]{2}[A-Z]{5}.*\.(xlsx|json)$/i];
 
 function findCaReturns(files: string[]): string[] {
   return files.filter((f) => CA_RETURN_PATTERNS.some((p) => p.test(basename(f))));
+}
+
+/**
+ * The reference, whichever form it arrives in.
+ *
+ * A JSON is the file the portal itself produced, so it is the strongest
+ * ground truth in the corpus — stronger than a workbook someone assembled by
+ * hand. Reading only .xlsx meant the two newest folders had a filed return
+ * sitting beside them and nothing compared against it.
+ */
+function parseCaReturn(file: string) {
+  if (extname(file).toLowerCase() === ".json") {
+    return parseGstr1Json(readFileSync(file, "utf8"));
+  }
+  return parseGstr1Buffer(readFileSync(file), basename(file));
 }
 
 async function runFolder(folder: string, files: string[]): Promise<FolderOutcome> {
@@ -202,6 +220,12 @@ async function runFolder(folder: string, files: string[]): Promise<FolderOutcome
   }
 
   // ── Measured against what the CA filed ──────────────────────────────────
+  // Nothing converted means nothing to compare. A folder holding only a
+  // prepared return and no source files is a legitimate case — the pipeline
+  // recognises the return and declines to import it — and reporting that as a
+  // difference against itself would be noise.
+  if (rows.length === 0) return outcome;
+
   const caReturns = findCaReturns(files);
   const gstins = new Set(
     caReturns.map((f) => gstinIn(basename(f))).filter((g): g is string => Boolean(g))
@@ -226,7 +250,7 @@ async function runFolder(folder: string, files: string[]): Promise<FolderOutcome
   const comparable = rows.map(toComparableRow);
   for (const caFile of caReturns) {
     try {
-      const reference = parseGstr1Buffer(readFileSync(caFile), basename(caFile));
+      const reference = parseCaReturn(caFile);
       const refCount =
         reference.b2b.length +
         reference.b2cs.length +
@@ -301,7 +325,11 @@ function printOutcome(o: FolderOutcome): void {
   const best = o.comparisons[0];
   if (best) {
     const drift = best.b2csTotalOur - best.b2csTotalRef;
-    const clean = best.mismatched === 0 && best.onlyInOurs === 0 && drift === 0;
+    // A rupee across a whole return is rounding, not a disagreement — and
+    // `drift === 0` is false for -0 anyway, which a reconciled subtraction
+    // produces about half the time. The figure is printed to the paisa so a
+    // sub-rupee gap is still visible rather than hidden by this tolerance.
+    const clean = best.mismatched === 0 && best.onlyInOurs === 0 && Math.abs(drift) < 1;
     log(
       `             ${clean ? "MATCHES" : "DIFFERS"} vs CA ${best.against}` +
         (o.comparisons.length > 1 ? `  (best of ${o.comparisons.length} versions)` : "")
@@ -309,7 +337,7 @@ function printOutcome(o: FolderOutcome): void {
     log(
       `                match=${best.matched} mismatch=${best.mismatched} ` +
         `onlyOurs=${best.onlyInOurs} onlyCA=${best.onlyInTheirs}` +
-        `   B2CS drift ${money(drift)}`
+        `   B2CS drift ${drift.toFixed(2)}`
     );
   }
   for (const failure of o.failures.slice(0, 6)) log(`             FAIL      ${failure}`);

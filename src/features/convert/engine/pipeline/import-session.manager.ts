@@ -1,6 +1,7 @@
 import type { ReconstructedTable } from "@/features/convert/engine/universal/types";
 import { PlatformDetector } from "@/features/convert/engine/detection/platform.detector";
 import { classifyCompanionSheet } from "@/features/convert/engine/detection/companion-sheets";
+import { detectFragmentSheets } from "@/features/convert/engine/detection/fragment-sheets";
 import {
   isInvoiceDetailsSheet,
   parseInvoiceDetails,
@@ -52,6 +53,13 @@ export class ImportSessionManager {
     const combinedTransactions: NormalizedInvoiceRow[] = [];
     const invoiceDetails: InvoiceDetailsIndex = new Map();
 
+    // Decided across the whole workbook before anything is read: a working
+    // copy of another sheet looks perfectly ordinary on its own, and only
+    // gives itself away when set beside the sheet it was copied from.
+    const fragments = new Map(
+      detectFragmentSheets(tables).map((f) => [`${f.sheetName}`, f] as const)
+    );
+
     for (const { fileId, fileName, table } of tables) {
       // 0. Companion sheets never reach detection. An HSN roll-up or a document
       //    count has no line items, so sending it to the AI mapper only produces
@@ -63,6 +71,12 @@ export class ImportSessionManager {
           sheetName: table.sheetName,
           reason: companion.reason,
         });
+        continue;
+      }
+
+      const fragment = fragments.get(table.sheetName);
+      if (fragment) {
+        skippedSheets.push({ fileName, sheetName: table.sheetName, reason: fragment.reason });
         continue;
       }
 

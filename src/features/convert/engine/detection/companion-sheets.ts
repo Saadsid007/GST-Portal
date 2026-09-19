@@ -44,6 +44,54 @@ interface Rule {
 const PIVOT_MARKERS = ["row labels", "column labels", "grand total"];
 
 /**
+ * The tab names of the Government GSTR-1 Offline Tool template.
+ *
+ * A seller sometimes uploads their prepared return itself — the filled
+ * template, named whatever their accountant called it. It is an output, not a
+ * source: importing its b2cs tab as line items would re-report a return
+ * against itself. Only the amendment and summary tabs were being caught by
+ * name, so the rest reached the AI mapper as eight unanswerable questions and
+ * the upload produced nothing with no explanation.
+ *
+ * Matched exactly. These are fixed strings the tool writes, not descriptions
+ * a seller might coincidentally reuse.
+ */
+const GSTR1_TEMPLATE_TABS = new Set([
+  "b2b,sez,de",
+  "b2ba",
+  "b2cl",
+  "b2cla",
+  "b2cs",
+  "b2csa",
+  "cdnr",
+  "cdnra",
+  "cdnur",
+  "cdnura",
+  "exp",
+  "expa",
+  "at",
+  "ata",
+  "atadj",
+  "atadja",
+  "exemp",
+  "hsn(b2b)",
+  "hsn(b2c)",
+  "hsn",
+  "docs",
+  "eco",
+  "ecoa",
+  "ecob2b",
+  "ecourp2b",
+  "ecob2c",
+  "ecourp2c",
+  "ecoab2b",
+  "ecoab2c",
+  "ecoaurp2b",
+  "ecoaurp2c",
+  "master",
+]);
+
+/**
  * Excel's own naming for a pivot's value field — "Sum of total_taxable_sale_value".
  * Counted as a marker because the header row a reconstructor settles on is
  * often the one carrying this rather than the one carrying "Row Labels": the
@@ -113,6 +161,15 @@ export function classifyCompanionSheet(
   }
 
   if (!name) return null;
+
+  if (GSTR1_TEMPLATE_TABS.has(name)) {
+    return {
+      reason:
+        "This is a tab of a prepared GSTR-1 return, not a source of transactions. " +
+        "Upload the marketplace reports you want converted, and use this file in the " +
+        "comparison step to check the result against it.",
+    };
+  }
 
   for (const rule of COMPANION_RULES) {
     if (rule.sheet.test(name)) return { reason: rule.reason };
