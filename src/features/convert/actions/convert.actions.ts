@@ -18,6 +18,9 @@ import type {
   ReconstructedTable,
 } from "@/features/convert/engine/universal/types";
 import { evaluateDualAiMapping } from "@/features/convert/engine/ai/dual-engine.service";
+import { validateAiMapping } from "@/features/convert/engine/ai/mapping-validator";
+import { discoverFields } from "@/features/convert/engine/universal/field-discovery";
+import { recallMappingAction } from "@/features/convert/actions/mapping.actions";
 import { ImportSessionManager } from "@/features/convert/engine/pipeline/import-session.manager";
 import { transformMappedRows } from "@/features/convert/engine/transformation/transformation.engine";
 import { RuleEngine } from "@/features/convert/engine/rules/rule.engine";
@@ -147,18 +150,47 @@ export async function evaluateWorkbooksAction(files: MultiUploadFileInput[], gst
         rawTables.find((r) => r.table === table)?.fileName === f.fileName
     );
     const fileName = fileItem ? fileItem.fileName : "Unknown File";
+
+    // Memory first. A mapping this user already confirmed for this exact file
+    // shape is a better answer than anything a model can infer — it is their
+    // decision, it is identical every month, it costs nothing, and it means
+    // the AI is never named or called for a file we have already solved.
+    const remembered = await recallMappingAction(table.headers);
+    if (remembered.data) {
+      const solved = solveTable(table, {
+        fileName,
+        overrides: remembered.data.mappings,
+      });
+      solved.report.recalledMapping = {
+        useCount: remembered.data.useCount,
+        lastUsedAt: remembered.data.lastUsedAt,
+      };
+      reports.push(solved.report);
+      continue;
+    }
+
     const aiResult = await evaluateDualAiMapping(table.headers, table.rows);
 
     if (aiResult) {
+      // What the model proposed is corroborated before any of it is applied.
+      // Claims about columns that do not exist, columns whose values say
+      // otherwise, and fields two columns both claim are dropped — which is
+      // what turns them into questions for the user instead of silent
+      // decisions in a filed return.
+      const validated = validateAiMapping(aiResult.headerToKeyMap, discoverFields(table), {
+        disagreedHeaders: aiResult.disagreedHeaders,
+      });
+
       const solved = solveTable(table, {
         fileName,
-        overrides: aiResult.mapping,
+        overrides: validated.accepted,
       });
       solved.report.aiResult = {
         activeModels: aiResult.activeModels,
         synthesisUsed: aiResult.synthesisUsed,
         headerToKeyMap: aiResult.headerToKeyMap,
         explanations: aiResult.explanations,
+        rejected: validated.rejected,
       };
       reports.push(solved.report);
     } else {

@@ -1,6 +1,7 @@
 import { env } from "@/lib/env";
 import { CANONICAL_FIELDS } from "@/features/convert/engine/universal/canonical-fields";
 import type { ColumnMappingDict } from "@/features/convert/engine/universal/canonical-fields";
+import { findDisagreements } from "@/features/convert/engine/ai/mapping-validator";
 
 export interface SingleHeaderMapping {
   excelHeader: string;
@@ -19,6 +20,14 @@ export interface AiColumnMappingResult {
   explanations: Record<string, string>; // excelHeader -> explanation
   activeModels: string[];
   synthesisUsed: boolean;
+  /**
+   * Headers the two models mapped differently.
+   *
+   * The only confidence signal a pair of models gives for free, and it used to
+   * be thrown away: when synthesis failed the first model's answer was kept
+   * without recording that the second had disagreed.
+   */
+  disagreedHeaders: string[];
 }
 
 const CANONICAL_FIELDS_PROMPT_SUMMARY = CANONICAL_FIELDS.map(
@@ -251,12 +260,20 @@ export async function evaluateDualAiMapping(
   let finalProposal: AiMappingProposal;
   let activeModels: string[] = [];
   let synthesisUsed = false;
+  let disagreedHeaders: string[] = [];
 
   if (proposalA && proposalB) {
     activeModels = [proposalA.modelName, proposalB.modelName];
-    synthesisUsed = true;
     const synthesized = await callGeminiSynthesis(headers, sampleRows, proposalA, proposalB);
+    synthesisUsed = synthesized !== null;
     finalProposal = synthesized || proposalA;
+
+    // Where synthesis resolved the difference, the resolution stands. Where it
+    // did not run, the disagreement is unresolved and must reach the user
+    // rather than being settled by which model was called first.
+    if (!synthesized) {
+      disagreedHeaders = findDisagreements(proposalA.mappings, proposalB.mappings);
+    }
   } else if (proposalA) {
     activeModels = [proposalA.modelName];
     finalProposal = proposalA;
@@ -283,5 +300,6 @@ export async function evaluateDualAiMapping(
     explanations,
     activeModels,
     synthesisUsed,
+    disagreedHeaders,
   };
 }

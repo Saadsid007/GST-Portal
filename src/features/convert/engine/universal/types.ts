@@ -155,6 +155,12 @@ export interface FieldResolution {
 export interface ImportIntelligenceReport {
   fileName: string;
   sheetName: string;
+  /**
+   * The header row exactly as read. Kept because it is what identifies this
+   * file shape for the mapping memory — reconstructing it from the resolutions
+   * would lose any column the engine bound to nothing.
+   */
+  sourceHeaders: string[];
   understanding: WorkbookUnderstanding;
   resolutions: FieldResolution[];
   /** Columns the engine could not attach any meaning to. */
@@ -178,6 +184,21 @@ export interface ImportIntelligenceReport {
     synthesisUsed: boolean;
     headerToKeyMap: Record<string, string | null>;
     explanations: Record<string, string>;
+    /**
+     * Claims that did not survive corroboration, with the reason. Shown so a
+     * dropped suggestion is explainable rather than an unexplained gap.
+     */
+    rejected?: { header: string; field: string; reason: string }[];
+  };
+  /**
+   * Set when the mapping came from one the user confirmed earlier for this
+   * exact file shape, instead of from the model. Present so the UI can say so:
+   * "you decided this" is a different claim from "we inferred this", and the
+   * user should be able to tell them apart.
+   */
+  recalledMapping?: {
+    useCount: number;
+    lastUsedAt: Date | null;
   };
 }
 

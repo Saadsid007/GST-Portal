@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { MultiConvertState } from "@/features/convert/presentation/convert-workbench";
 import { evaluateWorkbooksAction } from "@/features/convert/actions/convert.actions";
+import { rememberMappingAction } from "@/features/convert/actions/mapping.actions";
 import type {
   QuestionAnswer,
   ImportIntelligenceReport,
@@ -18,6 +19,7 @@ import {
   AlertCircle,
   Bot,
   CheckCircle2,
+  History,
 } from "lucide-react";
 
 interface Props {
@@ -109,6 +111,42 @@ export function Step6Intelligence({ state, onChange, onNext, onBack }: Props) {
     }));
   }
 
+  /**
+   * Stores the mapping the user just accepted, so the same export is never
+   * asked about again.
+   *
+   * Saved on confirmation rather than when the engine proposes something: an
+   * unreviewed guess kept as memory would repeat itself confidently on every
+   * future upload, which is worse than asking once.
+   *
+   * Failures here are deliberately silent. Remembering is a convenience for
+   * next month; it must never block this month's return.
+   */
+  async function rememberConfirmedMappings() {
+    for (const report of reports) {
+      const byHeader = userMappings[report.fileName];
+      if (!byHeader || report.sourceHeaders.length === 0) continue;
+
+      // The UI keys by header; a stored profile keys by canonical field.
+      const mappings: Record<string, string> = {};
+      for (const [header, field] of Object.entries(byHeader)) {
+        if (field) mappings[field] = header;
+      }
+      if (Object.keys(mappings).length === 0) continue;
+
+      try {
+        await rememberMappingAction({
+          headers: report.sourceHeaders,
+          mappings,
+          platformId: report.understanding.documentType ?? "custom",
+          fileName: report.fileName,
+        });
+      } catch {
+        // Ignored on purpose — see above.
+      }
+    }
+  }
+
   function handleNext() {
     // Check required questions
     for (const report of reports) {
@@ -120,6 +158,8 @@ export function Step6Intelligence({ state, onChange, onNext, onBack }: Props) {
         }
       }
     }
+
+    void rememberConfirmedMappings();
 
     // Formatted answers
     const formattedAnswers: Record<string, QuestionAnswer[]> = {};
@@ -141,6 +181,13 @@ export function Step6Intelligence({ state, onChange, onNext, onBack }: Props) {
    * advertised work the product did not do.
    */
   const aiWasUsed = reports.some((r) => r.aiResult);
+
+  /**
+   * Files solved from a mapping this user confirmed before. Shown separately
+   * from AI work because they are a different kind of claim: "you decided this
+   * last time" rather than "we worked this out".
+   */
+  const recalledReports = reports.filter((r) => r.recalledMapping);
 
   if (loading) {
     return (
@@ -188,6 +235,14 @@ export function Step6Intelligence({ state, onChange, onNext, onBack }: Props) {
             {aiWasUsed && (
               <span className="flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-bold text-amber-600">
                 <Sparkles className="size-3.5 text-amber-500" /> AI column mapping
+              </span>
+            )}
+            {recalledReports.length > 0 && (
+              <span className="flex items-center gap-1.5 rounded-full bg-success/10 px-2.5 py-1 text-xs font-bold text-success">
+                <History className="size-3.5" />
+                {recalledReports.length === 1
+                  ? "Using your saved mapping"
+                  : `Using ${recalledReports.length} saved mappings`}
               </span>
             )}
           </div>
@@ -319,13 +374,57 @@ export function Step6Intelligence({ state, onChange, onNext, onBack }: Props) {
                   </span>
                 </div>
 
-                {aiRes && (
+                {report.recalledMapping ? (
                   <div className="flex items-center gap-1.5 rounded-full bg-success/10 px-3 py-0.5 text-xs font-semibold text-success">
-                    <CheckCircle2 className="size-3.5" />
-                    <span>AI Synthesis Applied ({aiRes.activeModels.join(" + ")})</span>
+                    <History className="size-3.5" />
+                    <span>
+                      Your saved mapping
+                      {report.recalledMapping.useCount > 0
+                        ? ` · reused ${report.recalledMapping.useCount}×`
+                        : ""}
+                    </span>
                   </div>
+                ) : (
+                  aiRes && (
+                    <div className="flex items-center gap-1.5 rounded-full bg-success/10 px-3 py-0.5 text-xs font-semibold text-success">
+                      <CheckCircle2 className="size-3.5" />
+                      <span>Suggested by {aiRes.activeModels.join(" + ")}</span>
+                    </div>
+                  )
                 )}
               </div>
+
+              {/* What the model proposed and the engine would not accept. Shown
+                  because an unexplained blank in the table below reads as the
+                  engine having missed something, when in fact a suggestion was
+                  considered and set aside for a reason the user can judge. */}
+              {aiRes?.rejected && aiRes.rejected.length > 0 && (
+                <div className="border-b border-border bg-warning/5 px-4 py-3 sm:px-6">
+                  <p className="flex items-center gap-1.5 text-xs font-bold text-warning">
+                    <AlertCircle className="size-3.5 flex-shrink-0" />
+                    {aiRes.rejected.length === 1
+                      ? "One suggestion was not applied"
+                      : `${aiRes.rejected.length} suggestions were not applied`}
+                  </p>
+                  <ul className="mt-1.5 space-y-1">
+                    {aiRes.rejected.map((r) => (
+                      <li
+                        key={`${r.header}-${r.field}`}
+                        className="text-[11px] text-muted-foreground"
+                      >
+                        <span className="font-mono font-semibold text-foreground">{r.header}</span>
+                        {" → "}
+                        <span className="font-semibold">{r.field}</span>
+                        {" — "}
+                        {r.reason}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-1.5 text-[11px] text-muted-foreground">
+                    Set these yourself below if you know what they should be.
+                  </p>
+                </div>
+              )}
 
               {/* Clean Mapping Table */}
               <div className="overflow-x-auto p-4 sm:p-6">

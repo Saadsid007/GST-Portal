@@ -181,6 +181,7 @@ export function solveTable(
   const report: ImportIntelligenceReport = {
     fileName: options.fileName,
     sheetName: table.sheetName,
+    sourceHeaders: table.headers,
     understanding,
     resolutions,
     unmappedColumns,

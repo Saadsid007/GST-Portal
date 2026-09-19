@@ -22,6 +22,11 @@ import * as XLSX from "xlsx";
 
 import { ImportSessionManager } from "@/features/convert/engine/pipeline/import-session.manager";
 import { reconstructWorkbook } from "@/features/convert/engine/universal/table-reconstructor";
+import { parseGstr1Buffer } from "@/features/convert/engine/comparison/gstr1-template.parser";
+import {
+  Gstr1Comparator,
+  toComparableRow,
+} from "@/features/convert/engine/comparison/gstr1.comparator";
 import type { NormalizedInvoiceRow } from "@/features/convert/types/convert.types";
 
 const SAMPLE_DIR = "Sample";
@@ -56,11 +61,24 @@ function walk(dir: string): string[] {
   return out;
 }
 
-/** A 15-character GSTIN in a file or folder name identifies whose books these are. */
+/**
+ * A 15-character GSTIN in a file name identifies whose books these are.
+ *
+ * Lookarounds rather than `\b`: these names separate fields with underscores
+ * ("GSTR1_09CDPPN1370N1ZV_072026"), and an underscore is a word character, so
+ * `\b` never fires there. With `\b` the supplier came back undefined for most
+ * folders, which silently disabled the B2CL pass this harness exists to check.
+ */
+const GSTIN_IN_NAME = /(?<![A-Z0-9])(\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z][0-9A-Z][0-9A-Z])(?![A-Z0-9])/i;
+
+function gstinIn(text: string): string | undefined {
+  return GSTIN_IN_NAME.exec(text)?.[1]?.toUpperCase();
+}
+
 function findSupplierGstin(files: string[]): string | undefined {
   for (const file of files) {
-    const match = /\b(\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z][0-9A-Z][0-9A-Z])\b/i.exec(file);
-    if (match) return match[1]!.toUpperCase();
+    const found = gstinIn(file);
+    if (found) return found;
   }
   return undefined;
 }
@@ -83,6 +101,33 @@ interface FolderOutcome {
   taxableTotal: number;
   taxTotal: number;
   failures: string[];
+  comparisons: ComparisonOutcome[];
+  /** GSTINs found, when the folder holds more than one client's books. */
+  multiBusiness?: string[];
+}
+
+/** How our output stands against a return the CA actually filed. */
+interface ComparisonOutcome {
+  against: string;
+  matched: number;
+  mismatched: number;
+  onlyInOurs: number;
+  onlyInTheirs: number;
+  b2csTotalOur: number;
+  b2csTotalRef: number;
+}
+
+/**
+ * The CA's filed return, if the folder holds one.
+ *
+ * Only the government-format workbook is used. Our own review report and the
+ * PDF extractor's output are also in these folders, and measuring against
+ * those would be marking our own homework.
+ */
+const CA_RETURN_PATTERNS = [/^GSTR1_[0-9]{2}[A-Z]{5}.*\.xlsx$/i];
+
+function findCaReturns(files: string[]): string[] {
+  return files.filter((f) => CA_RETURN_PATTERNS.some((p) => p.test(basename(f))));
 }
 
 async function runFolder(folder: string, files: string[]): Promise<FolderOutcome> {
@@ -105,6 +150,7 @@ async function runFolder(folder: string, files: string[]): Promise<FolderOutcome
     taxableTotal: 0,
     taxTotal: 0,
     failures: [],
+    comparisons: [],
   };
 
   const tables: {
@@ -155,6 +201,64 @@ async function runFolder(folder: string, files: string[]): Promise<FolderOutcome
     outcome.taxTotal += row.igstAmount + row.cgstAmount + row.sgstAmount;
   }
 
+  // ── Measured against what the CA filed ──────────────────────────────────
+  const caReturns = findCaReturns(files);
+  const gstins = new Set(
+    caReturns.map((f) => gstinIn(basename(f))).filter((g): g is string => Boolean(g))
+  );
+
+  // Some folders are a CA's working directory holding several clients at once.
+  // Every input is then pooled into one conversion, so no single client's
+  // return can match and a comparison would only produce noise.
+  if (gstins.size > 1) {
+    outcome.multiBusiness = [...gstins];
+    return outcome;
+  }
+
+  // A return filed for a different GSTIN is a different business's books, even
+  // when it shares a folder with ours.
+  const [caGstin] = gstins;
+  if (caGstin && outcome.supplierGstin && caGstin !== outcome.supplierGstin) {
+    outcome.multiBusiness = [outcome.supplierGstin, caGstin];
+    return outcome;
+  }
+
+  const comparable = rows.map(toComparableRow);
+  for (const caFile of caReturns) {
+    try {
+      const reference = parseGstr1Buffer(readFileSync(caFile), basename(caFile));
+      const refCount =
+        reference.b2b.length +
+        reference.b2cs.length +
+        reference.b2cl.length +
+        reference.cdnr.length;
+
+      // A blank government template sits in several folders. Comparing against
+      // it says only that it is blank.
+      if (refCount === 0) continue;
+
+      const result = Gstr1Comparator.compare(comparable, reference);
+      outcome.comparisons.push({
+        against: basename(caFile),
+        matched: result.matchedCount,
+        mismatched: result.mismatchCount,
+        onlyInOurs: result.onlyInOursCount,
+        onlyInTheirs: result.onlyInRefCount,
+        b2csTotalOur: result.b2csTotalOur,
+        b2csTotalRef: result.b2csTotalRef,
+      });
+    } catch (error) {
+      outcome.failures.push(`compare ${basename(caFile)}: ${(error as Error).message}`);
+    }
+  }
+
+  // Folders keep "(1)…(5)" iterations of the same return. The last word
+  // belongs to whichever version reconciles best, not to whichever sorts first.
+  outcome.comparisons.sort(
+    (a, b) =>
+      a.mismatched + a.onlyInOurs + a.onlyInTheirs - (b.mismatched + b.onlyInOurs + b.onlyInTheirs)
+  );
+
   return outcome;
 }
 
@@ -187,6 +291,26 @@ function printOutcome(o: FolderOutcome): void {
   }
   for (const sheet of [...new Set(o.emptySheets)].slice(0, 6)) {
     log(`             EMPTY     ${sheet}`);
+  }
+  if (o.multiBusiness) {
+    log(`             MULTI-CLIENT folder (${o.multiBusiness.join(", ")}) — not compared`);
+  }
+
+  // Only the best-reconciling version is shown; the rest are earlier drafts of
+  // the same return.
+  const best = o.comparisons[0];
+  if (best) {
+    const drift = best.b2csTotalOur - best.b2csTotalRef;
+    const clean = best.mismatched === 0 && best.onlyInOurs === 0 && drift === 0;
+    log(
+      `             ${clean ? "MATCHES" : "DIFFERS"} vs CA ${best.against}` +
+        (o.comparisons.length > 1 ? `  (best of ${o.comparisons.length} versions)` : "")
+    );
+    log(
+      `                match=${best.matched} mismatch=${best.mismatched} ` +
+        `onlyOurs=${best.onlyInOurs} onlyCA=${best.onlyInTheirs}` +
+        `   B2CS drift ${money(drift)}`
+    );
   }
   for (const failure of o.failures.slice(0, 6)) log(`             FAIL      ${failure}`);
 }

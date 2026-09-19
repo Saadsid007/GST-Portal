@@ -247,8 +247,27 @@ model MappingProfile {
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
+  /// Hash of the file's header set. This is what makes a mapping reusable
+  /// without the user naming or choosing anything: the same export recognises
+  /// itself on the next upload. Nullable because profiles created before this
+  /// existed have no fingerprint and are only reachable by name.
+  fingerprint String? @map("fingerprint")
+
+  /// The headers this mapping was confirmed against, kept so a stored profile
+  /// can be shown to the user and checked against the file in hand.
+  sourceHeaders Json? @map("source_headers")
+
+  /// Reuse counters. A mapping that has served many uploads is worth showing
+  /// as established; one that has never been reused may have been a mistake.
+  useCount   Int       @default(0) @map("use_count")
+  lastUsedAt DateTime? @map("last_used_at") @db.Timestamptz
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  /// One remembered mapping per file shape per user. Workspace isolation is
+  /// the point: one seller's column choices must never be applied to another's
+  /// return, however similar the files look.
+  @@unique([userId, fingerprint])
   @@index([userId])
   @@index([platformId])
   @@map("mapping_profile")
