@@ -10,6 +10,7 @@ import type { NormalizedInvoiceRow } from "@/features/convert/types/convert.type
 import { getStateName } from "./state-codes";
 import { isCdnurNote } from "@/features/convert/domain/gst-rules";
 import { buildDocumentSeries } from "@/features/convert/domain/document-series";
+import { buildHsnSummary } from "@/features/convert/domain/hsn-summary";
 import { ensureTcsGstin } from "@/features/convert/config/eco-registry";
 import { getGstr1TemplateBuffer } from "@/features/convert/templates/template-loader";
 
@@ -148,45 +149,6 @@ function cellXml(
 /** Escapes a literal for embedding in a RegExp source. */
 function escapeForRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-/**
- * Canonicalises an HSN code for Table 12.
- *
- * Marketplace feeds spell the same commodity several ways — "4419" on one line
- * and "441900" on the next — which split one HSN into two rows that then
- * disagree with the CA's return. A 4-digit chapter heading is padded to the
- * 6-digit form the rest of the file uses, so both land in the same bucket.
- *
- * Returns "" for a code that classifies nothing: absent, or all zeros. Such a
- * row is rejected by the portal, and carrying it forward only hides the fact
- * that those items were never classified.
- */
-function normalizeHsn(raw: string | undefined): string {
-  const digits = String(raw ?? "").replace(/\D/g, "");
-  if (!digits || /^0+$/.test(digits)) return "";
-  // 2-digit chapters are too coarse to report; 4 pads to 6, 6 and 8 stand.
-  if (digits.length < 4) return "";
-  if (digits.length === 4) return `${digits}00`;
-  if (digits.length === 5) return `${digits}0`;
-  if (digits.length === 7) return digits.slice(0, 6);
-  return digits.length > 8 ? digits.slice(0, 8) : digits;
-}
-
-/**
- * One readable description per HSN row.
- *
- * Aggregation used to concatenate every product title that shared an HSN,
- * producing a single cell holding six titles joined by semicolons — unreadable,
- * and long enough to look like corruption. Table 12 wants the commodity, not the
- * catalogue.
- */
-function hsnDescription(raw: string | undefined): string {
-  const first = String(raw ?? "")
-    .split(";")[0]!
-    .replace(/\s+/g, " ")
-    .trim();
-  return first.length > 60 ? `${first.slice(0, 57)}...` : first;
 }
 
 /**
@@ -604,90 +566,38 @@ export async function generateGstr1Excel(
   // ─────────────────────────────────────────────────────────────────────────────
   // 7. HSN: hsn(b2b) (sheet19.xml) and hsn(b2c) (sheet20.xml)
   // ─────────────────────────────────────────────────────────────────────────────
-  type HsnAgg = {
-    hsn: string;
-    desc: string;
-    uqc: string;
-    qty: number;
-    totalVal: number;
-    rt: number;
-    txval: number;
-    iamt: number;
-    camt: number;
-    samt: number;
-    csamt: number;
-  };
 
-  const hsnB2bAgg = new Map<string, HsnAgg>();
-  const hsnB2cAgg = new Map<string, HsnAgg>();
-
-  for (const r of validRows) {
-    const hsn = normalizeHsn(r.hsnCode);
-    // An all-zero or absent code is not a classification. Emitting it puts a
-    // row on the portal that will be rejected; leaving it out keeps Table 12
-    // honest about what was actually classified.
-    if (!hsn) continue;
-
-    const isB2B = r.invoiceType === "B2B" || r.invoiceType === "CDNR";
-    const targetMap = isB2B ? hsnB2bAgg : hsnB2cAgg;
-
-    const rt = r2(r.igstRate > 0 ? r.igstRate : r.cgstRate + r.sgstRate);
-    const uqc = r.uqc || "PCS";
-    const key = `${hsn}|${rt}|${uqc}`;
-
-    if (!targetMap.has(key)) {
-      targetMap.set(key, {
-        hsn,
-        desc: hsnDescription(r.itemDescription),
-        uqc,
-        qty: 0,
-        totalVal: 0,
-        rt,
-        txval: 0,
-        iamt: 0,
-        camt: 0,
-        samt: 0,
-        csamt: 0,
-      });
-    }
-
-    const sign = r.invoiceType === "CDNR" || r.invoiceType === "CDNCS" ? -1 : 1;
-    const b = targetMap.get(key)!;
-    if (!b.desc) b.desc = hsnDescription(r.itemDescription);
-    b.qty = r2(b.qty + r.quantity * sign);
-    b.totalVal = r2(b.totalVal + Math.abs(r.totalValue) * sign);
-    b.txval = r2(b.txval + Math.abs(r.taxableValue) * sign);
-    b.iamt = r2(b.iamt + Math.abs(r.igstAmount) * sign);
-    b.camt = r2(b.camt + Math.abs(r.cgstAmount) * sign);
-    b.samt = r2(b.samt + Math.abs(r.sgstAmount) * sign);
-    b.csamt = r2(b.csamt + Math.abs(r.cessAmount) * sign);
-  }
+  // Built by the shared domain helper so the Excel and the JSON of one return
+  // cannot disagree about Table 12. They had separate implementations and did.
+  const hsnSummary = buildHsnSummary(validRows);
+  const hsnB2bAgg = hsnSummary.b2b;
+  const hsnB2cAgg = hsnSummary.b2c;
 
   // Populate hsn(b2b) (sheet19.xml)
-  const hsnB2bValues = Array.from(hsnB2bAgg.values());
+  const hsnB2bValues = hsnB2bAgg;
   const hsnB2bCount = hsnB2bValues.length;
-  const hsnB2bTotalVal = r2(hsnB2bValues.reduce((s, v) => s + v.totalVal, 0));
-  const hsnB2bTotalTxVal = r2(hsnB2bValues.reduce((s, v) => s + v.txval, 0));
-  const hsnB2bTotalIgst = r2(hsnB2bValues.reduce((s, v) => s + v.iamt, 0));
-  const hsnB2bTotalCgst = r2(hsnB2bValues.reduce((s, v) => s + v.camt, 0));
-  const hsnB2bTotalSgst = r2(hsnB2bValues.reduce((s, v) => s + v.samt, 0));
-  const hsnB2bTotalCess = r2(hsnB2bValues.reduce((s, v) => s + v.csamt, 0));
+  const hsnB2bTotalVal = r2(hsnB2bValues.reduce((s, v) => s + v.totalValue, 0));
+  const hsnB2bTotalTxVal = r2(hsnB2bValues.reduce((s, v) => s + v.taxableValue, 0));
+  const hsnB2bTotalIgst = r2(hsnB2bValues.reduce((s, v) => s + v.igstAmount, 0));
+  const hsnB2bTotalCgst = r2(hsnB2bValues.reduce((s, v) => s + v.cgstAmount, 0));
+  const hsnB2bTotalSgst = r2(hsnB2bValues.reduce((s, v) => s + v.sgstAmount, 0));
+  const hsnB2bTotalCess = r2(hsnB2bValues.reduce((s, v) => s + v.cessAmount, 0));
 
   const hsnB2bDataRowsXml = hsnB2bValues.map((v, idx) => {
     const rowNum = 5 + idx;
     return (
       `<row r="${rowNum}" spans="1:11" s="19" customFormat="1">` +
-      cellXml("A", rowNum, 69, v.hsn) +
-      cellXml("B", rowNum, 18, v.desc) +
+      cellXml("A", rowNum, 69, v.hsnCode) +
+      cellXml("B", rowNum, 18, v.description) +
       cellXml("C", rowNum, 18, toUqcFull(v.uqc)) +
-      cellXml("D", rowNum, 38, v.qty, "num") +
-      cellXml("E", rowNum, 38, v.totalVal, "num") +
-      cellXml("F", rowNum, 38, v.rt, "num") +
-      cellXml("G", rowNum, 38, v.txval, "num") +
-      cellXml("H", rowNum, 38, v.iamt, "num") +
-      cellXml("I", rowNum, 38, v.camt, "num") +
-      cellXml("J", rowNum, 38, v.samt, "num") +
-      cellXml("K", rowNum, 38, v.csamt, "num") +
+      cellXml("D", rowNum, 38, v.quantity, "num") +
+      cellXml("E", rowNum, 38, v.totalValue, "num") +
+      cellXml("F", rowNum, 38, v.rate, "num") +
+      cellXml("G", rowNum, 38, v.taxableValue, "num") +
+      cellXml("H", rowNum, 38, v.igstAmount, "num") +
+      cellXml("I", rowNum, 38, v.cgstAmount, "num") +
+      cellXml("J", rowNum, 38, v.sgstAmount, "num") +
+      cellXml("K", rowNum, 38, v.cessAmount, "num") +
       `</row>`
     );
   });
@@ -709,30 +619,30 @@ export async function generateGstr1Excel(
   }
 
   // Populate hsn(b2c) (sheet20.xml)
-  const hsnB2cValues = Array.from(hsnB2cAgg.values());
+  const hsnB2cValues = hsnB2cAgg;
   const hsnB2cCount = hsnB2cValues.length;
-  const hsnB2cTotalVal = r2(hsnB2cValues.reduce((s, v) => s + v.totalVal, 0));
-  const hsnB2cTotalTxVal = r2(hsnB2cValues.reduce((s, v) => s + v.txval, 0));
-  const hsnB2cTotalIgst = r2(hsnB2cValues.reduce((s, v) => s + v.iamt, 0));
-  const hsnB2cTotalCgst = r2(hsnB2cValues.reduce((s, v) => s + v.camt, 0));
-  const hsnB2cTotalSgst = r2(hsnB2cValues.reduce((s, v) => s + v.samt, 0));
-  const hsnB2cTotalCess = r2(hsnB2cValues.reduce((s, v) => s + v.csamt, 0));
+  const hsnB2cTotalVal = r2(hsnB2cValues.reduce((s, v) => s + v.totalValue, 0));
+  const hsnB2cTotalTxVal = r2(hsnB2cValues.reduce((s, v) => s + v.taxableValue, 0));
+  const hsnB2cTotalIgst = r2(hsnB2cValues.reduce((s, v) => s + v.igstAmount, 0));
+  const hsnB2cTotalCgst = r2(hsnB2cValues.reduce((s, v) => s + v.cgstAmount, 0));
+  const hsnB2cTotalSgst = r2(hsnB2cValues.reduce((s, v) => s + v.sgstAmount, 0));
+  const hsnB2cTotalCess = r2(hsnB2cValues.reduce((s, v) => s + v.cessAmount, 0));
 
   const hsnB2cDataRowsXml = hsnB2cValues.map((v, idx) => {
     const rowNum = 5 + idx;
     return (
       `<row r="${rowNum}" spans="1:11" s="19" customFormat="1">` +
-      cellXml("A", rowNum, 69, v.hsn) +
-      cellXml("B", rowNum, 18, v.desc) +
+      cellXml("A", rowNum, 69, v.hsnCode) +
+      cellXml("B", rowNum, 18, v.description) +
       cellXml("C", rowNum, 18, toUqcFull(v.uqc)) +
-      cellXml("D", rowNum, 38, v.qty, "num") +
-      cellXml("E", rowNum, 38, v.totalVal, "num") +
-      cellXml("F", rowNum, 38, v.rt, "num") +
-      cellXml("G", rowNum, 38, v.txval, "num") +
-      cellXml("H", rowNum, 38, v.iamt, "num") +
-      cellXml("I", rowNum, 38, v.camt, "num") +
-      cellXml("J", rowNum, 38, v.samt, "num") +
-      cellXml("K", rowNum, 38, v.csamt, "num") +
+      cellXml("D", rowNum, 38, v.quantity, "num") +
+      cellXml("E", rowNum, 38, v.totalValue, "num") +
+      cellXml("F", rowNum, 38, v.rate, "num") +
+      cellXml("G", rowNum, 38, v.taxableValue, "num") +
+      cellXml("H", rowNum, 38, v.igstAmount, "num") +
+      cellXml("I", rowNum, 38, v.cgstAmount, "num") +
+      cellXml("J", rowNum, 38, v.sgstAmount, "num") +
+      cellXml("K", rowNum, 38, v.cessAmount, "num") +
       `</row>`
     );
   });

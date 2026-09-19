@@ -14,19 +14,7 @@ import {
   buildDocumentSeries,
   type DocumentSeries,
 } from "@/features/convert/domain/document-series";
-
-type HsnBucket = {
-  hsn: string;
-  desc: string;
-  uqc: string;
-  txval: number;
-  iamt: number;
-  camt: number;
-  samt: number;
-  csamt: number;
-  qty: number;
-  rt: number;
-};
+import { buildHsnSummary, type HsnSummaryRow } from "@/features/convert/domain/hsn-summary";
 
 function r2(n: number) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
@@ -289,61 +277,31 @@ export function generateGstr1Json(
     ],
   }));
 
-  // --- HSN Summary (hsn_b2b and hsn_b2c as per GSTN v3.1.6 spec) ---
-  const hsnB2bMap = new Map<string, HsnBucket>();
-  const hsnB2cMap = new Map<string, HsnBucket>();
+  // --- HSN Summary (Table 12) ---
+  // Built by the shared domain helper so the JSON and the Excel of one return
+  // cannot disagree. This file wrote row.hsnCode straight through: a blank
+  // code — which is what a row carries when nothing classified it — became an
+  // hsn_sc of "", and the portal refuses the file. "000000" and un-padded
+  // 4-digit headings went through the same way.
+  const hsnSummary = buildHsnSummary(validRows);
 
-  for (const row of validRows) {
-    const isB2bRow = row.invoiceType === "B2B" || row.invoiceType === "CDNR";
-    const targetMap = isB2bRow ? hsnB2bMap : hsnB2cMap;
-
-    const rt = r2(row.igstRate > 0 ? row.igstRate : row.cgstRate + row.sgstRate);
-    const uqc = row.uqc ?? "PCS";
-    const key = `${row.hsnCode}|${rt}|${uqc}`;
-
-    if (!targetMap.has(key)) {
-      targetMap.set(key, {
-        hsn: row.hsnCode,
-        desc: row.itemDescription ?? "",
-        uqc,
-        txval: 0,
-        iamt: 0,
-        camt: 0,
-        samt: 0,
-        csamt: 0,
-        qty: 0,
-        rt,
-      });
-    }
-
-    const sign = row.invoiceType === "CDNR" || row.invoiceType === "CDNCS" ? -1 : 1;
-    const b = targetMap.get(key)!;
-    if (!b.desc && row.itemDescription) b.desc = row.itemDescription;
-    b.txval = r2(b.txval + Math.abs(row.taxableValue) * sign);
-    b.iamt = r2(b.iamt + Math.abs(row.igstAmount) * sign);
-    b.camt = r2(b.camt + Math.abs(row.cgstAmount) * sign);
-    b.samt = r2(b.samt + Math.abs(row.sgstAmount) * sign);
-    b.csamt = r2(b.csamt + Math.abs(row.cessAmount) * sign);
-    b.qty = r2(b.qty + row.quantity * sign);
-  }
-
-  const mapToHsnArr = (m: Map<string, HsnBucket>) =>
-    Array.from(m.values()).map((val, idx) => ({
+  const toHsnArr = (list: HsnSummaryRow[]) =>
+    list.map((v, idx) => ({
       num: idx + 1,
-      hsn_sc: val.hsn,
-      uqc: val.uqc,
-      qty: Math.max(0, val.qty),
-      rt: val.rt,
-      txval: Math.max(0, val.txval),
-      iamt: Math.max(0, val.iamt),
-      samt: Math.max(0, val.samt),
-      camt: Math.max(0, val.camt),
-      csamt: Math.max(0, val.csamt),
+      hsn_sc: v.hsnCode,
+      uqc: v.uqc,
+      qty: Math.max(0, v.quantity),
+      rt: v.rate,
+      txval: Math.max(0, v.taxableValue),
+      iamt: Math.max(0, v.igstAmount),
+      samt: Math.max(0, v.sgstAmount),
+      camt: Math.max(0, v.cgstAmount),
+      csamt: Math.max(0, v.cessAmount),
     }));
 
   const hsn = {
-    ...(hsnB2bMap.size > 0 ? { hsn_b2b: mapToHsnArr(hsnB2bMap) } : {}),
-    ...(hsnB2cMap.size > 0 ? { hsn_b2c: mapToHsnArr(hsnB2cMap) } : {}),
+    ...(hsnSummary.b2b.length > 0 ? { hsn_b2b: toHsnArr(hsnSummary.b2b) } : {}),
+    ...(hsnSummary.b2c.length > 0 ? { hsn_b2c: toHsnArr(hsnSummary.b2c) } : {}),
   };
 
   // --- Document Summary (Table 13) ---
