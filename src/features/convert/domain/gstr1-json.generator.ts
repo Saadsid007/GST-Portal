@@ -12,6 +12,7 @@ import { ensureTcsGstin } from "@/features/convert/config/eco-registry";
 import { isCdnurNote } from "@/features/convert/domain/gst-rules";
 import {
   buildDocumentSeries,
+  documentTypeSerial,
   type DocumentSeries,
 } from "@/features/convert/domain/document-series";
 import { buildHsnSummary, type HsnSummaryRow } from "@/features/convert/domain/hsn-summary";
@@ -329,11 +330,11 @@ export function generateGstr1Json(
   // reference as a separate entry.
   const series = buildDocumentSeries(validRows.filter(isEligibleDocInvoice));
 
-  const docSeries = (docNum: number, docTyp: DocumentSeries["documentType"]) => {
+  const docSeries = (docTyp: DocumentSeries["documentType"]) => {
     const mine = series.filter((s) => s.documentType === docTyp);
     if (mine.length === 0) return null;
     return {
-      doc_num: docNum,
+      doc_num: documentTypeSerial(docTyp),
       doc_typ: docTyp,
       docs: mine.map((s, index) => ({
         num: index + 1,
@@ -346,7 +347,7 @@ export function generateGstr1Json(
     };
   };
 
-  const docDet = [docSeries(1, "Invoices for outward supply"), docSeries(4, "Credit Note")].filter(
+  const docDet = [docSeries("Invoices for outward supply"), docSeries("Credit Note")].filter(
     (d): d is NonNullable<typeof d> => d !== null
   );
 

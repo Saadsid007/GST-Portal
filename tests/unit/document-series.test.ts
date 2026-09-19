@@ -4,6 +4,7 @@ import {
   documentSeriesStem,
   isRealSeries,
   countUnseriesedDocuments,
+  documentTypeSerial,
 } from "@/features/convert/domain/document-series";
 import type { NormalizedInvoiceRow } from "@/features/convert/types/convert.types";
 
@@ -163,5 +164,15 @@ describe("telling the user what was left out", () => {
 
   it("counts nothing when every document belongs to a series", () => {
     expect(countUnseriesedDocuments([row("IN-113"), row("IN-123")])).toBe(0);
+  });
+});
+
+describe("the statutory Nature of Document serial", () => {
+  it("files a credit note under 5, not 4", () => {
+    // 4 is the Debit Note in the return format's fixed list. The JSON
+    // generator emitted doc_num 4 for the credit note series, which declared
+    // the seller's credit notes to the portal as debit notes.
+    expect(documentTypeSerial("Credit Note")).toBe(5);
+    expect(documentTypeSerial("Invoices for outward supply")).toBe(1);
   });
 });
