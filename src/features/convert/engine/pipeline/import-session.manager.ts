@@ -1,6 +1,12 @@
 import type { ReconstructedTable } from "@/features/convert/engine/universal/types";
 import { PlatformDetector } from "@/features/convert/engine/detection/platform.detector";
 import { classifyCompanionSheet } from "@/features/convert/engine/detection/companion-sheets";
+import {
+  isInvoiceDetailsSheet,
+  parseInvoiceDetails,
+  applyInvoiceDetails,
+  type InvoiceDetailsIndex,
+} from "@/features/convert/engine/enrichment/meesho-invoice-details";
 import { AmazonAdapter } from "@/features/convert/engine/adapters/amazon.adapter";
 import { MeeshoAdapter } from "@/features/convert/engine/adapters/meesho.adapter";
 import { FlipkartAdapter } from "@/features/convert/engine/adapters/flipkart.adapter";
@@ -44,17 +50,33 @@ export class ImportSessionManager {
     const unmappedFiles: ReconstructedTable[] = [];
     const skippedSheets: SkippedSheet[] = [];
     const combinedTransactions: NormalizedInvoiceRow[] = [];
+    const invoiceDetails: InvoiceDetailsIndex = new Map();
 
     for (const { fileId, fileName, table } of tables) {
       // 0. Companion sheets never reach detection. An HSN roll-up or a document
       //    count has no line items, so sending it to the AI mapper only produces
       //    questions with no right answer.
-      const companion = classifyCompanionSheet(table.sheetName);
+      const companion = classifyCompanionSheet(table.sheetName, table.headers);
       if (companion) {
         skippedSheets.push({
           fileName,
           sheetName: table.sheetName,
           reason: companion.reason,
+        });
+        continue;
+      }
+
+      // 0b. Meesho's suborder→invoice index. Collected before detection
+      //     because it holds no values of its own: it corrects the invoice
+      //     numbers on rows that other sheets produce.
+      if (isInvoiceDetailsSheet(table.headers)) {
+        for (const [suborder, detail] of parseInvoiceDetails(table.rows)) {
+          invoiceDetails.set(suborder, detail);
+        }
+        skippedSheets.push({
+          fileName,
+          sheetName: table.sheetName,
+          reason: `Invoice number index — used to replace ${table.rows.length} order references with the invoice numbers you issued`,
         });
         continue;
       }
@@ -134,11 +156,18 @@ export class ImportSessionManager {
       }
     }
 
+    // Applied once at the end: the index can arrive in any sheet of any
+    // workbook, so the rows it corrects may already have been built.
+    const enriched = applyInvoiceDetails(combinedTransactions, invoiceDetails);
+    for (const platform of Object.values(resultsByPlatform)) {
+      platform.transactions = applyInvoiceDetails(platform.transactions, invoiceDetails);
+    }
+
     return {
       sessionId,
       filesProcessed: tables.length,
       resultsByPlatform,
-      combinedTransactions,
+      combinedTransactions: enriched,
       unmappedFiles,
       skippedSheets,
     };

@@ -160,6 +160,19 @@ export const PLATFORMS_CONFIG: PlatformConfig[] = [
           "section 13",
           "invoice series",
           "section 7(a)(2)",
+          // Seller Hub "Sales Report" tab. None of the keywords above appear in
+          // it, so the seller's own line-item export — the only Flipkart file
+          // that carries HSN, description and quantity — went undetected and
+          // produced nothing at all.
+          "order item id",
+          "fsn",
+          "product title/description",
+          "taxable value (final invoice amount -taxes)",
+          "sgst rate (or utgst as applicable)",
+          "buyer invoice id",
+          "customer's delivery state",
+          "is shopsy order?",
+          "total tcs deducted",
         ],
       },
       {
@@ -168,7 +181,13 @@ export const PLATFORMS_CONFIG: PlatformConfig[] = [
         description: "Flipkart Return / Credit Note Report",
         required: false,
         fileTypes: [".xlsx", ".xls", ".csv"],
-        headerKeywords: ["return", "credit_note"],
+        headerKeywords: [
+          "return",
+          "credit_note",
+          // Seller Hub "Cash Back Report" tab carries the credit and debit notes.
+          "credit note id/ debit note id",
+          "document sub type",
+        ],
       },
     ],
   },

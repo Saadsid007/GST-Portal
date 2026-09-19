@@ -28,7 +28,9 @@
     "db:studio": "prisma studio",
     "db:seed": "tsx --env-file=.env prisma/seed.ts",
     "prepare": "husky",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "harvest:columns": "tsx scripts/harvest-column-exemplars.ts",
+    "verify:corpus": "tsx scripts/verify-corpus.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.5.7",

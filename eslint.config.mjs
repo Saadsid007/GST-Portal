@@ -77,6 +77,8 @@ const config = [
       "test-results/**",
       "next-env.d.ts",
       "src/generated/**",
+      // Scratch space for one-off analysis scripts; git-ignored.
+      ".work/**",
     ],
   },
 ];

@@ -9,6 +9,7 @@ import type {
   ConversionSummary,
 } from "@/features/convert/types/convert.types";
 import { ensureTcsGstin } from "@/features/convert/config/eco-registry";
+import { isCdnurNote } from "@/features/convert/domain/gst-rules";
 
 type HsnBucket = {
   hsn: string;
@@ -252,10 +253,11 @@ export function generateGstr1Json(
 
   // --- CDNUR (B2C Large & Export Credit Notes only) ---
   // In GST Law, small B2C marketplace credit notes (CDNCS) are netted inside Table 7 (b2cs).
-  // Only large B2C notes (> ₹2.5L / ₹1L) or Export credit notes belong in Table 9B CDNUR.
+  // Only large B2C notes or Export credit notes belong in Table 9B CDNUR. The
+  // limit moved from ₹2.5L to ₹1L on 1 Aug 2024 and applies by note date.
   const cdnurRows = validRows.filter(
     (r) =>
-      (r.invoiceType === "CDNCS" && Math.abs(r.totalValue) > 250000) ||
+      isCdnurNote(r) ||
       (r.invoiceType === "EXP" && (r.transactionType === "Return" || r.taxableValue < 0))
   );
   const cdnur = cdnurRows.map((r) => ({

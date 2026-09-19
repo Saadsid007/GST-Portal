@@ -6,6 +6,11 @@ import { PlatformLogo } from "@/features/convert/presentation/platform-logo";
 import type { MultiConvertState } from "@/features/convert/presentation/convert-workbench";
 import type { MultiUploadFileInput } from "@/features/convert/types/convert.types";
 import { CompletenessChecker } from "@/features/convert/engine/rules/completeness.checker";
+import {
+  expandArchive,
+  isArchive,
+  chooseEntryForSlot,
+} from "@/features/convert/utils/archive.utils";
 import { cn } from "@/lib/utils";
 import {
   UploadCloud,
@@ -23,7 +28,12 @@ interface Props {
   onBack: () => void;
 }
 
-const ACCEPTED = [".xlsx", ".xls", ".csv"];
+/**
+ * `.zip` is accepted because that is how Amazon and Flipkart actually hand the
+ * reports over. Rejecting it forced every seller to leave the product, unzip by
+ * hand and come back.
+ */
+const ACCEPTED = [".xlsx", ".xls", ".csv", ".zip"];
 
 function isAccepted(fileName: string) {
   return ACCEPTED.some((ext) => fileName.toLowerCase().endsWith(ext));
@@ -171,6 +181,7 @@ export function Step5Upload({ state, onChange, onNext, onBack }: Props) {
                       key={fileSlot.id}
                       slotName={fileSlot.name}
                       slotDescription={fileSlot.description}
+                      fileTypeId={fileSlot.id}
                       required={fileSlot.required}
                       existing={existing}
                       onAdd={(file) => handleFileAdd(plat.id, fileSlot.id, file)}
@@ -210,6 +221,8 @@ export function Step5Upload({ state, onChange, onNext, onBack }: Props) {
 interface SlotProps {
   slotName: string;
   slotDescription: string;
+  /** Used to pick the right report when an archive holds several. */
+  fileTypeId: string;
   required: boolean;
   existing: MultiUploadFileInput | undefined;
   onAdd: (file: File) => void;
@@ -219,6 +232,7 @@ interface SlotProps {
 function FileDropSlot({
   slotName,
   slotDescription,
+  fileTypeId,
   required,
   existing,
   onAdd,
@@ -226,15 +240,49 @@ function FileDropSlot({
 }: SlotProps) {
   const [dragging, setDragging] = useState(false);
   const [rejected, setRejected] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  function accept(file: File | undefined) {
+  async function accept(file: File | undefined) {
     if (!file) return;
     if (!isAccepted(file.name)) {
-      setRejected(`${file.name} is not an Excel or CSV file`);
+      setRejected(`${file.name} is not an Excel, CSV or ZIP file`);
       return;
     }
     setRejected(null);
-    onAdd(file);
+    setNote(null);
+
+    if (!isArchive(file.name)) {
+      onAdd(file);
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const { files, skipped } = await expandArchive(file);
+      const chosen = chooseEntryForSlot(files, fileTypeId);
+
+      if (!chosen) {
+        // Saying what was inside is the difference between a dead end and a
+        // next step — an archive of invoice PDFs is a common mistake.
+        const inside = skipped.length
+          ? ` It contains ${skipped.length} file(s) this step cannot read, such as ${skipped[0]!.name}.`
+          : " It is empty.";
+        setRejected(`No spreadsheet found inside ${file.name}.${inside}`);
+        return;
+      }
+
+      const others = files.filter((f) => f !== chosen);
+      setNote(
+        `Opened ${file.name} → ${chosen.fileName}` +
+          (others.length ? `. Also inside: ${others.map((f) => f.fileName).join(", ")}` : "")
+      );
+      onAdd(chosen.file);
+    } catch {
+      setRejected(`${file.name} could not be opened — it may be corrupt or password protected.`);
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -247,7 +295,7 @@ function FileDropSlot({
       onDrop={(e) => {
         e.preventDefault();
         setDragging(false);
-        accept(e.dataTransfer.files?.[0]);
+        void accept(e.dataTransfer.files?.[0]);
       }}
       className={cn(
         "relative rounded-xl border border-dashed p-4 transition-all duration-200",
@@ -319,14 +367,18 @@ function FileDropSlot({
             )}
           />
           <span className="text-xs font-semibold text-muted-foreground">
-            {dragging ? "Drop to attach" : "Drop file here or click to browse"}
+            {busy
+              ? "Opening archive…"
+              : dragging
+                ? "Drop to attach"
+                : "Drop file here or click to browse"}
           </span>
-          <span className="text-[10px] text-muted-foreground/70">.xlsx · .xls · .csv</span>
+          <span className="text-[10px] text-muted-foreground/70">.xlsx · .xls · .csv · .zip</span>
           <input
             type="file"
             accept={ACCEPTED.join(",")}
             className="hidden"
-            onChange={(e) => accept(e.target.files?.[0])}
+            onChange={(e) => void accept(e.target.files?.[0])}
           />
         </label>
       )}
@@ -336,6 +388,8 @@ function FileDropSlot({
           <AlertTriangle className="size-3 flex-shrink-0" /> {rejected}
         </p>
       )}
+
+      {note && <p className="mt-2 text-[10px] font-medium text-muted-foreground">{note}</p>}
     </div>
   );
 }

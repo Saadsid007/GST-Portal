@@ -3,6 +3,8 @@ import type {
   InvoiceCategory,
   TransactionType,
 } from "@/features/convert/types/convert.types";
+import { classifyB2cByInvoiceValue } from "@/features/convert/domain/gst-rules";
+
 import {
   transformDate,
   transformNumber,
@@ -85,7 +87,7 @@ export function transformMappedRows(
 ): NormalizedInvoiceRow[] {
   const supplierState = ctx.supplierGstin ? ctx.supplierGstin.substring(0, 2) : "";
 
-  return mappedRows.map((raw, idx) => {
+  const rows = mappedRows.map((raw, idx) => {
     const rawBuyerGstin = transformGstin(raw.buyerGstin);
     // Marketplace TCS exports repeat the seller's own GSTIN in a generic "gstin" column;
     // treating it as the buyer would wrongly classify every B2C row as B2B.
@@ -200,9 +202,10 @@ export function transformMappedRows(
       invoiceType = buyerGstin.length === 15 || originalInvoiceNumber ? "CDNR" : "B2CS";
     } else if (buyerGstin.length === 15) {
       invoiceType = "B2B";
-    } else if (isInterState && taxableValue > 250000) {
-      invoiceType = "B2CL";
     } else {
+      // B2CS for now. B2CL depends on the value of the whole invoice and on the
+      // rule in force on its date, neither of which a single line item can see,
+      // so classifyB2cByInvoiceValue settles it once all rows are built.
       invoiceType = "B2CS";
     }
 
@@ -241,4 +244,6 @@ export function transformMappedRows(
       errors: [],
     };
   });
+
+  return classifyB2cByInvoiceValue(rows, ctx.supplierGstin);
 }

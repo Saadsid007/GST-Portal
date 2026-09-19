@@ -8,6 +8,7 @@
 import JSZip from "jszip";
 import type { NormalizedInvoiceRow } from "@/features/convert/types/convert.types";
 import { getStateName } from "./state-codes";
+import { isCdnurNote } from "@/features/convert/domain/gst-rules";
 import { ensureTcsGstin } from "@/features/convert/config/eco-registry";
 import { getGstr1TemplateBuffer } from "@/features/convert/templates/template-loader";
 
@@ -496,7 +497,7 @@ export async function generateGstr1Excel(
   // ─────────────────────────────────────────────────────────────────────────────
   // 5. cdnur Sheet (xl/worksheets/sheet10.xml)
   // ─────────────────────────────────────────────────────────────────────────────
-  const cdnurRows = validRows.filter((r) => r.invoiceType === "CDNCS" && r.totalValue > 250000);
+  const cdnurRows = validRows.filter(isCdnurNote);
   const cdnurNotes = cdnurRows.length;
   const cdnurTotalVal = r2(cdnurRows.reduce((s, r) => s + Math.abs(r.totalValue), 0));
   const cdnurTotalTxVal = r2(cdnurRows.reduce((s, r) => s + Math.abs(r.taxableValue), 0));

@@ -16,6 +16,51 @@ function sanitize(str: string): string {
 }
 
 /**
+ * The score above which the session manager hands a file to a platform
+ * adapter. Below it, the file is either an own-books register or goes to the
+ * AI mapper.
+ */
+const ADAPTER_THRESHOLD = 50;
+
+/** Sanitised column names that only a marketplace export carries. */
+const MARKETPLACE_ONLY = [
+  "orderid",
+  "orderitemid",
+  "suborder",
+  "suborderno",
+  "subordernum",
+  "shipmentid",
+  "shipmentitemid",
+  "asin",
+  "fsn",
+  "sellergstin",
+  "ecotcsgstin",
+  "fulfilmenttype",
+  "fulfillmentchannel",
+  "warehouseid",
+];
+
+/**
+ * True when the columns describe invoices the seller raised themselves.
+ *
+ * Requires an invoice reference and a value, and the absence of any
+ * marketplace field. Both halves matter: without the value test a document
+ * index would qualify, and without the marketplace test a Meesho export —
+ * which also has an invoice number and a taxable value — would be pulled away
+ * from the adapter that understands its TCS and operator columns.
+ */
+function looksLikeInvoiceRegister(normHeaders: string[]): boolean {
+  const has = (...needles: string[]) => needles.some((n) => normHeaders.some((h) => h.includes(n)));
+
+  if (normHeaders.some((h) => MARKETPLACE_ONLY.some((m) => h === m))) return false;
+
+  const hasReference = has("invoicenumber", "invoiceno", "billno", "notenumber");
+  const hasValue = has("taxablevalue", "taxableamount", "invoicevalue", "gstamount", "taxamount");
+
+  return hasReference && hasValue;
+}
+
+/**
  * Auto Platform & Report Type Detector:
  * Analyzes raw headers, sheet names, and file patterns to automatically identify the marketplace,
  * report slot, parser version, and confidence score.
@@ -158,6 +203,29 @@ export class PlatformDetector {
           };
         }
       }
+    }
+
+    // ── Own invoice registers ────────────────────────────────────────────────
+    // A seller's own books arrive as an ordinary register: a B2B invoice list,
+    // a wholesale bill sheet, an "Invoice Wise GST Report". They carry no
+    // marketplace fields, so the scoring above finds nothing and they fall
+    // through to the AI mapper — for a file whose columns are already the
+    // plainest possible statement of an invoice.
+    //
+    // Deliberately a last resort rather than an early exit. The shape it looks
+    // for ("has an invoice number and a value") is also true of every
+    // marketplace export, so running it first would pull Amazon and Meesho
+    // files away from the adapters that understand their TCS and operator
+    // columns.
+    if (highestScore < ADAPTER_THRESHOLD && looksLikeInvoiceRegister(normHeaders)) {
+      return {
+        platformId: "offline",
+        platformName: "Offline & Direct Invoices",
+        fileTypeId: "offline_invoices",
+        parserVersion: "v1",
+        confidence: 85,
+        matchedKeywords: ["Structure: invoice register (own books)"],
+      };
     }
 
     return bestMatch;
