@@ -505,6 +505,56 @@ A feature is complete only when
 
 ---
 
+# Corpus Verification
+
+Unit tests prove a function does what it was written to do. They cannot prove
+the engine reads a real seller's files correctly, because the fixtures are
+written by the same person as the code.
+
+The `Sample/` corpus is the answer to that. Each folder is a different
+business with a different mix of marketplaces, own invoices and stock
+transfers, and most also contain the return the CA actually filed — which
+makes them the only ground truth in the project.
+
+Two harnesses run against it. Both read only; neither writes into `Sample/`.
+Neither runs in CI, because the corpus is not in the repository: run them
+locally after any change to an adapter, the detector, the transformation
+engine, or the GSTR-1 generators.
+
+```bash
+pnpm verify:corpus            # all folders
+pnpm verify:corpus "new 19"   # one folder
+pnpm verify:pdfs              # all sample PDFs
+```
+
+**`verify:corpus`** runs every workbook through the real import pipeline and
+reconciles the result against the CA's filed return. A folder reports
+`MATCHES` only when no invoice mismatches, nothing is ours alone, and the
+B2CS drift is exactly zero. Folders holding more than one client's books are
+excluded rather than compared, because every input is pooled into one
+conversion and no single client's return could match.
+
+**`verify:pdfs`** has no reference copy to compare against, so it checks each
+extracted invoice against the arithmetic every invoice satisfies:
+
+- `taxable + tax = total` — the figures describe one document
+- `tax / taxable` lands on a notified slab
+- IGST or CGST+SGST, never both; CGST equals SGST
+
+A layout read wrongly almost always breaks one of these. That is how a wrong
+figure becomes visible without knowing the right one.
+
+A change that leaves unit tests green but moves a folder from `MATCHES` to
+`DIFFERS` has broken something no unit test was watching. Treat that as a
+failure.
+
+**`pnpm harvest:columns`** is a diagnostic rather than a check: it profiles
+every column in the corpus, labels what it can from the canonical alias list,
+and reports the engine's top-1 accuracy per field. Use it before changing
+field discovery, to know what the change has to beat.
+
+---
+
 # AI Coding Instructions
 
 Before generating code
