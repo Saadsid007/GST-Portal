@@ -16,12 +16,11 @@
  */
 
 import { readdirSync, readFileSync, statSync, existsSync } from "node:fs";
-import { join, extname, relative, basename } from "node:path";
-
-import * as XLSX from "xlsx";
+import { join, extname, basename } from "node:path";
 
 import { ImportSessionManager } from "@/features/convert/engine/pipeline/import-session.manager";
-import { reconstructWorkbook } from "@/features/convert/engine/universal/table-reconstructor";
+import { readWorkbook } from "@/features/convert/engine/universal/universal-import.engine";
+import { expandArchive } from "@/features/convert/utils/archive.utils";
 import {
   parseGstr1Buffer,
   parseGstr1Json,
@@ -148,8 +147,41 @@ function parseCaReturn(file: string) {
   return parseGstr1Buffer(readFileSync(file), basename(file));
 }
 
+/**
+ * The spreadsheets a seller would actually end up uploading.
+ *
+ * Amazon and Flipkart hand their reports over zipped, and the product expands
+ * an archive in the browser before anything is sent. A harness that ignored
+ * archives saw one folder's marketplace data as simply absent and reported the
+ * resulting gap as a difference against the CA — when the seller's own files
+ * were sitting there, one level down.
+ */
+async function expandInputs(files: string[]): Promise<{ name: string; buffer: Buffer }[]> {
+  const out: { name: string; buffer: Buffer }[] = [];
+
+  for (const file of files) {
+    const ext = extname(file).toLowerCase();
+
+    if (READABLE.has(ext) && !isReference(file)) {
+      out.push({ name: basename(file), buffer: readFileSync(file) });
+      continue;
+    }
+
+    if (ext !== ".zip") continue;
+
+    const blob = new File([readFileSync(file)], basename(file));
+    const { files: entries } = await expandArchive(blob);
+    for (const entry of entries) {
+      if (isReference(entry.fileName)) continue;
+      out.push({ name: entry.fileName, buffer: Buffer.from(await entry.file.arrayBuffer()) });
+    }
+  }
+
+  return out;
+}
+
 async function runFolder(folder: string, files: string[]): Promise<FolderOutcome> {
-  const inputs = files.filter((f) => READABLE.has(extname(f).toLowerCase()) && !isReference(f));
+  const inputs = await expandInputs(files);
   const outcome: FolderOutcome = {
     folder,
     supplierGstin: findSupplierGstin(files.map((f) => basename(f))),
@@ -174,24 +206,31 @@ async function runFolder(folder: string, files: string[]): Promise<FolderOutcome
   const tables: {
     fileId: string;
     fileName: string;
-    table: ReturnType<typeof reconstructWorkbook>[number];
+    table: ReturnType<typeof readWorkbook>[number];
   }[] = [];
 
-  for (const file of inputs) {
+  for (const input of inputs) {
     try {
-      const wb = XLSX.read(readFileSync(file), { type: "buffer" });
-      for (const table of reconstructWorkbook(wb)) {
+      // `readWorkbook` and not a bare `XLSX.read`: it is the function the
+      // upload path itself calls, and it repairs a worksheet whose declared
+      // `!ref` does not describe its contents. Flipkart's generator ships
+      // "A1:IV1" on sheets that hold real rows, and SheetJS trusts `!ref` —
+      // so reading the file directly made this harness report a folder as
+      // empty and attribute the resulting gap to the seller's data. A harness
+      // that does not take the same path as the product measures the wrong
+      // thing.
+      for (const table of readWorkbook(input.buffer)) {
         // A header row with nothing under it is a real case — marketplaces
         // hand out an export for a period with no activity — and it must be
         // told apart from a file we failed to read.
         if (table.rows.length === 0 && table.headers.length > 0) {
-          outcome.emptySheets.push(`${basename(file)} :: ${table.sheetName}`);
+          outcome.emptySheets.push(`${input.name} :: ${table.sheetName}`);
           continue;
         }
-        tables.push({ fileId: relative(SAMPLE_DIR, file), fileName: basename(file), table });
+        tables.push({ fileId: input.name, fileName: input.name, table });
       }
     } catch (error) {
-      outcome.failures.push(`${basename(file)}: ${(error as Error).message}`);
+      outcome.failures.push(`${input.name}: ${(error as Error).message}`);
     }
   }
 

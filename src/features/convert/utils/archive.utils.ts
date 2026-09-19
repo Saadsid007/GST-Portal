@@ -58,7 +58,11 @@ function baseName(path: string): string {
  * found nothing it could convert, not left staring at an empty slot.
  */
 export async function expandArchive(archive: File): Promise<ExpandResult> {
-  const zip = await JSZip.loadAsync(archive);
+  // Read to an ArrayBuffer rather than handing JSZip the File. JSZip sniffs
+  // the type it was given, and does not recognise every host's File
+  // implementation — it rejects Node's outright. An ArrayBuffer is the one
+  // form every environment agrees on.
+  const zip = await JSZip.loadAsync(await archive.arrayBuffer());
   const files: ExpandedEntry[] = [];
   const skipped: { name: string; reason: string }[] = [];
 
