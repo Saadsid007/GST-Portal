@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import * as XLSX from "xlsx";
+import JSZip from "jszip";
 import { generateGstr1Excel } from "@/features/convert/domain/gstr1-excel.generator";
 import type { NormalizedInvoiceRow } from "@/features/convert/types/convert.types";
 
@@ -52,6 +53,17 @@ async function build(rows: NormalizedInvoiceRow[]): Promise<Record<string, Grid>
   const read = (name: string): Grid =>
     XLSX.utils.sheet_to_json<string[]>(wb.Sheets[name]!, { header: 1, raw: false, defval: "" });
   return { hsnB2b: read("hsn(b2b)"), docs: read("docs") };
+}
+
+/** Which tab the workbook is set to show when it is opened. */
+async function openingTab(rows: NormalizedInvoiceRow[]): Promise<string> {
+  const bytes = await generateGstr1Excel(rows, SUPPLIER, "072026");
+  const zip = await JSZip.loadAsync(bytes);
+  const workbook = await zip.file("xl/workbook.xml")!.async("string");
+
+  const names = Array.from(workbook.matchAll(/<sheet name="([^"]+)"/g)).map((m) => m[1]!);
+  const active = Number(/activeTab="(\d+)"/.exec(workbook)?.[1] ?? 0);
+  return names[active] ?? "";
 }
 
 /** Data rows begin at index 4; rows 0-3 are the template's header block. */
@@ -157,4 +169,23 @@ describe("GSTR-1 workbook: documents issued (Table 13)", () => {
     expect(`${creditNotes[0]![1]}→${creditNotes[0]![2]}`).toBe("CN-78→CN-109");
     expect(rows[0]![0]).toBe("Invoices for outward supply");
   });
+});
+
+/**
+ * An .xlsx records the tab that was showing when it was last saved. The
+ * bundled template carries "ecoaurp2c" — an amendment tab that is always
+ * empty — so every return opened thirty tabs from its own data.
+ */
+describe("the tab the workbook opens on", () => {
+  it("lands on the first sheet that has something in it", async () => {
+    const b2b = row({ buyerGstin: "06AADCV4254H1ZC", invoiceType: "B2B" });
+
+    expect(await openingTab([b2b])).toBe("b2b,sez,de");
+  }, 180000);
+
+  it("skips past empty sections to the one with data", async () => {
+    const b2c = row({ buyerGstin: "", invoiceType: "B2CS", placeOfSupply: "06" });
+
+    expect(await openingTab([b2c])).toBe("b2cs");
+  }, 180000);
 });

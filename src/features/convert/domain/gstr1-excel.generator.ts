@@ -189,6 +189,64 @@ function hsnDescription(raw: string | undefined): string {
   return first.length > 60 ? `${first.slice(0, 57)}...` : first;
 }
 
+/**
+ * Points the workbook at the first sheet that has something in it.
+ *
+ * An .xlsx records which tab was showing when it was last saved, and the
+ * bundled template carries `firstSheet="14" activeTab="30"` — whoever prepared
+ * it left Excel on "ecoaurp2c", an amendment tab that is always empty. Every
+ * return inherited that and opened thirty tabs away from its own data.
+ *
+ * Both halves have to be rewritten: `activeTab` on the workbook, and the
+ * `tabSelected` flag Excel keeps on each sheet. Setting one without the other
+ * leaves the two disagreeing, and Excel believes the sheet.
+ */
+async function openOnFirstPopulatedSheet(
+  zip: JSZip,
+  rowCountsBySheetName: Record<string, number>
+): Promise<void> {
+  const workbookXml = await zip.file("xl/workbook.xml")?.async("string");
+  if (!workbookXml) return;
+
+  // Sheet order in workbook.xml is the tab order the user sees.
+  const names = Array.from(workbookXml.matchAll(/<sheet name="([^"]+)"/g)).map((m) => m[1]!);
+
+  // The first populated sheet, or the first section tab when the return is
+  // empty — never the instruction sheet, and never an amendment tab.
+  const target = names.findIndex((name) => (rowCountsBySheetName[name] ?? 0) > 0);
+  const activeTab = target >= 0 ? target : Math.max(0, names.indexOf("b2b,sez,de"));
+
+  zip.file(
+    "xl/workbook.xml",
+    workbookXml.replace(/<workbookView([^>]*)\/>/, (_match, attrs: string) => {
+      const cleaned = attrs
+        .replace(/\s*firstSheet="[^"]*"/, "")
+        .replace(/\s*activeTab="[^"]*"/, "");
+      return `<workbookView${cleaned} firstSheet="0" activeTab="${activeTab}"/>`;
+    })
+  );
+
+  // Worksheet files are numbered in tab order in this template.
+  for (let index = 0; index < names.length; index++) {
+    const path = `xl/worksheets/sheet${index + 1}.xml`;
+    const sheetXml = await zip.file(path)?.async("string");
+    if (!sheetXml) continue;
+
+    const withoutFlag = sheetXml.replace(/\s*tabSelected="1"/g, "");
+    if (index !== activeTab) {
+      if (withoutFlag !== sheetXml) zip.file(path, withoutFlag);
+      continue;
+    }
+
+    zip.file(
+      path,
+      withoutFlag.replace(/<sheetView\b([^>]*?)(\/?)>/, (_m, attrs: string, selfClose: string) =>
+        selfClose ? `<sheetView${attrs} tabSelected="1"/>` : `<sheetView${attrs} tabSelected="1">`
+      )
+    );
+  }
+}
+
 function updateSheetXml(
   xml: string,
   dataRowsXml: string[],
@@ -808,6 +866,19 @@ export async function generateGstr1Excel(
       })
     );
   }
+
+  // Open the workbook where the data is.
+  //
+  // The bundled template was saved with Excel sitting on "ecoaurp2c" — an
+  // amendment tab near the end that is always empty — so every return we
+  // produced opened there, thirty tabs from anything the user came to read.
+  await openOnFirstPopulatedSheet(zip, {
+    "b2b,sez,de": b2bRows.length,
+    b2cl: b2clRows.length,
+    b2cs: b2csAgg.size,
+    cdnr: cdnrRows.length,
+    cdnur: cdnurRows.length,
+  });
 
   // Export populated official template workbook
   const buffer = await zip.generateAsync({
