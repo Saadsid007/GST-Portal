@@ -25,6 +25,39 @@ function parseAmount(raw: unknown): number {
 
 const GSTIN_REGEX = /[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}/g;
 
+/**
+ * Words that survive on any readable Indian tax invoice, whatever its layout.
+ * Used only to tell a decoding failure apart from an unfamiliar format.
+ */
+const INVOICE_VOCABULARY = [
+  "invoice",
+  "total",
+  "gstin",
+  "taxable",
+  "amount",
+  "hsn",
+  "supply",
+  "rupee",
+  "quantity",
+];
+
+/**
+ * True when the text layer decoded to nonsense rather than to words.
+ *
+ * Both conditions are required. An invoice missing its vocabulary might simply
+ * be a layout we have not seen; an invoice with no GSTIN at all might be a
+ * proforma. Neither alone is proof, but a document with neither a single
+ * GSTIN nor two recognisable words is not an invoice we failed to parse — it
+ * is text we failed to decode.
+ */
+function isTextLayerUnreadable(text: string): boolean {
+  if (new RegExp(GSTIN_REGEX.source).test(text)) return false;
+
+  const lower = text.toLowerCase();
+  const known = INVOICE_VOCABULARY.filter((word) => lower.includes(word)).length;
+  return known < 3;
+}
+
 export function extractInvoiceFromText(params: {
   text: string;
   fileName: string;
@@ -707,6 +740,20 @@ export function extractInvoiceFromText(params: {
 
   if (!invoiceNumber) notes.push("Invoice number could not be detected with 100% confidence");
   if (!buyerGstin && classification === "B2B") notes.push("Buyer GSTIN required for B2B");
+
+  // Some PDFs carry a text layer that decodes to nonsense — a scan, or an
+  // embedded font with no usable character map. "CGST" comes out as "CGSU"
+  // and "1,181.20" as "n47b2n". Nothing can be read from that, and the row
+  // that results is an invoice with every figure zero and no indication why.
+  // Saying so is the only honest outcome; the user can supply another copy or
+  // key it in.
+  if (isTextLayerUnreadable(text)) {
+    notes.unshift(
+      "This PDF's text could not be read — it is likely a scan, or uses an embedded font " +
+        "with no character map. Nothing was extracted. Upload a text-based copy of the " +
+        "invoice, or enter it manually."
+    );
+  }
 
   return {
     id: crypto.randomUUID(),
