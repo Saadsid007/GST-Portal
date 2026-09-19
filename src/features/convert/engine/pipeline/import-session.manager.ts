@@ -3,6 +3,10 @@ import { PlatformDetector } from "@/features/convert/engine/detection/platform.d
 import { classifyCompanionSheet } from "@/features/convert/engine/detection/companion-sheets";
 import { detectFragmentSheets } from "@/features/convert/engine/detection/fragment-sheets";
 import {
+  dropAppendedDuplicateReturns,
+  flagUnreferencedRows,
+} from "@/features/convert/engine/enrichment/appended-return-block";
+import {
   isInvoiceDetailsSheet,
   parseInvoiceDetails,
   applyInvoiceDetails,
@@ -177,11 +181,27 @@ export class ImportSessionManager {
       platform.transactions = applyInvoiceDetails(platform.transactions, invoiceDetails);
     }
 
+    // Returns an accountant typed under the sales export. Resolved here rather
+    // than in the adapter because it takes every file to decide: the same
+    // credit note may also have arrived in a returns export, and only one of
+    // the two copies may be reported.
+    const deduped = dropAppendedDuplicateReturns(enriched);
+    const finalRows = flagUnreferencedRows(deduped.rows);
+    if (deduped.dropped.length > 0) {
+      skippedSheets.push({
+        fileName: "Meesho sales export",
+        sheetName: "returns typed below the data",
+        reason:
+          `${deduped.dropped.length} credit note(s) written under the sales rows already ` +
+          `appear in a returns file — counted once, not twice.`,
+      });
+    }
+
     return {
       sessionId,
       filesProcessed: tables.length,
       resultsByPlatform,
-      combinedTransactions: enriched,
+      combinedTransactions: finalRows,
       unmappedFiles,
       skippedSheets,
     };

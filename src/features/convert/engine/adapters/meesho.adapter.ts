@@ -209,8 +209,16 @@ export class MeeshoAdapter {
         row["Customer State"] ??
         row["State"];
 
-      if (rawGstRate === undefined || rawGstRate === null || String(rawGstRate).trim() === "") {
-        errors.push("Missing GST Rate (Column H)");
+      // Checked against the rate the adapter settled on, not the raw cell.
+      //
+      // Meesho leaves gst_rate blank on a large share of rows — in one August
+      // export, 96 of 655. The rate is still in the file, because the tax and
+      // the taxable value are both there and their ratio lands exactly on a
+      // slab, and the code above already recovers it. Testing the raw cell
+      // threw those rows away anyway: 81 credit notes worth ₹12,181 and, worse,
+      // 10 real sales worth ₹2,834 that simply left the return.
+      if (!gstRate && (rawGstRate === undefined || String(rawGstRate ?? "").trim() === "")) {
+        errors.push("Missing GST Rate (Column H), and it could not be derived from the tax");
       }
       if (
         rawTaxableVal === undefined ||
