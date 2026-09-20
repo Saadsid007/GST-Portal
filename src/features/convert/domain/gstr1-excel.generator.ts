@@ -11,6 +11,7 @@ import { getStateName } from "./state-codes";
 import { isCdnurNote } from "@/features/convert/domain/gst-rules";
 import { buildDocumentSeries } from "@/features/convert/domain/document-series";
 import { buildHsnSummary } from "@/features/convert/domain/hsn-summary";
+import { excludeStockTransfers } from "@/features/convert/domain/stock-transfer";
 import { ensureTcsGstin } from "@/features/convert/config/eco-registry";
 import { getGstr1TemplateBuffer } from "@/features/convert/templates/template-loader";
 
@@ -105,14 +106,6 @@ function toUqcFull(uqc: string): string {
 
 function posLabel(code: string): string {
   return `${code}-${getStateName(code)}`;
-}
-
-function isStockTransferRow(r: NormalizedInvoiceRow): boolean {
-  return (
-    r.sourcePlatformId === "stock_transfer" ||
-    (Boolean(r.sourceFileName) &&
-      (r.sourceFileName?.toLowerCase().includes("stock_transfer") ?? false))
-  );
 }
 
 function escapeXml(str: string | number | null | undefined): string {
@@ -273,7 +266,15 @@ export async function generateGstr1Excel(
   _period: string,
   _watermark = false
 ): Promise<Uint8Array> {
-  const validRows = rows.filter((r) => r.errors.length === 0);
+  // Moving stock between the seller's own registrations is not an outward
+  // supply. This file only tested for it on the Table 14 sheet, and its test
+  // did not know the PAN rule — so a delivery challan to the seller's own
+  // branch was declared here as a B2B sale while the JSON of the same return
+  // correctly left it out.
+  const validRows = excludeStockTransfers(
+    rows.filter((r) => r.errors.length === 0),
+    gstin
+  );
 
   // Load the official 32-sheet base template ZIP
   const templateBuffer = getGstr1TemplateBuffer();
@@ -713,9 +714,7 @@ export async function generateGstr1Excel(
   >();
 
   validRows
-    .filter(
-      (r) => !isStockTransferRow(r) && r.sourcePlatformId !== "offline" && Boolean(r.ecoGstin)
-    )
+    .filter((r) => r.sourcePlatformId !== "offline" && Boolean(r.ecoGstin))
     .forEach((r) => {
       const etin = ensureTcsGstin(r.ecoGstin!);
       const isCreditNote = r.invoiceType === "CDNR" || r.invoiceType === "CDNCS";

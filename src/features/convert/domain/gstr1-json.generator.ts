@@ -16,6 +16,7 @@ import {
   type DocumentSeries,
 } from "@/features/convert/domain/document-series";
 import { buildHsnSummary, type HsnSummaryRow } from "@/features/convert/domain/hsn-summary";
+import { excludeStockTransfers } from "@/features/convert/domain/stock-transfer";
 
 function r2(n: number) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
@@ -52,22 +53,6 @@ function deriveFilingPeriod(rows: NormalizedInvoiceRow[], period?: string): stri
   return `${mm}${yyyy}`;
 }
 
-function isStockTransferRow(r: NormalizedInvoiceRow, gstin: string): boolean {
-  if (r.sourcePlatformId === "amazon_stock_transfer") return true;
-  if (
-    (r.transactionType as string) === "FC_TRANSFER" ||
-    (r.transactionType as string) === "FC_REMOVAL"
-  )
-    return true;
-  if (/-(T|D)-\d+$/i.test(r.invoiceNumber) || r.invoiceNumber.startsWith("AFT-")) return true;
-  if (r.buyerGstin && gstin && r.buyerGstin.length >= 12 && gstin.length >= 12) {
-    const buyerPan = r.buyerGstin.substring(2, 12).toUpperCase();
-    const sellerPan = gstin.substring(2, 12).toUpperCase();
-    if (buyerPan === sellerPan) return true;
-  }
-  return false;
-}
-
 export function generateGstr1Json(
   rows: NormalizedInvoiceRow[],
   gstin: string,
@@ -75,11 +60,17 @@ export function generateGstr1Json(
   _summary: ConversionSummary,
   _watermark = false
 ): string {
-  const validRows = rows.filter((r) => r.errors.length === 0);
+  // Moving stock between the seller's own registrations is not an outward
+  // supply, so it is held back from every table — not just from Table 4, which
+  // was the only place this file used to check.
+  const validRows = excludeStockTransfers(
+    rows.filter((r) => r.errors.length === 0),
+    gstin
+  );
   const fp = deriveFilingPeriod(validRows, period);
 
   // --- B2B ---
-  const b2bRaw = validRows.filter((r) => r.invoiceType === "B2B" && !isStockTransferRow(r, gstin));
+  const b2bRaw = validRows.filter((r) => r.invoiceType === "B2B");
   const b2bAggMap = new Map<string, NormalizedInvoiceRow>();
   for (const r of b2bRaw) {
     const rate = r2(r.igstRate > 0 ? r.igstRate : r.cgstRate + r.sgstRate);
@@ -315,11 +306,7 @@ export function generateGstr1Json(
   // when Meesho's tax invoice details sheet *is* uploaded, its real numbers
   // form a genuine series that should be reported. Whether a number belongs to
   // a series is the test; which marketplace it came from is not.
-  //
-  // A stock transfer moves goods between the seller's own registrations and
-  // issues no document to a customer.
   const isEligibleDocInvoice = (r: NormalizedInvoiceRow): boolean => {
-    if (isStockTransferRow(r, gstin)) return false;
     const inv = r.invoiceNumber.trim();
     return /^[a-zA-Z0-9\-\/]{1,16}$/.test(inv);
   };

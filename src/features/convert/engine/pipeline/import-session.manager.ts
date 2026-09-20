@@ -1,6 +1,7 @@
 import type { ReconstructedTable } from "@/features/convert/engine/universal/types";
 import { PlatformDetector } from "@/features/convert/engine/detection/platform.detector";
 import { classifyCompanionSheet } from "@/features/convert/engine/detection/companion-sheets";
+import { detectDuplicateTables } from "@/features/convert/engine/detection/duplicate-tables";
 import { detectFragmentSheets } from "@/features/convert/engine/detection/fragment-sheets";
 import {
   dropAppendedDuplicateReturns,
@@ -64,7 +65,18 @@ export class ImportSessionManager {
       detectFragmentSheets(tables).map((f) => [`${f.sheetName}`, f] as const)
     );
 
-    for (const { fileId, fileName, table } of tables) {
+    // Likewise decided across the batch: a folder handed over by a seller often
+    // holds the same register twice, and a second copy is only recognisable
+    // beside the first.
+    const duplicates = detectDuplicateTables(tables);
+
+    for (const [index, { fileId, fileName, table }] of tables.entries()) {
+      const duplicate = duplicates.get(index);
+      if (duplicate) {
+        skippedSheets.push({ fileName, sheetName: table.sheetName, reason: duplicate.reason });
+        continue;
+      }
+
       // 0. Companion sheets never reach detection. An HSN roll-up or a document
       //    count has no line items, so sending it to the AI mapper only produces
       //    questions with no right answer.
