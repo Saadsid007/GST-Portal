@@ -341,13 +341,18 @@ export function generateGstr1Json(
   const docIssue = docDet.length > 0 ? { doc_det: docDet } : undefined;
 
   // --- Table 14(a): supplies made through an e-commerce operator ---
+  //
+  // Every supply the operator collected tax on belongs here, not only the ones
+  // to unregistered buyers: the operator collects under section 52 on the
+  // marketplace's whole turnover for the seller. This block used to take B2CS
+  // and CDNCS alone, which left a month's B2B sales through the marketplace
+  // out of Table 14 while the Excel of the same return counted them.
   const ecoMap = new Map<
     string,
     { ecoName: string; txval: number; iamt: number; camt: number; samt: number; csamt: number }
   >();
   for (const row of validRows) {
     if (!row.ecoGstin || row.sourcePlatformId === "offline") continue;
-    if (row.invoiceType !== "B2CS" && row.invoiceType !== "CDNCS") continue;
 
     let etin = ensureTcsGstin(row.ecoGstin.trim().toUpperCase());
     if (!/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}C[0-9A-Z]{1}$/.test(etin)) {
@@ -369,7 +374,9 @@ export function generateGstr1Json(
         csamt: 0,
       });
     }
-    const sign = row.invoiceType === "CDNCS" ? -1 : 1;
+    // A credit note reduces what the operator collected on, whether the buyer
+    // was registered or not.
+    const sign = row.invoiceType === "CDNCS" || row.invoiceType === "CDNR" ? -1 : 1;
     const b = ecoMap.get(etin)!;
     b.txval = r2(b.txval + Math.abs(row.taxableValue) * sign);
     b.iamt = r2(b.iamt + Math.abs(row.igstAmount) * sign);

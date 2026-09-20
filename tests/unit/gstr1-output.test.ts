@@ -11,6 +11,8 @@ import type {
 const SUPPLIER_GSTIN = "09AABCS1234A1Z5";
 const AMAZON_ECO = "09AAACA4872N1Z5";
 const MEESHO_ECO = "09AARCM9332R1CM";
+/** Amazon's tax-collection registration, which ends in C rather than Z. */
+const AMAZON_TCS = "09AAICA3918J1CR";
 
 function row(over: Partial<NormalizedInvoiceRow>): NormalizedInvoiceRow {
   return {
@@ -41,7 +43,10 @@ function row(over: Partial<NormalizedInvoiceRow>): NormalizedInvoiceRow {
 }
 
 /** Reads a generated sheet back as objects starting from header row 4 (0-indexed 3) */
-async function sheet(rows: NormalizedInvoiceRow[], name: string): Promise<Record<string, unknown>[]> {
+async function sheet(
+  rows: NormalizedInvoiceRow[],
+  name: string
+): Promise<Record<string, unknown>[]> {
   const buf = await generateGstr1Excel(rows, SUPPLIER_GSTIN, "052026");
   const wb = XLSX.read(buf, { type: "buffer" });
   return XLSX.utils.sheet_to_json(wb.Sheets[name]!, { range: 3 });
@@ -133,7 +138,13 @@ describe("Table 14(a) e-commerce operator summary", () => {
       cgstAmount: 108,
       sgstAmount: 108,
     }),
-    row({ id: "d1", taxableValue: 700, cgstAmount: 63, sgstAmount: 63, sourcePlatformId: "offline" }),
+    row({
+      id: "d1",
+      taxableValue: 700,
+      cgstAmount: 63,
+      sgstAmount: 63,
+      sourcePlatformId: "offline",
+    }),
   ];
 
   it("groups by operator GSTIN and nets returns against sales in JSON", () => {
@@ -145,6 +156,41 @@ describe("Table 14(a) e-commerce operator summary", () => {
       clttx.map((e: { etin: string; suppval: number }) => [e.etin, e.suppval])
     );
     expect(byEtin.get(MEESHO_ECO)).toBe(1200);
+  });
+
+  it("counts a marketplace sale to a registered buyer too", () => {
+    // The operator collects under section 52 on the whole turnover it handles
+    // for the seller, not only on sales to unregistered buyers. This block
+    // took B2CS and CDNCS alone, which left a month's marketplace B2B out of
+    // Table 14 — and out of the JSON only, since the Excel already counted it.
+    const withB2b = [
+      row({
+        id: "b1",
+        invoiceType: "B2B",
+        buyerGstin: "06AARPM2103R1ZB",
+        ecoGstin: AMAZON_TCS,
+        taxableValue: 2000,
+        cgstAmount: 180,
+        sgstAmount: 180,
+      }),
+      row({
+        id: "n1",
+        invoiceType: "CDNR",
+        buyerGstin: "06AARPM2103R1ZB",
+        ecoGstin: AMAZON_TCS,
+        taxableValue: 500,
+        cgstAmount: 45,
+        sgstAmount: 45,
+      }),
+    ];
+
+    const clttx = (json(withB2b).supeco || json(withB2b).eco)?.clttx || [];
+    const byEtin = new Map(
+      clttx.map((e: { etin: string; suppval: number }) => [e.etin, e.suppval])
+    );
+
+    // 2000 sold less the 500 credited back.
+    expect(byEtin.get(AMAZON_TCS)).toBe(1500);
   });
 
   it("lists the operator name in the ECO sheet for reporting", async () => {
@@ -191,7 +237,10 @@ describe("document series", () => {
 
 describe("HSN description and unit", () => {
   it("carries the source description and unit instead of a blank cell and OTH", async () => {
-    const hsn = await sheet([row({ id: "s", itemDescription: "Cotton T-Shirt", uqc: "PCS" })], "hsn(b2c)");
+    const hsn = await sheet(
+      [row({ id: "s", itemDescription: "Cotton T-Shirt", uqc: "PCS" })],
+      "hsn(b2c)"
+    );
 
     expect(hsn[0]!.Description).toBe("Cotton T-Shirt");
     expect(hsn[0]!.UQC).toBe("PCS-PIECES");
