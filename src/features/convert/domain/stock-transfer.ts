@@ -1,9 +1,10 @@
 import type { NormalizedInvoiceRow } from "@/features/convert/types/convert.types";
 
 /**
- * Moving your own stock between your own registrations is not a supply to a
- * customer, so it is not an outward supply of GSTR-1 — it must not appear in
- * Table 4 (B2B), in Table 12, or in the document series of Table 13.
+ * Stock moved between two registrations of one business.
+ *
+ * Whether that belongs in the return depends on whether tax was charged, not
+ * on the fact that both ends share a PAN — see `isReportableTransfer`.
  *
  * Shared by both generators. They had grown separate tests: the JSON one knew
  * about the PAN rule and the Amazon transfer feeds, the Excel one only looked
@@ -50,20 +51,53 @@ export function isStockTransferRow(r: NormalizedInvoiceRow, supplierGstin: strin
   return buyerPan !== "" && buyerPan === sellerPan;
 }
 
-/** The rows of a return that are genuine outward supplies. */
+/** Tax below this is rounding, not a charge. */
+const TAX_EPSILON = 0.01;
+
+function taxCharged(r: NormalizedInvoiceRow): number {
+  return Math.abs(r.igstAmount) + Math.abs(r.cgstAmount) + Math.abs(r.sgstAmount);
+}
+
+/**
+ * Whether a transfer has to be declared in the return.
+ *
+ * A supply between two registrations of one business is still a supply —
+ * Schedule I treats distinct persons as distinct even without consideration —
+ * and when the seller has charged tax on it, it is an outward supply of this
+ * return and belongs in Table 4 like any other B2B invoice. That is what the
+ * filed returns do.
+ *
+ * A movement carrying no tax is the other case: goods sent under a delivery
+ * challan for job work or on approval, which is a movement and not a supply.
+ * The tax on the document is what separates the two, so that is what is read
+ * — not the wording of the challan, which says "Stock Transfer" either way.
+ */
+export function isReportableTransfer(r: NormalizedInvoiceRow, supplierGstin: string): boolean {
+  return isStockTransferRow(r, supplierGstin) && taxCharged(r) > TAX_EPSILON;
+}
+
+/**
+ * The rows of a return that are outward supplies.
+ *
+ * Only an untaxed movement of the seller's own stock is held back.
+ */
 export function excludeStockTransfers(
   rows: NormalizedInvoiceRow[],
   supplierGstin: string
 ): NormalizedInvoiceRow[] {
-  return rows.filter((r) => !isStockTransferRow(r, supplierGstin));
+  return rows.filter(
+    (r) => !isStockTransferRow(r, supplierGstin) || isReportableTransfer(r, supplierGstin)
+  );
 }
 
-/** What was held back, so the omission can be shown rather than discovered. */
+/** What was held back as an untaxed movement, so the omission can be shown. */
 export function summariseStockTransfers(
   rows: NormalizedInvoiceRow[],
   supplierGstin: string
 ): { rows: number; taxableValue: number } {
-  const held = rows.filter((r) => isStockTransferRow(r, supplierGstin));
+  const held = rows.filter(
+    (r) => isStockTransferRow(r, supplierGstin) && !isReportableTransfer(r, supplierGstin)
+  );
   const taxableValue = held.reduce((sum, r) => sum + r.taxableValue, 0);
   return {
     rows: held.length,

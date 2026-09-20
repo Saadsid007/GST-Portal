@@ -43,6 +43,7 @@ import {
   isConfidentSuggestion,
   suggestGstRate,
 } from "@/features/convert/engine/error-center/rate-suggester";
+import { suggestHsn } from "@/features/convert/engine/error-center/hsn-suggester";
 import { applyRateToRow, revalidateRows } from "@/features/convert/engine/error-center/revalidate";
 import prisma from "@/lib/prisma";
 import type {
@@ -475,6 +476,40 @@ export async function applySuggestedRatesAction(
   return {
     success: true as const,
     data: { ...revalidateRows(withRates, gstinNumber), appliedCount },
+  };
+}
+
+/**
+ * Fills in the HSN the upload evidences, on rows that carry none.
+ *
+ * Marketplace exports omit the code on scattered rows, and Amazon's transfer
+ * feed has no such column at all — which left the seller retyping a code
+ * already present on hundreds of other rows of the same upload. Suggested
+ * with its evidence and applied only when the user asks, one row or all.
+ */
+export async function applySuggestedHsnAction(
+  rows: NormalizedInvoiceRow[],
+  gstinNumber: string,
+  rowIds?: string[]
+) {
+  await requireSession();
+
+  const target = rowIds ? new Set(rowIds) : null;
+  let appliedCount = 0;
+
+  const withHsn = rows.map((row) => {
+    if (target && !target.has(row.id)) return row;
+
+    const suggestion = suggestHsn(row, rows);
+    if (!suggestion) return row;
+
+    appliedCount += 1;
+    return { ...row, hsnCode: suggestion.code, suggestedHsnCode: undefined };
+  });
+
+  return {
+    success: true as const,
+    data: { ...revalidateRows(withHsn, gstinNumber), appliedCount },
   };
 }
 

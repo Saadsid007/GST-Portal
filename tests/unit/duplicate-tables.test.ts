@@ -65,6 +65,20 @@ describe("a second copy of the same upload", () => {
     expect(duplicates.size).toBe(0);
   });
 
+  it("recognises the same invoices exported under a different name", () => {
+    // A seller exported one set of PDFs twice — "GST_Extracted_Invoices" and
+    // "B2B_Invoices_Summary" — and handed over both. The rows name the
+    // documents they list, so the content settles it without the file names
+    // having to agree.
+    const duplicates = detectDuplicateTables([
+      { fileName: "GST_Extracted_Invoices.xlsx", table: table("Sheet1", REGISTER) },
+      { fileName: "B2B_Invoices_Summary.xlsx", table: table("Sheet1", REGISTER) },
+    ]);
+
+    expect([...duplicates.keys()]).toEqual([1]);
+    expect(duplicates.get(1)!.reason).toContain("GST_Extracted_Invoices.xlsx");
+  });
+
   it("leaves the empty tabs of a template alone", () => {
     const duplicates = detectDuplicateTables([
       { fileName: "template.xlsx", table: table("b2cl", []) },

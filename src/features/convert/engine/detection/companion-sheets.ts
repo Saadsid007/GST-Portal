@@ -76,6 +76,12 @@ const GSTR1_TEMPLATE_TABS = new Set([
   "exemp",
   "hsn(b2b)",
   "hsn(b2c)",
+  // The PDF extractor's own workbook writes the same invoices five ways: the
+  // line items, a flat list, and three GSTR-1 tabs. Uploading that workbook
+  // counted every invoice in it three times. "Invoice_Line_Items" is the one
+  // that carries the detail, so it is the one kept.
+  "hsn(all)",
+  "all_extracted",
   "hsn",
   "docs",
   "eco",

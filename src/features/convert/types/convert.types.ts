@@ -59,6 +59,8 @@ export interface NormalizedInvoiceRow {
   reviews?: string[];
   /** Present only while the row has no rate of its own and one could be inferred. */
   suggestedGstRate?: SuggestedGstRate;
+  /** Present only while the row has no HSN of its own and the upload evidences one. */
+  suggestedHsnCode?: { code: string; share: number; reason: string };
 }
 
 export interface PlatformInfo {

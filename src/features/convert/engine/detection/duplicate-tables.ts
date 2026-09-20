@@ -1,20 +1,16 @@
 import type { ReconstructedTable } from "@/features/convert/engine/universal/types";
 
 /**
- * The same upload handed over twice.
+ * The same documents handed over twice.
  *
  * Sellers hand over a folder rather than a file list, and a folder routinely
- * holds the same workbook twice — the export and a copy inside a "New folder",
- * or the same register downloaded again. Every row then counts twice, which
- * shows up as a return that is exactly double in one place and reads like a
- * tax question rather than a filing mistake.
+ * holds the same rows twice — the export and a copy inside a "New folder", or
+ * two exports of one set of invoices under different names. Every row then
+ * counts twice, which shows up as a return that is exactly double in one
+ * place and reads like a tax question rather than a filing mistake.
  *
- * Identical content is not on its own enough to call something a copy. An
- * invoice printout carries its number in a merged heading rather than in a
- * column, so two different invoices for the same goods and quantity reduce to
- * the same table — and dropping one of those would lose a real sale. The file
- * name has to agree as well, which is what an accidental second copy always
- * has and two genuinely different documents never do.
+ * How much the content alone is allowed to prove depends on whether the sheet
+ * names the documents it lists. See `hasDocumentIdentifier`.
  */
 
 export interface DuplicateTable {
@@ -45,21 +41,43 @@ function baseFileName(fileName: string): string {
   );
 }
 
+/** Header words that name the column identifying a document. */
+const IDENTIFIER_HEADER =
+  /\b(invoice|document|bill|challan|note|order)\s*(number|no\.?|id|#)\b|^(inum|nt_num|invoice)$/i;
+
+/**
+ * Whether the sheet names the documents it lists.
+ *
+ * A sheet carrying invoice numbers that repeats another's rows exactly is the
+ * same set of documents read twice, whatever the two files are called — a
+ * seller exports "GST_Extracted_Invoices" and "B2B_Invoices_Summary" from one
+ * set of PDFs and hands over both.
+ *
+ * A sheet without them proves far less: an invoice printout keeps its number
+ * in a merged heading rather than in a column, so two different bills for the
+ * same goods and quantity reduce to identical rows. There the file name has to
+ * agree too, or a real sale would be dropped.
+ */
+function hasDocumentIdentifier(table: ReconstructedTable): boolean {
+  return table.headers.some((header) => IDENTIFIER_HEADER.test(header.trim()));
+}
+
 function tableSignature(table: ReconstructedTable): string {
   // Cell order within a row is fixed by the header order, so the two together
   // identify the sheet's content. Comparing the source files byte for byte
   // would not work: the same sheet saved twice by Excel is not identical.
-  const header = table.headers.map((h) => h.trim().toLowerCase()).join("");
+  const header = table.headers.map((h) => h.trim().toLowerCase()).join("");
   const body = table.rows
-    .map((row) => table.headers.map((h) => String(row[h] ?? "").trim()).join(""))
-    .join("");
-  return `${header}${body}`;
+    .map((row) => table.headers.map((h) => String(row[h] ?? "").trim()).join(""))
+    .join("");
+  return `${header}${body}`;
 }
 
 /**
- * Marks every upload after the first that repeats content already seen under
- * the same name. Keyed by the table's position in the batch, because the two
- * copies share a file name and a sheet name — that is the whole point of them.
+ * Marks every upload after the first that repeats content already seen.
+ *
+ * Keyed by the table's position in the batch, because two copies of one export
+ * share a file name and a sheet name — that is the whole point of them.
  *
  * The first occurrence is kept and the rest are reported, so the user is told
  * a copy was set aside rather than left wondering why a total moved.
@@ -67,7 +85,7 @@ function tableSignature(table: ReconstructedTable): string {
 export function detectDuplicateTables(
   tables: { fileName: string; table: ReconstructedTable }[]
 ): Map<number, DuplicateTable> {
-  const firstSeen = new Set<string>();
+  const firstSeen = new Map<string, string>();
   const duplicates = new Map<number, DuplicateTable>();
 
   tables.forEach(({ fileName, table }, index) => {
@@ -75,18 +93,25 @@ export function detectDuplicateTables(
     // template would otherwise all look like copies of one another.
     if (table.rows.length === 0) return;
 
-    const key = `${baseFileName(fileName)}${table.sheetName.trim().toLowerCase()}${tableSignature(table)}`;
+    const signature = tableSignature(table);
+    const key = hasDocumentIdentifier(table)
+      ? signature
+      : `${baseFileName(fileName)}${table.sheetName.trim().toLowerCase()}${signature}`;
 
-    if (!firstSeen.has(key)) {
-      firstSeen.add(key);
+    const original = firstSeen.get(key);
+    if (original === undefined) {
+      firstSeen.set(key, fileName);
       return;
     }
 
+    const sameFile = original === fileName;
     duplicates.set(index, {
       fileName,
       sheetName: table.sheetName,
       rows: table.rows.length,
-      reason: `A second copy of ${fileName} was uploaded with the same contents. Reading it again would count these ${table.rows.length} rows twice.`,
+      reason: sameFile
+        ? `A second copy of ${fileName} was uploaded with the same contents. Reading it again would count these ${table.rows.length} rows twice.`
+        : `These ${table.rows.length} rows are the same documents already read from ${original}. Reading them again would count each one twice.`,
     });
   });
 

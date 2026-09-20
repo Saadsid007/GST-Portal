@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   isStockTransferRow,
   excludeStockTransfers,
+  isReportableTransfer,
   summariseStockTransfers,
 } from "@/features/convert/domain/stock-transfer";
 import { validateInvoices } from "@/features/convert/domain/validator";
@@ -70,14 +71,47 @@ describe("recognising a movement of the seller's own stock", () => {
     expect(isStockTransferRow(row({ buyerGstin: "" }), "")).toBe(false);
   });
 
-  it("reports what it held back", () => {
-    const rows = [
-      row({ buyerGstin: "06KLJPS4652C1ZT", taxableValue: 18714.29 }),
-      row({ buyerGstin: "06AARPM2103R1ZB", taxableValue: 1000 }),
-    ];
+  it("reports an untaxed movement it held back", () => {
+    const untaxed = row({
+      buyerGstin: "06KLJPS4652C1ZT",
+      taxableValue: 18714.29,
+      igstRate: 0,
+      igstAmount: 0,
+    });
+    const rows = [untaxed, row({ buyerGstin: "06AARPM2103R1ZB", taxableValue: 1000 })];
 
     expect(excludeStockTransfers(rows, SELLER)).toHaveLength(1);
     expect(summariseStockTransfers(rows, SELLER)).toEqual({ rows: 1, taxableValue: 18714.29 });
+  });
+});
+
+describe("whether a transfer belongs in the return", () => {
+  // Schedule I treats two registrations of one business as distinct persons,
+  // so a supply between them is a supply. When the seller has charged tax on
+  // it, it is an outward supply of this return and goes in Table 4 — which is
+  // what the filed returns do. Holding every branch transfer back understated
+  // one month's B2B by 19 invoices against the return the CA filed.
+  it("reports a transfer the seller charged tax on", () => {
+    const taxed = row({ buyerGstin: "06KLJPS4652C1ZT", igstRate: 5, igstAmount: 935.71 });
+
+    expect(isReportableTransfer(taxed, SELLER)).toBe(true);
+    expect(excludeStockTransfers([taxed], SELLER)).toHaveLength(1);
+  });
+
+  it("holds back a movement carrying no tax", () => {
+    // Goods sent under a delivery challan for job work or on approval are a
+    // movement, not a supply. The tax on the document is what separates the
+    // two — the wording says "Stock Transfer" either way.
+    const untaxed = row({
+      buyerGstin: "06KLJPS4652C1ZT",
+      igstRate: 0,
+      igstAmount: 0,
+      cgstAmount: 0,
+      sgstAmount: 0,
+    });
+
+    expect(isReportableTransfer(untaxed, SELLER)).toBe(false);
+    expect(excludeStockTransfers([untaxed], SELLER)).toHaveLength(0);
   });
 });
 
@@ -90,13 +124,18 @@ describe("what a transfer is allowed to block", () => {
       invoiceNumber: "LKO1-T-9",
       buyerGstin: "06KLJPS4652C1ZT",
       hsnCode: "",
+      igstRate: 0,
+      igstAmount: 0,
     });
     const sale = row({ invoiceNumber: "VJFV-876", buyerGstin: "06AAHCI5526K1ZD", hsnCode: "" });
 
     const result = validateInvoices([transfer, sale], SELLER);
-    const failed = result.rows.filter((r) => r.errors.length > 0);
+    const blockedOnHsn = result.rows.filter((r) => r.errors.some((e) => e.includes("HSN")));
 
-    expect(failed.map((r) => r.invoiceNumber)).toEqual(["VJFV-876"]);
+    expect(blockedOnHsn.map((r) => r.invoiceNumber)).toEqual(["VJFV-876"]);
+    expect(result.rows[0]!.reviews).toContain(
+      "No HSN code — not needed, this moves your own stock between your GSTINs"
+    );
   });
 
   it("names the code the rest of the upload uses, without applying it", () => {

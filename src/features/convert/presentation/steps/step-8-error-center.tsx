@@ -10,6 +10,7 @@ import type {
 import {
   applyAutoFixAction,
   applySuggestedRatesAction,
+  applySuggestedHsnAction,
   revalidateAllAction,
   updateRowAction,
 } from "@/features/convert/actions/convert.actions";
@@ -18,6 +19,7 @@ import {
   RATE_CONFIDENCE_THRESHOLD,
   suggestGstRate,
 } from "@/features/convert/engine/error-center/rate-suggester";
+import { suggestHsn } from "@/features/convert/engine/error-center/hsn-suggester";
 import { RowEditDialog } from "@/features/convert/presentation/steps/row-edit-dialog";
 import { reconcileTcsAction } from "@/features/convert/actions/tcs.actions";
 import type { TcsReconciliationResult } from "@/features/convert/engine/tcs/tcs.reconciler";
@@ -97,6 +99,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
   const [saving, setSaving] = useState(false);
   const [autoFixing, setAutoFixing] = useState(false);
   const [applyingRates, setApplyingRates] = useState(false);
+  const [applyingHsn, setApplyingHsn] = useState(false);
   const [revalidating, setRevalidating] = useState(false);
 
   // TCS Reconciliation State
@@ -117,6 +120,9 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
   const rows = state.rows;
   const rateErrorCount = rows.filter((r) => r.errors.some((e) => e.includes("GST rate"))).length;
   const inferredRows = rows.filter((r) => applicableSuggestion(r, rows));
+  // Rows the seller still has to declare an HSN for, where the upload already
+  // says what it is. Kept as errors — the Apply is a shortcut, not a decision.
+  const hsnSuggestedRows = rows.filter((r) => Boolean(suggestHsn(r, rows)) && r.errors.length > 0);
   const reviewCount = rows.filter(needsReview).length;
   const editingRow = editingRowId ? rows.find((r) => r.id === editingRowId) : undefined;
   const pendingTaxable = rows
@@ -161,6 +167,29 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
       toast.error("Failed to save the row");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleApplySuggestedHsn(rowIds?: string[]) {
+    setApplyingHsn(true);
+    try {
+      const res = await applySuggestedHsnAction(rows, state.gstinNumber, rowIds);
+      if (res.success) {
+        onChange({
+          rows: res.data.rows,
+          statement: res.data.statement,
+          gstr1Json: res.data.gstr1Json,
+        });
+        toast.success(
+          res.data.appliedCount === 1
+            ? "HSN code applied to 1 row"
+            : `HSN code applied to ${res.data.appliedCount} rows`
+        );
+      }
+    } catch {
+      toast.error("Failed to apply the suggested HSN codes");
+    } finally {
+      setApplyingHsn(false);
     }
   }
 
@@ -361,6 +390,46 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
                 onClick={() => {
                   setActiveTab("invoices");
                   setFilter("review");
+                }}
+                className="inline-flex items-center gap-1.5 rounded-md border border-primary/50 px-2.5 py-1 text-xs font-bold text-primary-ink transition hover:bg-primary/10"
+              >
+                Review Individually <ArrowRight className="size-3" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {hsnSuggestedRows.length > 0 && (
+        <div className="flex items-start gap-2.5 rounded-lg border border-primary/40 bg-primary/10 px-3.5 py-2.5 text-sm">
+          <Sparkles className="mt-0.5 size-4 shrink-0 text-primary-ink" />
+          <div className="space-y-1.5">
+            <p>
+              <span className="font-semibold">
+                {hsnSuggestedRows.length} row(s) have no HSN code, and this upload evidences one.
+              </span>{" "}
+              A marketplace export can leave the column empty on scattered rows. These stay errors
+              until you accept the code — it is your declaration, not ours.
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={applyingHsn}
+                onClick={() => handleApplySuggestedHsn()}
+                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1 text-xs font-bold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
+              >
+                {applyingHsn ? (
+                  <Loader2 className="size-3 animate-spin" />
+                ) : (
+                  <Sparkles className="size-3" />
+                )}
+                Apply All {hsnSuggestedRows.length} HSN Codes
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("invoices");
+                  setFilter("errors");
                 }}
                 className="inline-flex items-center gap-1.5 rounded-md border border-primary/50 px-2.5 py-1 text-xs font-bold text-primary-ink transition hover:bg-primary/10"
               >

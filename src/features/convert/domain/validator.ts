@@ -3,7 +3,11 @@
  */
 
 import { STATE_CODES } from "./state-codes";
-import { isStockTransferRow } from "./stock-transfer";
+import { isStockTransferRow, isReportableTransfer } from "./stock-transfer";
+import {
+  suggestHsn,
+  type SuggestedHsn,
+} from "@/features/convert/engine/error-center/hsn-suggester";
 import {
   isConfidentSuggestion,
   suggestGstRate,
@@ -47,36 +51,6 @@ function checkTaxMath(row: NormalizedInvoiceRow): string[] {
   return errors;
 }
 
-/** Minimum share before one code is worth naming as what this seller deals in. */
-const DOMINANT_HSN_SHARE = 80;
-
-/**
- * The HSN the upload overwhelmingly uses, if there is one.
- *
- * Returns null when the seller deals in several commodities — there the code
- * on one row says nothing about the code on another, and naming any of them
- * would point the user at the wrong answer.
- */
-function dominantHsn(rows: NormalizedInvoiceRow[]): { code: string; share: number } | null {
-  const counts = new Map<string, number>();
-  for (const row of rows) {
-    // The 4-digit heading and its 6-digit form are one commodity, not two.
-    const code = (row.hsnCode ?? "").replace(/\D/g, "");
-    if (code.length < 4) continue;
-    const key = code.length === 4 ? `${code}00` : code;
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
-
-  const total = [...counts.values()].reduce((sum, n) => sum + n, 0);
-  if (total === 0) return null;
-
-  const [best] = [...counts.entries()].sort((a, b) => b[1] - a[1]);
-  if (!best) return null;
-
-  const share = Math.round((best[1] / total) * 100);
-  return share >= DOMINANT_HSN_SHARE ? { code: best[0], share } : null;
-}
-
 export function validateInvoices(
   rows: NormalizedInvoiceRow[],
   supplierGstin: string
@@ -91,16 +65,10 @@ export function validateInvoices(
   const seenInvoices = new Map<string, number>();
   const issues: ValidationIssue[] = [];
 
-  // What the rest of this upload classifies its goods as. A seller who deals
-  // in one commodity has it on hundreds of rows, and a marketplace export
-  // that omits the code on four of them is not asking a new question. This is
-  // shown with the error, never applied: it is the user's declaration, and a
-  // code we chose for them would be a guess wearing a number.
-  const commonHsn = dominantHsn(rows);
-
   const validated = rows.map((row) => {
     const errors: string[] = [];
     const reviews: string[] = [];
+    let hsnSuggestion: SuggestedHsn | null = null;
 
     const isB2C = row.invoiceType === "B2CS" || row.invoiceType === "CDNCS" || !row.buyerGstin;
 
@@ -129,21 +97,29 @@ export function validateInvoices(
 
     // VAL-005: HSN code format (Mandatory for B2B, optional for B2C)
     //
-    // A movement of the seller's own stock is held out of every table of the
-    // return, so a missing HSN on one blocks a filing it was never part of.
-    // Amazon's transfer feed carries no HSN at all, which turned a single
-    // upload into ten errors the user could do nothing about and had no
-    // reason to. It stays visible as a review item rather than disappearing:
-    // if these are later reported as supplies, the code is needed.
-    const isTransfer = isStockTransferRow(row, supplierGstin ?? "");
+    // An untaxed movement of the seller's own stock is held out of every table
+    // of the return, so a missing HSN on one blocks a filing it was never part
+    // of. Amazon's transfer feed carries no HSN at all, which turned a single
+    // upload into errors the user could do nothing about and had no reason to.
+    // It stays visible as a review item rather than disappearing.
+    //
+    // A transfer that does carry tax is a supply and is reported, so it needs
+    // its code like any other B2B row.
+    const isTransfer =
+      isStockTransferRow(row, supplierGstin ?? "") &&
+      !isReportableTransfer(row, supplierGstin ?? "");
     if (!isB2C) {
       if (!row.hsnCode?.trim()) {
         if (isTransfer) {
           reviews.push("No HSN code — not needed, this moves your own stock between your GSTINs");
         } else {
+          // Still an error: a code the seller has not declared is not one we
+          // can file. But where the upload evidences it, the fix is one click
+          // rather than a retyped code — see `hsnSuggestion` below.
+          hsnSuggestion = suggestHsn(row, rows);
           errors.push(
-            commonHsn
-              ? `HSN/SAC code is required — ${commonHsn.share}% of this upload uses ${commonHsn.code}`
+            hsnSuggestion
+              ? `HSN/SAC code is required — ${hsnSuggestion.code} suggested, ${hsnSuggestion.reason}`
               : "HSN/SAC code is required"
           );
         }
@@ -245,6 +221,7 @@ export function validateInvoices(
       // Always written, never conditionally spread: a row revalidated after its rate was set
       // has no suggestion, and leaving the previous pass's value in place kept it counted as
       // still-inferred long after it was resolved.
+      suggestedHsnCode: hsnSuggestion ?? undefined,
       suggestedGstRate: suggestion
         ? {
             rate: suggestion.rate,
