@@ -11,7 +11,10 @@ import { getStateName } from "./state-codes";
 import { isCdnurNote } from "@/features/convert/domain/gst-rules";
 import { buildDocumentSeries } from "@/features/convert/domain/document-series";
 import { buildHsnSummary } from "@/features/convert/domain/hsn-summary";
-import { excludeStockTransfers } from "@/features/convert/domain/stock-transfer";
+import {
+  excludeStockTransfers,
+  isStockTransferRow,
+} from "@/features/convert/domain/stock-transfer";
 import { ensureTcsGstin } from "@/features/convert/config/eco-registry";
 import { getGstr1TemplateBuffer } from "@/features/convert/templates/template-loader";
 
@@ -670,7 +673,11 @@ export async function generateGstr1Excel(
   // Table 13 is built by the shared domain helper, so the Excel and the JSON
   // of one return cannot disagree about the seller's own books. They had
   // separate implementations of this and did disagree.
-  const docRowsData = buildDocumentSeries(validRows).map((s) => ({
+  // A stock transfer is reported as a supply, but its document is not one of
+  // the seller's own books — Amazon numbers these from its shipment ids.
+  const docRowsData = buildDocumentSeries(
+    validRows.filter((r) => !isStockTransferRow(r, gstin))
+  ).map((s) => ({
     name: s.documentType,
     from: s.from,
     to: s.to,

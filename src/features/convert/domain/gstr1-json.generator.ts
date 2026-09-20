@@ -16,7 +16,10 @@ import {
   type DocumentSeries,
 } from "@/features/convert/domain/document-series";
 import { buildHsnSummary, type HsnSummaryRow } from "@/features/convert/domain/hsn-summary";
-import { excludeStockTransfers } from "@/features/convert/domain/stock-transfer";
+import {
+  excludeStockTransfers,
+  isStockTransferRow,
+} from "@/features/convert/domain/stock-transfer";
 
 function r2(n: number) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
@@ -306,7 +309,14 @@ export function generateGstr1Json(
   // when Meesho's tax invoice details sheet *is* uploaded, its real numbers
   // form a genuine series that should be reported. Whether a number belongs to
   // a series is the test; which marketplace it came from is not.
+  //
+  // A stock transfer is reported as a supply, but its document is not one of
+  // the seller's own: Amazon numbers these "FBA15M3NST8K" from its shipment
+  // ids, and the transfer book "LKO1-T-" is not the "LKO1-" invoice book.
+  // Table 13 is an account of the serial numbers the seller issued, which is
+  // why the filed returns list the invoice books and leave these out.
   const isEligibleDocInvoice = (r: NormalizedInvoiceRow): boolean => {
+    if (isStockTransferRow(r, gstin)) return false;
     const inv = r.invoiceNumber.trim();
     return /^[a-zA-Z0-9\-\/]{1,16}$/.test(inv);
   };

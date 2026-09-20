@@ -225,6 +225,41 @@ describe("document series", () => {
     expect(docs[1]!["Total Number"]).toBe(1);
   }, 15000);
 
+  it("leaves the marketplace's own transfer documents out of doc_issue", () => {
+    // A transfer to the seller's own branch is reported as a supply, but its
+    // document is not one of the seller's own books: Amazon numbers these
+    // from its shipment ids, so each arrived as a one-document "series" and
+    // eight of them crowded out the three real books. The filed returns list
+    // the invoice books alone.
+    const withTransfers = [
+      row({ id: "i1", invoiceNumber: "INV001" }),
+      row({ id: "i2", invoiceNumber: "INV002" }),
+      row({
+        id: "t1",
+        invoiceNumber: "FBA15M3NST8K",
+        invoiceType: "B2B",
+        buyerGstin: "06AABCS1234A1Z5",
+        cgstAmount: 90,
+        sgstAmount: 90,
+      }),
+      row({
+        id: "t2",
+        invoiceNumber: "LKO1-T-9",
+        invoiceType: "B2B",
+        buyerGstin: "06AABCS1234A1Z5",
+        cgstAmount: 90,
+        sgstAmount: 90,
+      }),
+    ];
+
+    const det = json(withTransfers).doc_issue.doc_det;
+
+    expect(det).toHaveLength(1);
+    expect(det[0].docs).toHaveLength(1);
+    expect(det[0].docs[0].from).toBe("INV001");
+    expect(det[0].docs[0].totnum).toBe(2);
+  });
+
   it("does not fold credit notes into the invoice count in doc_issue", () => {
     const det = json(rows).doc_issue.doc_det;
 
