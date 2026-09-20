@@ -46,9 +46,17 @@ export function transformDate(val: unknown): string {
   // DD/MM/YYYY or DD-MM-YYYY
   const ddmmyyyy = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/.exec(str);
   if (ddmmyyyy && ddmmyyyy[1] && ddmmyyyy[2] && ddmmyyyy[3]) {
-    const day = ddmmyyyy[1].padStart(2, "0");
-    const month = ddmmyyyy[2].padStart(2, "0");
+    const first = Number(ddmmyyyy[1]);
+    const second = Number(ddmmyyyy[2]);
     const year = ddmmyyyy[3];
+
+    // Amazon's delivery challan prints the American order, "08/16/2026". Read
+    // as day-first that yields month 16, and an invoice date of "2026-16-08"
+    // reached the return. There is no month past 12, so a second part that
+    // large can only be the day.
+    const isMonthFirst = second > 12 && first <= 12;
+    const day = String(isMonthFirst ? second : first).padStart(2, "0");
+    const month = String(isMonthFirst ? first : second).padStart(2, "0");
     return `${year}-${month}-${day}`;
   }
 

@@ -171,6 +171,12 @@ export function extractInvoiceFromText(params: {
   // 2. Invoice Number
   let invoiceNumber = "";
   const invPatterns = [
+    // Amazon's delivery challan / tax invoice heads its number "Document
+    // Number", never "Invoice Number". With no pattern for it the loosest
+    // rule below read the word after "TAX INVOICE", which on this layout is
+    // the "Ship from :" label — so seven challans were all numbered "Ship".
+    /Document\s*Number\s*[:#\s]*([A-Za-z0-9][A-Za-z0-9\-\/_]{2,24})/i,
+    /FBA\s*Shipment\s*ID\s*[:#\s]*([A-Za-z0-9][A-Za-z0-9\-\/_]{2,24})/i,
     // "Invoice Number" on its own line with the value beneath it. Matched
     // first because the looser "Invoice No.?" pattern below otherwise bites
     // into the word "Number" and returns "mber".
@@ -191,7 +197,7 @@ export function extractInvoiceFromText(params: {
   // "Invoice", and on an Amazon Vendor print that is "Reference" — which was
   // then reported as the invoice number of a real filed document.
   const NOT_AN_INVOICE_NUMBER =
-    /^(date|dated|original|duplicate|tax|reference|number|no|id|value|amount|total|details|to|from|for|copy|type|period)$/i;
+    /^(date|dated|original|duplicate|tax|reference|number|no|id|value|amount|total|details|to|from|for|copy|type|period|ship|bill|challan|delivery|supply|document)$/i;
 
   for (const pat of invPatterns) {
     const m = text.match(pat);
@@ -218,7 +224,15 @@ export function extractInvoiceFromText(params: {
       break;
     }
   }
-  const invoiceDate = transformDate(rawDate) || rawDate;
+  // Amazon's delivery challan prints its date American-style, "08/16/2026".
+  // Most of a month's challans give that away by a day past the 12th, but
+  // "08/01/2026" does not — read day-first it becomes 8 January and lands in
+  // the wrong return entirely. The layout is what settles it, not the digits.
+  const isAmazonChallan = /FBA\s*Shipment\s*ID|DELIVERY\s*CHALLAN\s*\/\s*TAX\s*INVOICE/i.test(text);
+  const monthFirst = isAmazonChallan ? /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/.exec(rawDate) : null;
+  const invoiceDate = monthFirst
+    ? `${monthFirst[3]}-${monthFirst[1]!.padStart(2, "0")}-${monthFirst[2]!.padStart(2, "0")}`
+    : transformDate(rawDate) || rawDate;
 
   // 4. Place of Supply (POS)
   let posCode = "";
@@ -237,11 +251,19 @@ export function extractInvoiceFromText(params: {
   const posWithTrailingCode = text.match(
     /Place\s*of\s*Supply\s*[:\s-]*[A-Za-z\s&]+?\s*\(\s*(\d{2})\s*\)/i
   );
+  // Amazon spells the code out and does not pad it: "HARYANA (State/UT Code: 6)".
+  // Neither bracket rule above fits that, so the place of supply fell through
+  // to the supplier's own state — which turns an inter-state supply into an
+  // intra-state one and moves the tax to the wrong state.
+  const posWithLabelledCode = text.match(
+    /Place\s*of\s*supply\s*[:\s-]*[A-Za-z\s&]+?\(\s*State\s*\/\s*UT\s*Code\s*[:\s]*(\d{1,2})\s*\)/i
+  );
   const posByName = text.match(
     /Place\s*of\s*Supply\s*[:\s-]*([A-Za-z\s&]+?)(?:\n|\r|\t|\(|Billing|Shipping|Order|$)/i
   );
 
-  const explicitCode = posWithLeadingCode?.[1] ?? posWithTrailingCode?.[1];
+  const labelledCode = posWithLabelledCode?.[1]?.padStart(2, "0");
+  const explicitCode = posWithLeadingCode?.[1] ?? posWithTrailingCode?.[1] ?? labelledCode;
   if (explicitCode && STATE_CODES[explicitCode]) {
     posCode = explicitCode;
     posName = STATE_CODES[explicitCode] ?? "";
