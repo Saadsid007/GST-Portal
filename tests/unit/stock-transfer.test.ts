@@ -4,6 +4,7 @@ import {
   excludeStockTransfers,
   summariseStockTransfers,
 } from "@/features/convert/domain/stock-transfer";
+import { validateInvoices } from "@/features/convert/domain/validator";
 import type { NormalizedInvoiceRow } from "@/features/convert/types/convert.types";
 
 const SELLER = "09KLJPS4652C1ZN";
@@ -77,5 +78,40 @@ describe("recognising a movement of the seller's own stock", () => {
 
     expect(excludeStockTransfers(rows, SELLER)).toHaveLength(1);
     expect(summariseStockTransfers(rows, SELLER)).toEqual({ rows: 1, taxableValue: 18714.29 });
+  });
+});
+
+describe("what a transfer is allowed to block", () => {
+  it("does not fail a return because a transfer feed carries no HSN", () => {
+    // Amazon's stock transfer export has no HSN column at all, so ten rows
+    // the return never reports each raised a blocking error the user could
+    // do nothing about. It stays visible as a review item instead.
+    const transfer = row({
+      invoiceNumber: "LKO1-T-9",
+      buyerGstin: "06KLJPS4652C1ZT",
+      hsnCode: "",
+    });
+    const sale = row({ invoiceNumber: "VJFV-876", buyerGstin: "06AAHCI5526K1ZD", hsnCode: "" });
+
+    const result = validateInvoices([transfer, sale], SELLER);
+    const failed = result.rows.filter((r) => r.errors.length > 0);
+
+    expect(failed.map((r) => r.invoiceNumber)).toEqual(["VJFV-876"]);
+  });
+
+  it("names the code the rest of the upload uses, without applying it", () => {
+    // Evidence the user can act on in one edit. Choosing it for them would be
+    // a guess wearing a number — the declaration stays theirs.
+    const rows = [
+      ...Array.from({ length: 9 }, (_, i) =>
+        row({ invoiceNumber: `IN-${i}`, buyerGstin: "06AAHCI5526K1ZD", hsnCode: "441900" })
+      ),
+      row({ invoiceNumber: "VJFV-876", buyerGstin: "06AAHCI5526K1ZD", hsnCode: "" }),
+    ];
+
+    const failing = validateInvoices(rows, SELLER).rows.find((r) => r.errors.length > 0);
+
+    expect(failing!.errors[0]).toContain("441900");
+    expect(failing!.hsnCode).toBe("");
   });
 });
