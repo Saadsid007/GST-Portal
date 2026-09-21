@@ -222,7 +222,16 @@ export function readInvoiceSheet(
   if (!invoiceNumber) return null;
 
   const allGstins = [...new Set(grid.flat().join("\n").match(GSTIN) ?? [])];
-  const seller = supplierGstin || allGstins[0] || "";
+
+  // A registration the caller supplied is only this invoice's supplier if the
+  // invoice says so. The extractor page passes whichever GSTIN the profile
+  // holds, and a user working through several clients had another one there:
+  // taken on trust it made the real seller the buyer, turned an inter-state
+  // sale into an intra-state one, and every row failed on the tax split.
+  // The document outranks the setting.
+  const seller = allGstins.includes(supplierGstin)
+    ? supplierGstin
+    : (allGstins[0] ?? supplierGstin);
   const buyerGstin = allGstins.find((g) => g !== seller) ?? "";
 
   const igst = labelledAmount(grid, /\bigst\b/i);

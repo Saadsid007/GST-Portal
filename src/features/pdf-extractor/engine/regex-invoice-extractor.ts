@@ -35,6 +35,22 @@ function parseAmount(raw: unknown): number {
 const EXPORT_SUPPLY =
   /\b(export\s+invoice|shipping\s*bill|port\s*code|letter\s*of\s*undertaking|\bLUT\b|with(?:out)?\s+payment\s+of\s+(?:integrated\s+)?tax|supply\s+meant\s+for\s+export)\b/i;
 
+/**
+ * A tax line: the name, an optional rate, and the amount charged.
+ *
+ * Templates write the separator every way there is — "IGST 5% 684.00",
+ * "IGST@5% 684.00", "IGST% 5 684.00", "ADD IGST:5% 684.00". The last of those
+ * went unread, because a colon was not among the characters allowed to follow
+ * the name, and an invoice of 13,680 was reported with no tax on it at all.
+ *
+ * The whitespace before the amount is what keeps a dash safe: where a tax was
+ * not charged the template prints "ADD CGST: 2.5% -", and without it the
+ * rate's own digits are read as the amount.
+ */
+function taxPattern(name: string): RegExp {
+  return new RegExp(`${name}\\s*(?:%|[:@])?\\s*(\\d+\\.?\\d*)\\s*%?\\s+([0-9,]+\\.?[0-9]*)`, "i");
+}
+
 const GSTIN_REGEX = /[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}/g;
 
 /**
@@ -104,7 +120,8 @@ export function extractInvoiceFromText(params: {
       classification,
       documentType: /credit\s*note/i.test(text) ? "Credit Note" : "Invoice",
       supplierName: vendor.supplierName || "Supplier",
-      supplierGstin: knownSupplierGstin || vendor.supplierGstin,
+      // The invoice's own supplier wins over a setting that disagrees with it.
+      supplierGstin: vendor.supplierGstin || knownSupplierGstin || "",
       buyerName: vendor.buyerName || (classification === "B2B" ? "Registered Buyer" : "Consumer"),
       buyerGstin: vendor.buyerGstin,
       placeOfSupply: vendor.placeOfSupply,
@@ -132,7 +149,15 @@ export function extractInvoiceFromText(params: {
 
   // 1. Find all GSTINs in text
   const gstinMatches = Array.from(new Set(text.match(GSTIN_REGEX) || []));
-  let supplierGstin = knownSupplierGstin || "";
+
+  // A registration the caller supplied is only this document's supplier if the
+  // document says so. The extractor passes whichever GSTIN the profile holds,
+  // and a user working through several clients had another one there: taken on
+  // trust it made the real seller the buyer and the supply inter-state when it
+  // was not. Where the document names no GSTIN at all the setting is all there
+  // is, so it still stands in.
+  const supplied = knownSupplierGstin ?? "";
+  let supplierGstin = gstinMatches.length === 0 || gstinMatches.includes(supplied) ? supplied : "";
   let buyerGstin = "";
 
   if (gstinMatches.length === 1) {
@@ -409,21 +434,19 @@ export function extractInvoiceFromText(params: {
   let sgstRate = 0;
   let igstRate = 0;
 
-  const cgstMatch = text.match(/CGST(?:%|\s*@)?\s*(\d+\.?\d*)%?\s*[:\s₹`]*([0-9,]+\.?[0-9]*)/i);
+  const cgstMatch = text.match(taxPattern("CGST"));
   if (cgstMatch) {
     if (cgstMatch[1]) cgstRate = parseFloat(cgstMatch[1]) || 0;
     if (cgstMatch[2]) cgstAmount = parseAmount(cgstMatch[2]);
   }
 
-  const sgstMatch = text.match(
-    /(?:ADD\s*)?(?:SGST|UTGST)(?:%|\s*@)?\s*(\d+\.?\d*)%?\s*[:\s₹`]*([0-9,]+\.?[0-9]*)/i
-  );
+  const sgstMatch = text.match(taxPattern("(?:ADD\\s*)?(?:SGST|UTGST)"));
   if (sgstMatch) {
     if (sgstMatch[1]) sgstRate = parseFloat(sgstMatch[1]) || 0;
     if (sgstMatch[2]) sgstAmount = parseAmount(sgstMatch[2]);
   }
 
-  const igstMatch = text.match(/IGST(?:%|\s*@)?\s*(\d+\.?\d*)%?\s*[:\s₹`]*([0-9,]+\.?[0-9]*)/i);
+  const igstMatch = text.match(taxPattern("IGST"));
   if (igstMatch) {
     if (igstMatch[1]) igstRate = parseFloat(igstMatch[1]) || 0;
     if (igstMatch[2]) igstAmount = parseAmount(igstMatch[2]);

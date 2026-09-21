@@ -129,3 +129,19 @@ describe("reading the invoice", () => {
     expect(table.rows[0]!["Place of Supply"]).toBe("32-Kerala");
   });
 });
+
+describe("a supplier GSTIN the document does not agree with", () => {
+  it("believes the invoice over the setting", () => {
+    // The extractor page passes whichever GSTIN the profile holds. A user
+    // working through several clients had another one there, and taken on
+    // trust it made the real seller the buyer, turned an inter-state sale
+    // into an intra-state one, and failed every row on the tax split.
+    const { sheet } = invoiceSheet({ buyerGstin: "32AACCC6500A1ZM" });
+    const someoneElse = "09FLRPK4935D1ZO";
+
+    const table = invoiceDocumentToTable("BILL NO. 10", sheet, "f.xlsx", someoneElse)!;
+
+    expect(table.rows[0]!["Buyer GSTIN"]).toBe("32AACCC6500A1ZM");
+    expect(table.rows[0]!["Place of Supply"]).toBe("32-Kerala");
+  });
+});
