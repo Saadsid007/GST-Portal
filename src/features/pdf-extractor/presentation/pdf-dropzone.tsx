@@ -23,12 +23,17 @@ export function PdfDropzone({ files, onFilesChange, isProcessing, onExtract }: P
     setIsDragOver(false);
   };
 
+  /**
+   * A small seller bills from a spreadsheet template and hands over one file
+   * per invoice. That is the same document as a PDF invoice, so it is taken
+   * here too rather than sending the user looking for another tool.
+   */
+  const isInvoiceFile = (file: File) => /\.(pdf|xlsx|xls)$/i.test(file.name);
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
-    const droppedFiles = Array.from(e.dataTransfer.files).filter((f) =>
-      f.name.toLowerCase().endsWith(".pdf")
-    );
+    const droppedFiles = Array.from(e.dataTransfer.files).filter(isInvoiceFile);
     if (droppedFiles.length > 0) {
       onFilesChange([...files, ...droppedFiles]);
     }
@@ -36,10 +41,7 @@ export function PdfDropzone({ files, onFilesChange, isProcessing, onExtract }: P
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const selected = Array.from(e.target.files).filter((f) =>
-        f.name.toLowerCase().endsWith(".pdf")
-      );
-      onFilesChange([...files, ...selected]);
+      onFilesChange([...files, ...Array.from(e.target.files).filter(isInvoiceFile)]);
     }
   };
 
@@ -70,7 +72,7 @@ export function PdfDropzone({ files, onFilesChange, isProcessing, onExtract }: P
         <input
           ref={inputRef}
           type="file"
-          accept=".pdf,application/pdf"
+          accept=".pdf,application/pdf,.xlsx,.xls"
           multiple
           className="hidden"
           onChange={handleFileInput}
@@ -81,15 +83,16 @@ export function PdfDropzone({ files, onFilesChange, isProcessing, onExtract }: P
         </div>
 
         <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
-          Upload PDF Invoices in Bulk
+          Upload Invoices in Bulk
         </h3>
         <p className="mt-1 max-w-md text-sm text-slate-500 dark:text-slate-400">
-          Drag and drop B2B, B2C, D2C store, or offline vendor PDF invoices. We will extract GSTINs,
-          POS, HSN, Tax, and classify them automatically.
+          Drag and drop B2B, B2C, D2C store, or offline vendor invoices — as PDFs, or as the Excel
+          template you bill from, one invoice per file. We will extract GSTINs, POS, HSN and tax,
+          and classify them automatically.
         </p>
 
         <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-slate-200/60 px-3 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-          Supports multiple PDF files up to 50+ invoices at once
+          PDF, XLSX or XLS — 50+ invoices at once
         </span>
       </div>
 

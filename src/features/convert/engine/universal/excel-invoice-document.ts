@@ -2,6 +2,11 @@ import * as XLSX from "xlsx";
 import type { ReconstructedTable } from "@/features/convert/engine/universal/types";
 import { transformDate } from "@/features/convert/engine/transformation/transformers";
 import { stateFromPinCode, STATE_CODES } from "@/features/convert/domain/state-codes";
+import type { ExtractedInvoice, ExtractedLineItem } from "@/features/pdf-extractor/domain/types";
+
+function r2(n: number): number {
+  return Math.round((n + Number.EPSILON) * 100) / 100;
+}
 
 /**
  * A single invoice printed into a spreadsheet.
@@ -194,19 +199,21 @@ function placeOfSupply(
 }
 
 /**
- * Reads one printed invoice into the table the PDF path already produces, so
- * nothing downstream has to know where it came from.
+ * Reads one printed invoice off its sheet.
  *
- * Returns null when the sheet prices no goods, leaving a blank or decorative
- * template to the ordinary table reader instead of turning it into an invoice
- * with nothing on it.
+ * The single implementation: the conversion pipeline turns this into rows,
+ * and the standalone extractor shows it beside the invoices it read from
+ * PDFs. Neither has a reading of its own.
+ *
+ * Returns null when the sheet prices no goods or names no invoice, leaving a
+ * blank or decorative template to the ordinary table reader rather than
+ * becoming an invoice with nothing on it.
  */
-export function invoiceDocumentToTable(
-  sheetName: string,
+export function readInvoiceSheet(
   worksheet: XLSX.WorkSheet,
   fileName: string,
   supplierGstin = ""
-): ReconstructedTable | null {
+): ExtractedInvoice | null {
   const grid = sheetGrid(worksheet);
   const items = readItems(grid);
   if (items.length === 0) return null;
@@ -250,34 +257,107 @@ export function invoiceDocumentToTable(
     item.taxableValue = Math.round(item.taxableValue * discountFactor * 100) / 100;
   }
 
-  const rows: Record<string, string>[] = items.map((item) => {
-    // Tax is stated once for the invoice; it is split across the goods by
-    // value so a multi-line invoice still sums back to what it charged.
+  const totalTax = r2(igst + cgst + sgst);
+  const rate = taxableTotal === 0 ? 0 : r2((totalTax * 100) / taxableTotal);
+
+  // Tax is stated once for the invoice; it is split across the goods by value
+  // so a multi-line invoice still sums back to what it charged.
+  const lineItems: ExtractedLineItem[] = items.map((item) => {
     const share = taxableTotal === 0 ? 0 : item.taxableValue / taxableTotal;
-    const rate =
-      item.taxableValue === 0 ? 0 : ((igst + cgst + sgst) * share * 100) / item.taxableValue;
+    const interState = igst > 0;
     return {
-      "Invoice Number": invoiceNumber,
-      "Invoice Date": invoiceDate,
-      Type: buyerGstin ? "B2B" : "B2C",
-      "Buyer Name": buyerName,
-      "Buyer GSTIN": buyerGstin,
-      "Place of Supply": pos && STATE_CODES[pos] ? `${pos}-${STATE_CODES[pos]}` : "",
-      "HSN/SAC Code": item.hsnCode,
-      "Item Description": item.description,
-      UQC: item.uqc || "PCS",
-      Quantity: String(item.quantity),
-      "GST Rate (%)": String(Math.round(rate * 100) / 100),
-      "Taxable Value (Rs)": String(item.taxableValue),
-      "IGST (Rs)": String(Math.round(igst * share * 100) / 100),
-      "CGST (Rs)": String(Math.round(cgst * share * 100) / 100),
-      "SGST (Rs)": String(Math.round(sgst * share * 100) / 100),
-      "Total Amount (Rs)": String(
-        Math.round((item.taxableValue + (igst + cgst + sgst) * share) * 100) / 100
-      ),
-      "File Name": fileName,
+      itemDescription: item.description,
+      hsnCode: item.hsnCode,
+      uqc: item.uqc || "PCS",
+      quantity: item.quantity,
+      rate,
+      taxableValue: item.taxableValue,
+      igstRate: interState ? rate : 0,
+      cgstRate: interState ? 0 : r2(rate / 2),
+      sgstRate: interState ? 0 : r2(rate / 2),
+      cessRate: 0,
+      igstAmount: r2(igst * share),
+      cgstAmount: r2(cgst * share),
+      sgstAmount: r2(sgst * share),
+      cessAmount: 0,
+      totalAmount: r2(item.taxableValue + totalTax * share),
     };
   });
+
+  return {
+    id: crypto.randomUUID(),
+    fileName,
+    fileSizeBytes: 0,
+    pageCount: 1,
+    invoiceNumber,
+    invoiceDate,
+    classification: buyerGstin ? "B2B" : "B2CS",
+    documentType: "Invoice",
+    supplierName: grid[1]?.[0] ?? "",
+    supplierGstin: seller,
+    buyerName: buyerName || (buyerGstin ? "Registered Buyer" : "Consumer"),
+    buyerGstin,
+    placeOfSupply: pos,
+    placeOfSupplyStateName: pos && STATE_CODES[pos] ? STATE_CODES[pos]! : "",
+    reverseCharge: false,
+    taxableValue: taxableTotal,
+    igstAmount: igst,
+    cgstAmount: cgst,
+    sgstAmount: sgst,
+    cessAmount: 0,
+    totalTaxAmount: totalTax,
+    totalInvoiceValue: r2(taxableTotal + totalTax),
+    gstRate: rate,
+    lineItems,
+    rawText: grid
+      .map((row) => row.filter(Boolean).join("  "))
+      .filter(Boolean)
+      .join("\n"),
+    confidenceScore: pos ? 100 : 70,
+    notes: pos
+      ? []
+      : [
+          "Place of supply could not be read: the buyer is unregistered and the PIN code on the address is shared by more than one state.",
+        ],
+  };
+}
+
+/**
+ * The same invoice as a table, for the conversion pipeline.
+ *
+ * Shaped exactly like the table a PDF invoice produces, so nothing
+ * downstream has to know which of the two it came from.
+ */
+export function invoiceDocumentToTable(
+  sheetName: string,
+  worksheet: XLSX.WorkSheet,
+  fileName: string,
+  supplierGstin = ""
+): ReconstructedTable | null {
+  const invoice = readInvoiceSheet(worksheet, fileName, supplierGstin);
+  if (!invoice) return null;
+
+  const rows: Record<string, string>[] = invoice.lineItems.map((item) => ({
+    "Invoice Number": invoice.invoiceNumber,
+    "Invoice Date": invoice.invoiceDate,
+    Type: invoice.buyerGstin ? "B2B" : "B2C",
+    "Buyer Name": invoice.buyerName,
+    "Buyer GSTIN": invoice.buyerGstin,
+    "Place of Supply": invoice.placeOfSupply
+      ? `${invoice.placeOfSupply}-${invoice.placeOfSupplyStateName}`
+      : "",
+    "HSN/SAC Code": item.hsnCode,
+    "Item Description": item.itemDescription,
+    UQC: item.uqc,
+    Quantity: String(item.quantity),
+    "GST Rate (%)": String(item.rate),
+    "Taxable Value (Rs)": String(item.taxableValue),
+    "IGST (Rs)": String(item.igstAmount),
+    "CGST (Rs)": String(item.cgstAmount),
+    "SGST (Rs)": String(item.sgstAmount),
+    "Total Amount (Rs)": String(item.totalAmount),
+    "File Name": fileName,
+  }));
 
   return {
     // Named for what it holds: "BILL NO. 10" is the seller's own tab heading

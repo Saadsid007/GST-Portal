@@ -3,11 +3,16 @@
 import { requireSession } from "@/features/auth";
 import { extractTextFromPdfBuffer } from "@/features/pdf-extractor/engine/pdf-text-parser";
 import { extractInvoiceFromText } from "@/features/pdf-extractor/engine/regex-invoice-extractor";
+import { readInvoiceSheet } from "@/features/convert/engine/universal/excel-invoice-document";
+import { readWorkbookSafely } from "@/features/convert/utils/workbook.utils";
 import {
   formatGstr1BatchResult,
   generatePdfInvoicesExcel,
 } from "@/features/pdf-extractor/engine/gstr1-formatter";
-import type { ExtractedInvoice, PdfExtractionBatchResult } from "@/features/pdf-extractor/domain/types";
+import type {
+  ExtractedInvoice,
+  PdfExtractionBatchResult,
+} from "@/features/pdf-extractor/domain/types";
 
 export interface ExtractPdfActionResponse {
   success: boolean;
@@ -15,7 +20,9 @@ export interface ExtractPdfActionResponse {
   error?: string;
 }
 
-export async function extractPdfInvoicesAction(formData: FormData): Promise<ExtractPdfActionResponse> {
+export async function extractPdfInvoicesAction(
+  formData: FormData
+): Promise<ExtractPdfActionResponse> {
   try {
     await requireSession();
 
@@ -28,14 +35,30 @@ export async function extractPdfInvoicesAction(formData: FormData): Promise<Extr
 
     const extractedInvoices: ExtractedInvoice[] = [];
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i]!;
-      if (!file.name.toLowerCase().endsWith(".pdf")) {
+    for (const file of files) {
+      const name = file.name.toLowerCase();
+      const buffer = Buffer.from(await file.arrayBuffer());
+
+      // A small seller bills from a spreadsheet template and hands over one
+      // file per invoice. That is the same document as a PDF invoice, read
+      // from a grid rather than from a line of text, so it belongs here
+      // alongside them rather than in a tool of its own.
+      if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
+        const { workbook } = readWorkbookSafely(buffer, {
+          raw: false,
+          cellDates: false,
+          codepage: 65001,
+        });
+        for (const sheetName of workbook.SheetNames) {
+          const worksheet = workbook.Sheets[sheetName];
+          if (!worksheet) continue;
+          const invoice = readInvoiceSheet(worksheet, file.name, supplierGstin);
+          if (invoice) extractedInvoices.push({ ...invoice, fileSizeBytes: file.size });
+        }
         continue;
       }
 
-      const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
+      if (!name.endsWith(".pdf")) continue;
 
       const parsedDoc = await extractTextFromPdfBuffer(buffer);
 
@@ -51,7 +74,11 @@ export async function extractPdfInvoicesAction(formData: FormData): Promise<Extr
     }
 
     if (extractedInvoices.length === 0) {
-      return { success: false, error: "Could not extract valid text from the uploaded PDF files." };
+      return {
+        success: false,
+        error:
+          "No invoice could be read from these files. A PDF needs a text layer rather than a scan, and a spreadsheet needs to be one printed invoice — a register of many belongs in the converter instead.",
+      };
     }
 
     const batchResult = formatGstr1BatchResult(extractedInvoices);

@@ -22,7 +22,7 @@ export function PdfExtractorView({ initialGstin = "" }: PdfExtractorViewProps) {
 
   const handleExtract = async () => {
     if (files.length === 0) {
-      toast.error("Please select at least one PDF invoice.");
+      toast.error("Please select at least one invoice file.");
       return;
     }
 
@@ -44,7 +44,7 @@ export function PdfExtractorView({ initialGstin = "" }: PdfExtractorViewProps) {
           description: `${res.data.b2bCount} B2B and ${res.data.b2cCount} B2C invoices classified.`,
         });
       } else {
-        toast.error(res.error || "Failed to extract PDF invoices.");
+        toast.error(res.error || "Failed to extract these invoices.");
       }
     } catch {
       toast.error("An unexpected error occurred during extraction.");
@@ -68,16 +68,17 @@ export function PdfExtractorView({ initialGstin = "" }: PdfExtractorViewProps) {
               <FileSpreadsheet className="h-5 w-5" />
             </div>
             <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">
-              PDF Invoice Extractor & Classifier
+              Invoice Extractor & Classifier
             </h1>
             <span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-semibold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
               Standalone
             </span>
           </div>
           <p className="mt-1.5 max-w-2xl text-sm text-slate-600 dark:text-slate-400">
-            Upload offline client PDF invoices, shipping receipts, or D2C store bills. We extract
-            all GST parameters, classify into B2B & B2C, and provide 1-click clipboard copy ready
-            for GSTR-1 Excel templates.
+            Upload offline client invoices, shipping receipts or D2C store bills — as PDFs, or as
+            the Excel template you bill from, one invoice per file. We extract all GST parameters,
+            classify into B2B &amp; B2C, and provide 1-click clipboard copy ready for GSTR-1 Excel
+            templates.
           </p>
         </div>
 
