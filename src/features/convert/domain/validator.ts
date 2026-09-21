@@ -20,9 +20,37 @@ function round2(n: number) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
+const GSTIN_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+/**
+ * The check digit the first fourteen characters of a GSTIN imply.
+ *
+ * A GSTIN carries its own checksum, so a mistyped one is recognisable without
+ * asking the portal. The format alone is not enough: a seller's own invoice
+ * template had "24ABQPM0946Q1ZJ" where the buyer's registration is
+ * "24AQBPM0946Q1ZJ" — two letters transposed, the right shape, and a
+ * different business. Filed that way the buyer cannot claim the credit and
+ * the seller answers a mismatch notice months later.
+ */
+function gstinCheckDigit(first14: string): string {
+  let sum = 0;
+  for (let i = 0; i < 14; i++) {
+    const value = GSTIN_ALPHABET.indexOf(first14[i]!);
+    if (value < 0) return "";
+    const product = value * (i % 2 === 0 ? 1 : 2);
+    sum += Math.floor(product / 36) + (product % 36);
+  }
+  return GSTIN_ALPHABET[(36 - (sum % 36)) % 36] ?? "";
+}
+
+export function isValidGstin(gstin: string): boolean {
+  if (!GSTIN_REGEX.test(gstin)) return false;
+  return gstinCheckDigit(gstin.slice(0, 14)) === gstin[14];
+}
+
 function checkGstin(gstin: string): boolean {
   if (!gstin) return true; // Empty GSTIN is valid for B2CS
-  return GSTIN_REGEX.test(gstin);
+  return isValidGstin(gstin);
 }
 
 function checkTaxMath(row: NormalizedInvoiceRow): string[] {
@@ -80,7 +108,11 @@ export function validateInvoices(
 
     // VAL-002: GSTIN format
     if (row.buyerGstin && !checkGstin(row.buyerGstin)) {
-      errors.push(`Invalid GSTIN format: ${row.buyerGstin}`);
+      errors.push(
+        GSTIN_REGEX.test(row.buyerGstin)
+          ? `GSTIN ${row.buyerGstin} fails its own check digit — one character is wrong`
+          : `Invalid GSTIN format: ${row.buyerGstin}`
+      );
     }
 
     // VAL-003: Invoice number length

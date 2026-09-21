@@ -117,7 +117,7 @@ async function loadFileTables(
     ];
   }
 
-  const tables = readWorkbook(buffer);
+  const tables = readWorkbook(buffer, fileItem.fileName, gstinNumber);
   const result: { fileId: string; fileName: string; table: ReconstructedTable }[] = [];
   for (const table of tables) {
     if (table && table.rows.length > 0) {

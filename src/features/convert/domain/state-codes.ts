@@ -170,3 +170,78 @@ export function normalizeStateCode(input: unknown): string {
 export function getStateName(stateCode: string): string {
   return STATE_CODES[stateCode] ?? "Unknown State";
 }
+
+/**
+ * PIN prefixes that name exactly one state.
+ *
+ * A seller's own invoice template often prints the buyer's address with a PIN
+ * and no state, and on an inter-state sale to an unregistered buyer there is
+ * nothing else to read. Only unambiguous prefixes are listed: 20–28 is shared
+ * by Uttar Pradesh and Uttarakhand, 50–53 by Andhra Pradesh and Telangana,
+ * 80–85 by Bihar and Jharkhand, and 79 by several north-eastern states. A
+ * wrong guess there would file the tax in the wrong state's name, so those
+ * prefixes resolve to nothing and the row is left for the user to answer.
+ */
+const UNAMBIGUOUS_PIN_PREFIX: Record<string, string> = {
+  "11": "07", // Delhi
+  "12": "06", // Haryana
+  "13": "06",
+  "14": "03", // Punjab
+  "15": "03",
+  "16": "03",
+  "17": "02", // Himachal Pradesh
+  "18": "01", // Jammu & Kashmir
+  "19": "01",
+  "30": "08", // Rajasthan
+  "31": "08",
+  "32": "08",
+  "33": "08",
+  "34": "08",
+  "36": "24", // Gujarat
+  "37": "24",
+  "38": "24",
+  "39": "24",
+  "40": "27", // Maharashtra
+  "41": "27",
+  "42": "27",
+  "43": "27",
+  "44": "27",
+  "45": "23", // Madhya Pradesh
+  "46": "23",
+  "47": "23",
+  "48": "23",
+  "49": "23",
+  "56": "29", // Karnataka
+  "57": "29",
+  "58": "29",
+  "59": "29",
+  "60": "33", // Tamil Nadu
+  "61": "33",
+  "62": "33",
+  "63": "33",
+  "64": "33",
+  "65": "33",
+  "66": "33",
+  "67": "32", // Kerala
+  "68": "32",
+  "69": "32",
+  "70": "19", // West Bengal
+  "71": "19",
+  "72": "19",
+  "73": "19",
+  "74": "19",
+  "75": "21", // Odisha
+  "76": "21",
+  "77": "21",
+  "78": "18", // Assam
+};
+
+/**
+ * The state a PIN code names, or "" when the prefix is shared by more than
+ * one state. Never guesses between them.
+ */
+export function stateFromPinCode(pin: string): string {
+  const digits = pin.replace(/\D/g, "");
+  if (digits.length !== 6) return "";
+  return UNAMBIGUOUS_PIN_PREFIX[digits.slice(0, 2)] ?? "";
+}

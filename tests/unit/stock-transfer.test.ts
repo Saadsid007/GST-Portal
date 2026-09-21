@@ -5,7 +5,7 @@ import {
   isReportableTransfer,
   summariseStockTransfers,
 } from "@/features/convert/domain/stock-transfer";
-import { validateInvoices } from "@/features/convert/domain/validator";
+import { validateInvoices, isValidGstin } from "@/features/convert/domain/validator";
 import type { NormalizedInvoiceRow } from "@/features/convert/types/convert.types";
 
 const SELLER = "09KLJPS4652C1ZN";
@@ -152,5 +152,32 @@ describe("what a transfer is allowed to block", () => {
 
     expect(failing!.errors[0]).toContain("441900");
     expect(failing!.hsnCode).toBe("");
+  });
+});
+
+describe("a GSTIN that is the right shape but the wrong number", () => {
+  it("catches a transposition the format check cannot", () => {
+    // A seller's own invoice template printed "24ABQPM0946Q1ZJ" where the
+    // buyer's registration is "24AQBPM0946Q1ZJ" — two letters swapped, a
+    // valid shape, a different business. Filed that way the buyer cannot
+    // claim the credit. Three of the 77,792 GSTINs in the sample corpus fail
+    // this, and all three are typed by hand.
+    expect(isValidGstin("24AQBPM0946Q1ZJ")).toBe(true);
+    expect(isValidGstin("24ABQPM0946Q1ZJ")).toBe(false);
+  });
+
+  it("still rejects something that is not a GSTIN at all", () => {
+    expect(isValidGstin("09ABC")).toBe(false);
+    expect(isValidGstin("")).toBe(false);
+  });
+
+  it("reports the two failures differently", () => {
+    const typo = row({ buyerGstin: "24ABQPM0946Q1ZJ" });
+    const garbage = row({ buyerGstin: "NOT-A-GSTIN" });
+
+    const result = validateInvoices([typo, garbage], SELLER);
+
+    expect(result.rows[0]!.errors.join(" ")).toContain("check digit");
+    expect(result.rows[1]!.errors.join(" ")).toContain("Invalid GSTIN format");
   });
 });

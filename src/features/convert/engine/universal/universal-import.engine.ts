@@ -47,7 +47,11 @@ export interface UniversalImportOptions {
 }
 
 /** Reads any supported workbook into logical tables. */
-export function readWorkbook(buffer: Buffer): ReconstructedTable[] {
+export function readWorkbook(
+  buffer: Buffer,
+  fileName = "workbook.xlsx",
+  supplierGstin?: string
+): ReconstructedTable[] {
   // `cellDates: false` keeps dates as their raw serial or string so the date
   // detectors see what the file actually contains rather than xlsx's guess.
   const { workbook } = readWorkbookSafely(buffer, {
@@ -55,7 +59,7 @@ export function readWorkbook(buffer: Buffer): ReconstructedTable[] {
     cellDates: false,
     codepage: 65001,
   });
-  return reconstructWorkbook(workbook);
+  return reconstructWorkbook(workbook, fileName, supplierGstin);
 }
 
 function scoreDiscovery(resolutions: FieldResolution[]): number {

@@ -1,6 +1,11 @@
 import * as XLSX from "xlsx";
 import type { DiscardedRegion, ReconstructedTable } from "./types";
 import { looksNumeric } from "./signals";
+import {
+  looksLikeInvoiceDocument,
+  invoiceDocumentToTable,
+  sheetGrid,
+} from "./excel-invoice-document";
 
 /**
  * Layer 1 — universal file reader.
@@ -345,12 +350,29 @@ export function reconstructSheet(sheetName: string, worksheet: XLSX.WorkSheet): 
  * short month's sales. The header score is weighed alongside size so a
  * well-formed table beats a long prose sheet.
  */
-export function reconstructWorkbook(workbook: XLSX.WorkBook): ReconstructedTable[] {
+export function reconstructWorkbook(
+  workbook: XLSX.WorkBook,
+  fileName = "workbook.xlsx",
+  supplierGstin?: string
+): ReconstructedTable[] {
   const tables: ReconstructedTable[] = [];
   for (const sheetName of workbook.SheetNames) {
     const worksheet = workbook.Sheets[sheetName];
     if (!worksheet) continue;
     const table = reconstructSheet(sheetName, worksheet);
+
+    // A sheet can be one printed invoice rather than a list of many — the
+    // number and date live in merged heading cells and no goods row carries
+    // them. Read as a table it is line items with no invoice anywhere, so it
+    // is read as the document it is instead.
+    if (looksLikeInvoiceDocument(sheetGrid(worksheet), table.headers)) {
+      const asDocument = invoiceDocumentToTable(sheetName, worksheet, fileName, supplierGstin);
+      if (asDocument) {
+        tables.push(asDocument);
+        continue;
+      }
+    }
+
     if (table.rows.length > 0 && table.headers.length >= 2) tables.push(table);
   }
 

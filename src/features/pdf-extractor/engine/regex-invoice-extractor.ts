@@ -23,6 +23,18 @@ function parseAmount(raw: unknown): number {
   return isNaN(n) ? 0 : r2(n);
 }
 
+/**
+ * An export supply, which is reported in its own table rather than as a
+ * domestic sale.
+ *
+ * Testing for the word "export" alone read the seller's own letterhead:
+ * "INNOVATIVE EXPORTS" at the top of every one of their invoices declared
+ * each domestic sale an export. What marks a real one is the statement of
+ * how the tax was handled, or the shipping document.
+ */
+const EXPORT_SUPPLY =
+  /\b(export\s+invoice|shipping\s*bill|port\s*code|letter\s*of\s*undertaking|\bLUT\b|with(?:out)?\s+payment\s+of\s+(?:integrated\s+)?tax|supply\s+meant\s+for\s+export)\b/i;
+
 const GSTIN_REGEX = /[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}/g;
 
 /**
@@ -79,7 +91,7 @@ export function extractInvoiceFromText(params: {
       placeOfSupply: vendor.placeOfSupply,
       totalInvoiceValue: vendor.totalInvoiceValue,
       isCreditDebitNote: /credit\s*note/i.test(text),
-      isExport: /export/i.test(text),
+      isExport: EXPORT_SUPPLY.test(text),
     });
 
     return {
@@ -168,8 +180,18 @@ export function extractInvoiceFromText(params: {
     }
   }
 
+  // With the seller's own registration known, any other registration on the
+  // document is the buyer's. Position was the only test before, and a PDF
+  // whose text comes out in drawing order can print the buyer's GSTIN first
+  // — which left the buyer unidentified and a B2B invoice reported as B2C.
+  if (!buyerGstin && supplierGstin) {
+    buyerGstin = gstinMatches.find((g) => g !== supplierGstin) ?? "";
+  }
+
   // 2. Invoice Number
   let invoiceNumber = "";
+  /** A date read off the same line as the number, when that is how it was found. */
+  let rawDateFromPair = "";
   const invPatterns = [
     // Amazon's delivery challan / tax invoice heads its number "Document
     // Number", never "Invoice Number". With no pattern for it the loosest
@@ -197,7 +219,7 @@ export function extractInvoiceFromText(params: {
   // "Invoice", and on an Amazon Vendor print that is "Reference" — which was
   // then reported as the invoice number of a real filed document.
   const NOT_AN_INVOICE_NUMBER =
-    /^(date|dated|original|duplicate|tax|reference|number|no|id|value|amount|total|details|to|from|for|copy|type|period|ship|bill|challan|delivery|supply|document)$/i;
+    /^(date|dated|original|duplicate|tax|reference|number|no|id|value|amount|total|details|to|from|for|copy|type|period|ship|bill|challan|delivery|supply|document|gstin|gst|phone|address|state|code)$/i;
 
   for (const pat of invPatterns) {
     const m = text.match(pat);
@@ -210,18 +232,40 @@ export function extractInvoiceFromText(params: {
     }
   }
 
+  // A PDF's text arrives in drawing order, not reading order, so a heading
+  // block laid out as a little table comes through as its labels on one line
+  // and its values on another, far apart — "INVOICE No- Dated" here and
+  // "2026-27/35 12-Aug-26" thirty lines later. No pattern above reaches
+  // across that, and the seller's whole invoice book went unread.
+  //
+  // The pairing is what identifies it: a line holding a code and a date and
+  // nothing else, in a document that labels an invoice number somewhere. A
+  // line of running text never has that shape.
+  if (!invoiceNumber && /invoice\s*(no\.?|number)/i.test(text)) {
+    const pairedWithDate =
+      /^\s*([A-Za-z0-9][A-Za-z0-9\-\/]{2,24})\s+(\d{1,2}[-/][A-Za-z]{3}[-/]\d{2,4}|\d{1,2}[-/]\d{1,2}[-/]\d{2,4})\s*$/m.exec(
+        text
+      );
+    if (pairedWithDate?.[1] && /\d/.test(pairedWithDate[1])) {
+      invoiceNumber = pairedWithDate[1];
+      if (pairedWithDate[2]) rawDateFromPair = pairedWithDate[2];
+    }
+  }
+
   // 3. Invoice Date
-  let rawDate = "";
+  let rawDate = rawDateFromPair;
   const datePatterns = [
     /(?:Dated|Invoice\s*Date|Date)\s*[:#\s-]*(\d{1,2}[-\/.]\d{1,2}[-\/.]\d{2,4})/i,
     /(?:Dated|Invoice\s*Date|Date)\s*[:#\s-]*(\d{1,2}\s+[A-Za-z]{3,9}\s+\d{2,4})/i,
     /(\d{4}[-\/.]\d{1,2}[-\/.]\d{1,2})/,
   ];
-  for (const pat of datePatterns) {
-    const m = text.match(pat);
-    if (m?.[1]) {
-      rawDate = m[1].trim();
-      break;
+  if (!rawDate) {
+    for (const pat of datePatterns) {
+      const m = text.match(pat);
+      if (m?.[1]) {
+        rawDate = m[1].trim();
+        break;
+      }
     }
   }
   // Amazon's delivery challan prints its date American-style, "08/16/2026".
@@ -751,7 +795,7 @@ export function extractInvoiceFromText(params: {
     placeOfSupply: posCode,
     totalInvoiceValue,
     isCreditDebitNote: /credit\s*note/i.test(text),
-    isExport: /export/i.test(text),
+    isExport: EXPORT_SUPPLY.test(text),
   });
 
   const confidenceScore =

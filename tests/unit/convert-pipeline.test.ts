@@ -196,12 +196,12 @@ describe("Amazon MTR mapping", () => {
     // Amazon MTR has no buyer-name column, and the alias "customer" is a whole token of
     // "Customer Bill To Gstid" — so the name field used to fuzzy-match onto the GSTIN, and the
     // buyer's name rendered as a GSTIN throughout the workbench.
-    const gstinRow = { ...interStateRow, "Customer Bill To Gstid": "27AABCU9603R1ZM" };
+    const gstinRow = { ...interStateRow, "Customer Bill To Gstid": "27AABCU9603R1ZN" };
     const { mapping, rows } = runPipeline(AMAZON_HEADERS, [gstinRow], "amazon", "mtr_b2c");
 
     expect(mapping.buyerName).not.toBe("Customer Bill To Gstid");
-    expect(rows[0]?.buyerName).not.toBe("27AABCU9603R1ZM");
-    expect(rows[0]?.buyerGstin).toBe("27AABCU9603R1ZM");
+    expect(rows[0]?.buyerName).not.toBe("27AABCU9603R1ZN");
+    expect(rows[0]?.buyerGstin).toBe("27AABCU9603R1ZN");
   });
 
   it("drops cancelled rows that carry no value", () => {
@@ -270,11 +270,11 @@ describe("fallback ECO GSTIN", () => {
 
   it("fills the operator GSTIN from configuration when the export has no column value", () => {
     // Amazon's MTR carries no operator GSTIN, so without this Table 14 is unfillable for it.
-    expect(run("", "27AAICA3918J1CX").ecoGstin).toBe("27AAICA3918J1CX");
+    expect(run("", "27AAICA3918J1CT").ecoGstin).toBe("27AAICA3918J1CT");
   });
 
   it("lets the file's own value win over the configured fallback", () => {
-    expect(run("09AARCM9332R1CM", "27AAICA3918J1CX").ecoGstin).toBe("09AARCM9332R1CM");
+    expect(run("09AARCM9332R1CM", "27AAICA3918J1CT").ecoGstin).toBe("09AARCM9332R1CM");
   });
 
   it("never accepts the seller's own GSTIN as their operator", () => {
@@ -326,7 +326,7 @@ describe("generic custom spreadsheets", () => {
     "Invoice No": "INV001",
     Date: "5/1/26",
     Buyer: "Rahul Traders",
-    GSTIN: "07AAACR5055K1Z5",
+    GSTIN: "07AAACR5055K1Z9",
     POS: "7",
     HSN: "610910",
     Qty: "2",
@@ -399,7 +399,7 @@ describe("return rows inherit their original sale", () => {
             "Invoice No": "AMZ002",
             Date: "2026-05-01",
             Buyer: "Priya Enterprises",
-            GSTIN: "27AABCU9603R1ZM",
+            GSTIN: "27AABCU9603R1ZN",
             POS: "27",
             HSN: "950300",
             Qty: "1",
@@ -474,7 +474,7 @@ describe("return rows inherit their original sale", () => {
 
     const ret = merged.mergedRows.find((r) => r.transactionType === "Return");
     expect(ret?.placeOfSupply).toBe("27");
-    expect(ret?.buyerGstin).toBe("27AABCU9603R1ZM");
+    expect(ret?.buyerGstin).toBe("27AABCU9603R1ZN");
     expect(ret?.buyerName).toBe("Priya Enterprises");
     expect(ret?.hsnCode).toBe("950300");
     expect(ret?.originalInvoiceNumber).toBe("AMZ002");
