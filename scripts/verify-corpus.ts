@@ -18,8 +18,12 @@
 import { readdirSync, readFileSync, statSync, existsSync } from "node:fs";
 import { join, extname, basename } from "node:path";
 
-import { ImportSessionManager } from "@/features/convert/engine/pipeline/import-session.manager";
 import { readWorkbook } from "@/features/convert/engine/universal/universal-import.engine";
+import { runConversionPipeline } from "@/features/convert/engine/pipeline/conversion.pipeline";
+import {
+  loadFileTables,
+  type LoadedTable,
+} from "@/features/convert/engine/pipeline/load-file-tables";
 import { expandArchive } from "@/features/convert/utils/archive.utils";
 import {
   parseGstr1Buffer,
@@ -32,7 +36,7 @@ import {
 import type { NormalizedInvoiceRow } from "@/features/convert/types/convert.types";
 
 const SAMPLE_DIR = "Sample";
-const READABLE = new Set([".xlsx", ".xls", ".csv"]);
+const READABLE = new Set([".xlsx", ".xls", ".csv", ".pdf"]);
 
 /**
  * Files the pipeline consumes versus files it is measured against. A GSTR-1
@@ -203,32 +207,24 @@ async function runFolder(folder: string, files: string[]): Promise<FolderOutcome
     comparisons: [],
   };
 
-  const tables: {
-    fileId: string;
-    fileName: string;
-    table: ReturnType<typeof readWorkbook>[number];
-  }[] = [];
+  const tables: LoadedTable[] = [];
 
   for (const input of inputs) {
     try {
-      // `readWorkbook` and not a bare `XLSX.read`: it is the function the
-      // upload path itself calls, and it repairs a worksheet whose declared
-      // `!ref` does not describe its contents. Flipkart's generator ships
-      // "A1:IV1" on sheets that hold real rows, and SheetJS trusts `!ref` —
-      // so reading the file directly made this harness report a folder as
-      // empty and attribute the resulting gap to the seller's data. A harness
-      // that does not take the same path as the product measures the wrong
-      // thing.
-      for (const table of readWorkbook(input.buffer)) {
-        // A header row with nothing under it is a real case — marketplaces
-        // hand out an export for a period with no activity — and it must be
-        // told apart from a file we failed to read.
-        if (table.rows.length === 0 && table.headers.length > 0) {
-          outcome.emptySheets.push(`${input.name} :: ${table.sheetName}`);
-          continue;
+      // A header row with nothing under it is a real case — marketplaces hand
+      // out an export for a period with no activity — and it must be told
+      // apart from a file we failed to read. Reported only; the product
+      // leaves such sheets out, and so does the loader below.
+      if (!input.name.toLowerCase().endsWith(".pdf")) {
+        for (const table of readWorkbook(input.buffer, input.name, outcome.supplierGstin)) {
+          if (table.rows.length === 0 && table.headers.length > 0) {
+            outcome.emptySheets.push(`${input.name} :: ${table.sheetName}`);
+          }
         }
-        tables.push({ fileId: input.name, fileName: input.name, table });
       }
+      // The loader the upload action calls, PDFs included. This harness used
+      // to count a folder's PDFs and never read them.
+      tables.push(...(await loadFileTables(input.buffer, input.name, outcome.supplierGstin)));
     } catch (error) {
       outcome.failures.push(`${input.name}: ${(error as Error).message}`);
     }
@@ -236,19 +232,32 @@ async function runFolder(folder: string, files: string[]): Promise<FolderOutcome
 
   if (tables.length === 0) return outcome;
 
+  // The same conversion the upload action runs, end to end. This harness used
+  // to rebuild the pipeline for itself: it read the combined rows where the
+  // product reads them platform by platform, and skipped the merge and the
+  // net sales stage. A fix it confirmed — returns typed under a sales export,
+  // counted once — was never live in the product.
   let result;
   try {
-    result = await ImportSessionManager.processBatch(tables, outcome.supplierGstin);
+    result = await runConversionPipeline({
+      rawTables: tables,
+      files: inputs.map((i) => ({ fileName: i.name, platformId: "custom", fileTypeId: "custom" })),
+      gstinNumber: outcome.supplierGstin ?? "",
+      returnPeriod: "",
+    });
   } catch (error) {
     outcome.failures.push(`pipeline: ${(error as Error).message}`);
     return outcome;
   }
+  if (!result) return outcome;
 
-  const rows: NormalizedInvoiceRow[] = result.combinedTransactions;
+  const rows: NormalizedInvoiceRow[] = result.rows;
   outcome.rows = rows.length;
   outcome.rowsWithErrors = rows.filter((r) => r.errors.length > 0).length;
-  outcome.unmappedSheets = result.unmappedFiles.map((t) => t.sheetName);
-  outcome.skippedSheets = result.skippedSheets.map((s) => `${s.sheetName} — ${s.reason}`);
+  outcome.unmappedSheets = result.sessionResult.unmappedFiles.map((t) => t.sheetName);
+  outcome.skippedSheets = result.sessionResult.skippedSheets.map(
+    (s) => `${s.sheetName} — ${s.reason}`
+  );
 
   for (const row of rows) {
     const platform = row.sourcePlatformName ?? "unknown";

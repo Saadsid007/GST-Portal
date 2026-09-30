@@ -202,6 +202,19 @@ export class ImportSessionManager {
     const finalRows = flagUnreferencedRows(deduped.rows);
     // Notes issued in a sheet of their own name the order, not the commodity.
     inheritCommodityByOrder(finalRows);
+
+    // The conversion reads its rows platform by platform, from these results,
+    // not from the combined list — so every decision above has to reach them
+    // too. It did not: the returns an accountant typed under a sales export
+    // were dropped from the combined list only, and in the product every one
+    // of them was counted twice. The per-platform lists are rebuilt from the
+    // final rows, keeping each platform's own order.
+    const finalById = new Map(finalRows.map((row) => [row.id, row] as const));
+    for (const platform of Object.values(resultsByPlatform)) {
+      platform.transactions = platform.transactions
+        .filter((row) => finalById.has(row.id))
+        .map((row) => finalById.get(row.id)!);
+    }
     if (deduped.dropped.length > 0) {
       skippedSheets.push({
         fileName: "Meesho sales export",

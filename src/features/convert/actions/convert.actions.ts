@@ -2,16 +2,7 @@
 
 import { requireSession } from "@/features/auth";
 import { shouldWatermark } from "@/features/billing/services/entitlement.service";
-import {
-  readWorkbook,
-  solveTable,
-  toCanonicalRows,
-} from "@/features/convert/engine/universal/universal-import.engine";
-import { recoverRows } from "@/features/convert/engine/universal/recovery";
-import {
-  classifyDuplicates,
-  redundantRowIndexes,
-} from "@/features/convert/engine/universal/duplicates";
+import { solveTable } from "@/features/convert/engine/universal/universal-import.engine";
 import type {
   ImportIntelligenceReport,
   QuestionAnswer,
@@ -22,13 +13,7 @@ import { validateAiMapping } from "@/features/convert/engine/ai/mapping-validato
 import { discoverFields } from "@/features/convert/engine/universal/field-discovery";
 import { recallMappingAction } from "@/features/convert/actions/mapping.actions";
 import { ImportSessionManager } from "@/features/convert/engine/pipeline/import-session.manager";
-import { transformMappedRows } from "@/features/convert/engine/transformation/transformation.engine";
-import { RuleEngine } from "@/features/convert/engine/rules/rule.engine";
-import { mergeTransactions, type ParsedFileBatch } from "@/features/convert/engine/merge.engine";
-import { processNetSales } from "@/features/convert/engine/net-sales.engine";
-import { validateInvoices } from "@/features/convert/domain/validator";
-import { generateStatement } from "@/features/convert/engine/statement.engine";
-import { generateGstr1Json } from "@/features/convert/domain/gstr1-json.generator";
+import { runConversionPipeline } from "@/features/convert/engine/pipeline/conversion.pipeline";
 import { generateGstr1Excel } from "@/features/convert/domain/gstr1-excel.generator";
 import { generateCaReviewReport } from "@/features/convert/domain/ca-review-report.generator";
 import { parseGstr1File } from "@/features/convert/engine/comparison/gstr1-template.parser";
@@ -54,8 +39,7 @@ import type {
 } from "@/features/convert/types/convert.types";
 import type { ColumnMappingDict } from "@/features/convert/engine/universal/canonical-fields";
 
-import { extractTextFromPdfBuffer } from "@/features/pdf-extractor/engine/pdf-text-parser";
-import { extractInvoiceFromText } from "@/features/pdf-extractor/engine/regex-invoice-extractor";
+import { loadFileTables as loadTablesFromFile } from "@/features/convert/engine/pipeline/load-file-tables";
 
 export interface FileCustomMapping {
   platformId: string;
@@ -63,68 +47,10 @@ export interface FileCustomMapping {
   mapping: ColumnMappingDict;
 }
 
-async function loadFileTables(
-  fileItem: MultiUploadFileInput,
-  gstinNumber?: string
-): Promise<{ fileId: string; fileName: string; table: ReconstructedTable }[]> {
-  const isPdf = fileItem.fileName.toLowerCase().endsWith(".pdf");
+/** One uploaded file's tables, read the way the corpus harness reads them. */
+async function loadFileTables(fileItem: MultiUploadFileInput, gstinNumber?: string) {
   const buffer = Buffer.from(await fileItem.file.arrayBuffer());
-
-  if (isPdf) {
-    const doc = await extractTextFromPdfBuffer(buffer);
-    const inv = extractInvoiceFromText({
-      text: doc.text,
-      fileName: fileItem.fileName,
-      fileSizeBytes: buffer.length,
-      pageCount: doc.pageCount,
-      knownSupplierGstin: gstinNumber,
-    });
-
-    const rows: Record<string, string>[] = inv.lineItems.map((it) => ({
-      "Invoice Number": inv.invoiceNumber,
-      "Invoice Date": inv.invoiceDate,
-      Type: inv.classification,
-      "Buyer Name": inv.buyerName,
-      "Buyer GSTIN": inv.buyerGstin,
-      "Place of Supply": inv.placeOfSupplyStateName,
-      "HSN/SAC Code": it.hsnCode,
-      "Item Description": it.itemDescription,
-      UQC: it.uqc,
-      Quantity: String(it.quantity),
-      "GST Rate (%)": String(it.rate),
-      "Taxable Value (Rs)": String(it.taxableValue),
-      "IGST (Rs)": String(it.igstAmount),
-      "CGST (Rs)": String(it.cgstAmount),
-      "SGST (Rs)": String(it.sgstAmount),
-      "Total Amount (Rs)": String(it.totalAmount),
-      "File Name": fileItem.fileName,
-    }));
-
-    return [
-      {
-        fileId: fileItem.fileName,
-        fileName: fileItem.fileName,
-        table: {
-          sheetName: "Invoice_Line_Items",
-          headers: Object.keys(rows[0] || {}),
-          rows,
-          headerRowIndex: 0,
-          headerRowSpan: 1,
-          discarded: [],
-          score: 100,
-        },
-      },
-    ];
-  }
-
-  const tables = readWorkbook(buffer, fileItem.fileName, gstinNumber);
-  const result: { fileId: string; fileName: string; table: ReconstructedTable }[] = [];
-  for (const table of tables) {
-    if (table && table.rows.length > 0) {
-      result.push({ fileId: fileItem.fileName, fileName: fileItem.fileName, table });
-    }
-  }
-  return result;
+  return loadTablesFromFile(buffer, fileItem.fileName, gstinNumber);
 }
 
 /**
@@ -234,114 +160,30 @@ export async function parseMultiPlatformFilesAction(
   });
   const fallbackEcoGstins = new Map(savedOperators.map((o) => [o.platformId, o.ecoGstin]));
 
-  const batches: ParsedFileBatch[] = [];
-  const reports: ImportIntelligenceReport[] = [];
-  const supplierStateCode = gstinNumber.slice(0, 2);
-
   const rawTables: { fileId: string; fileName: string; table: ReconstructedTable }[] = [];
   for (const fileItem of files) {
     const loaded = await loadFileTables(fileItem, gstinNumber);
     rawTables.push(...loaded);
   }
 
-  const sessionResult = await ImportSessionManager.processBatch(
+  // The conversion itself is shared with the corpus harness, so what the
+  // harness checks is what this action files.
+  const result = await runConversionPipeline({
     rawTables,
+    files,
     gstinNumber,
-    fallbackEcoGstins
-  );
-
-  // Add adapter results as batches
-  for (const [platformId, result] of Object.entries(sessionResult.resultsByPlatform)) {
-    const platformConfig = getPlatformConfig(platformId);
-    batches.push({
-      platformId: platformId,
-      platformName: platformConfig.name,
-      fileName: result.sourceContext.fileName,
-      fileTypeId: result.sourceContext.reportType,
-      rows: result.transactions,
-    });
-  }
-
-  // Process unknown files through universal engine
-  for (const table of sessionResult.unmappedFiles) {
-    const fileItem = files.find(
-      (f) => rawTables.find((r) => r.table === table)?.fileName === f.fileName
-    );
-    if (!fileItem) continue;
-
-    const platformConfig = getPlatformConfig(fileItem.platformId);
-    const fileAnswers = answersByFile?.[fileItem.fileName] ?? [];
-
-    const solved = solveTable(table, {
-      fileName: fileItem.fileName,
-      answers: fileAnswers,
-    });
-
-    const canonicalRows = toCanonicalRows(table, solved.mapping);
-    const transformedRows = transformMappedRows(canonicalRows, {
-      platformId: fileItem.platformId,
-      platformName: platformConfig.name,
-      fileName: fileItem.fileName,
-      fileTypeId: fileItem.fileTypeId,
-      supplierGstin: gstinNumber,
-      fallbackEcoGstin: fallbackEcoGstins.get(fileItem.platformId),
-    });
-
-    batches.push({
-      platformId: fileItem.platformId,
-      platformName: platformConfig.name,
-      fileName: fileItem.fileName,
-      fileTypeId: fileItem.fileTypeId,
-      rows: transformedRows,
-    });
-
-    reports.push(solved.report);
-  }
-
-  // Flatten for recovery pass
-  const allTransformedRows = batches.flatMap((b) => b.rows);
-
-  const { rows: recoveredRows } = recoverRows(
-    allTransformedRows,
-    reports[0]?.understanding || {
-      documentType: "MIXED",
-      documentTypeConfidence: 100,
-      documentEvidence: [],
-      marketplaceHint: null,
-      period: null,
-      periodConfidence: 0,
-      b2bShare: 0,
-      supplyMix: "MIXED",
-      rowCount: allTransformedRows.length,
-      columnCount: 10,
-    },
-    supplierStateCode
-  );
-
-  // Update batches with recovered rows, deduplicate, and apply rules
-  let offset = 0;
-  for (const batch of batches) {
-    batch.rows = recoveredRows.slice(offset, offset + batch.rows.length);
-    offset += batch.rows.length;
-
-    // Duplicate Checks within the source batch
-    const duplicates = classifyDuplicates(batch.rows);
-    const redundant = redundantRowIndexes(duplicates);
-    const deduped = batch.rows.filter((_, index) => !redundant.has(index));
-
-    // Rule Engine
-    batch.rows = RuleEngine.applyRowRules(deduped, batch.platformId);
-  }
-
-  if (batches.length === 0) {
+    returnPeriod,
+    fallbackEcoGstins,
+    answersByFile,
+  });
+  if (!result) {
     return {
       success: false as const,
       error: "Could not extract data from the uploaded Excel files",
     };
   }
-
-  // 4. Merge Engine
-  const mergeResult = mergeTransactions(batches);
+  const { sessionResult, reports, batches, mergeResult, statement, gstr1Json } = result;
+  const validationResult = { rows: result.rows };
 
   // A file that carries the operator GSTIN teaches it to the profile, so a later month whose
   // export omits the column still fills Table 14. Only platforms with nothing saved are written:
@@ -365,28 +207,6 @@ export async function parseMultiPlatformFilesAction(
     });
   }
 
-  // 5. Net Sales Engine
-  const netResult = processNetSales(mergeResult.mergedRows);
-
-  // 6. Validation Engine
-  const validationResult = validateInvoices(netResult.processedRows, gstinNumber);
-
-  // 7. Statement Engine
-  const statement: NetSalesStatement = generateStatement(
-    netResult,
-    validationResult.issues,
-    validationResult.validCount,
-    validationResult.errorCount,
-    validationResult.reviewCount
-  );
-
-  // 8. Generate GSTR-1 JSON
-  const gstr1Json = generateGstr1Json(
-    validationResult.rows,
-    gstinNumber,
-    returnPeriod,
-    statement as never
-  );
   const processingTimeMs = Date.now() - startTime;
 
   // 9. Auto-run GSTR-1 comparison if a reference GSTR-1 file was uploaded in step 5

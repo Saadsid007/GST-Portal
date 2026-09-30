@@ -74,11 +74,16 @@ export class MeeshoAdapter {
       }
 
       // 2. Invoice Number
+      //
+      // Not "identifier": in Meesho's TCS export it is the supplier's own code,
+      // the same on every row ("zk53g"). Used as a fallback it gave a return
+      // an accountant typed under the sales rows — which has no sub-order —
+      // a number that made it look identified, so the rule that counts such a
+      // return once never saw it, and every one was counted twice.
       const rawInvoiceNumber = (
         row["sub_order_num"] ||
         row["sub_order_no"] ||
         row["Invoice Number"] ||
-        row["identifier"] ||
         ""
       ).trim();
 
