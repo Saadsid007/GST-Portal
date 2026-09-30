@@ -2,6 +2,7 @@ import { readWorkbook } from "@/features/convert/engine/universal/universal-impo
 import type { ReconstructedTable } from "@/features/convert/engine/universal/types";
 import { extractTextFromPdfBuffer } from "@/features/pdf-extractor/engine/pdf-text-parser";
 import { extractInvoiceFromText } from "@/features/pdf-extractor/engine/regex-invoice-extractor";
+import { ownGstinRole } from "@/features/pdf-extractor/domain/party-role";
 
 export interface LoadedTable {
   fileId: string;
@@ -34,6 +35,11 @@ export async function loadFileTables(
       knownSupplierGstin: gstinNumber,
     });
 
+    // A seller names a void invoice's file for what it is — "INV2608
+    // CANCELLED.pdf" — and the accountant leaves it out of every table. It is
+    // still a number the seller issued, so Table 13 counts it as cancelled.
+    const cancelled = /\bcancel{1,2}ed\b/i.test(fileName);
+
     const rows: Record<string, string>[] = inv.lineItems.map((it) => ({
       "Invoice Number": inv.invoiceNumber,
       "Invoice Date": inv.invoiceDate,
@@ -53,9 +59,17 @@ export async function loadFileTables(
       "SGST (Rs)": String(it.sgstAmount),
       "Total Amount (Rs)": String(it.totalAmount),
       "File Name": fileName,
+      Status: cancelled ? "Cancelled" : "",
     }));
 
     if (rows.length === 0) return [];
+
+    // Either reading is enough: the labels around the seller's GSTIN, or the
+    // extractor having found that GSTIN in the buyer's block.
+    const own = gstinNumber?.trim().toUpperCase() ?? "";
+    const received =
+      own.length === 15 &&
+      (inv.buyerGstin.toUpperCase() === own || ownGstinRole(doc.text, own) === "recipient");
     return [
       {
         fileId: fileName,
@@ -68,6 +82,10 @@ export async function loadFileTables(
           headerRowSpan: 1,
           discarded: [],
           score: 100,
+          ...(received && {
+            skipReason:
+              "A bill you received — your GSTIN is on it as the buyer. GSTR-1 reports only your sales, so it is left out.",
+          }),
         },
       },
     ];

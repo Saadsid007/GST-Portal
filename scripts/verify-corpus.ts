@@ -20,6 +20,8 @@ import { join, extname, basename, dirname } from "node:path";
 
 import { readWorkbook } from "@/features/convert/engine/universal/universal-import.engine";
 import { runConversionPipeline } from "@/features/convert/engine/pipeline/conversion.pipeline";
+import { suggestHsn } from "@/features/convert/engine/error-center/hsn-suggester";
+import { revalidateRows } from "@/features/convert/engine/error-center/revalidate";
 import {
   loadFileTables,
   type LoadedTable,
@@ -263,7 +265,20 @@ async function runFolder(folder: string, files: string[]): Promise<FolderOutcome
   }
   if (!result) return outcome;
 
-  const rows: NormalizedInvoiceRow[] = result.rows;
+  // A code the product suggests is one click from applied — "4419 suggested,
+  // 100% of the coded rows in this upload are 4419" — and the accountant
+  // files the same code. Scoring before that click counted every Amazon line
+  // without an HSN as missing from the return.
+  let rows: NormalizedInvoiceRow[] = result.rows;
+  if (rows.some((row) => suggestHsn(row, rows))) {
+    rows = revalidateRows(
+      rows.map((row) => {
+        const suggestion = suggestHsn(row, rows);
+        return suggestion ? { ...row, hsnCode: suggestion.code, suggestedHsnCode: undefined } : row;
+      }),
+      outcome.supplierGstin ?? ""
+    ).rows;
+  }
   outcome.rows = rows.length;
   outcome.rowsWithErrors = rows.filter((r) => r.errors.length > 0).length;
   if (process.argv.includes("--errors")) {
@@ -327,7 +342,7 @@ async function runFolder(folder: string, files: string[]): Promise<FolderOutcome
     return outcome;
   }
 
-  const comparable = rows.map(toComparableRow);
+  const comparable = rows.filter((row) => !row.documentOnly).map(toComparableRow);
   for (const caFile of caReturns) {
     try {
       const reference = parseCaReturn(caFile);
@@ -342,6 +357,24 @@ async function runFolder(folder: string, files: string[]): Promise<FolderOutcome
       if (refCount === 0) continue;
 
       const result = Gstr1Comparator.compare(comparable, reference);
+      if (process.argv.includes("--detail")) {
+        process.stdout.write(`   vs ${basename(caFile)}\n`);
+        for (const row of [
+          ...result.b2bRows,
+          ...result.b2clRows,
+          ...result.cdnrRows,
+          ...result.cdnurRows,
+        ].filter((r) => r.status !== "matched"))
+          process.stdout.write(
+            `     ${row.status.padEnd(12)} ${row.section.padEnd(5)} ${row.invoiceNumber.padEnd(22)} ` +
+              `ours ${row.ourTaxableValue ?? "-"} @${row.ourRate ?? "-"} ${row.ourBuyerGstin ?? ""} | ` +
+              `CA ${row.refTaxableValue ?? "-"} @${row.refRate ?? "-"} ${row.refBuyerGstin ?? ""} ${row.notes.join("; ")}\n`
+          );
+        for (const row of result.b2csSummary.filter((r) => Math.abs(r.diffTaxable) > 1))
+          process.stdout.write(
+            `     B2CS  ${row.placeOfSupply} @${row.rate}  ours ${row.ourTaxableValue} CA ${row.refTaxableValue}\n`
+          );
+      }
       outcome.comparisons.push({
         against: basename(caFile),
         matched: result.matchedCount,

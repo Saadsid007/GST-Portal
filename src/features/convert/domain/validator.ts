@@ -53,6 +53,64 @@ function checkGstin(gstin: string): boolean {
   return isValidGstin(gstin);
 }
 
+/** Characters a hand-typed GSTIN confuses: I for 1, O for 0, S for 5… */
+const LOOKALIKES: Record<string, string> = {
+  I: "1",
+  L: "1",
+  "1": "I",
+  O: "0",
+  D: "0",
+  Q: "0",
+  "0": "O",
+  S: "5",
+  "5": "S",
+  B: "8",
+  "8": "B",
+  Z: "2",
+  "2": "Z",
+  G: "6",
+  "6": "G",
+};
+
+/**
+ * The one registration a mistyped GSTIN most likely meant.
+ *
+ * Bills typed by hand read "09AFXPK9825PIZ4" for "…P1Z4" and "09EMOPR4227N1ZS"
+ * for "…N1Z5"; the accountant corrects them from memory. The checksum makes the
+ * correction checkable. Look-alike swaps are tried first, the commoner slip;
+ * neighbours switched round only when no swap works. Any checksum passes by
+ * chance one time in 36, so a candidate must also be a real registration's
+ * shape — the fourth letter of the PAN names the kind of holder — and a
+ * suggestion is made only when exactly one survives: never a guess between two.
+ */
+export function suggestGstinCorrection(gstin: string): string | null {
+  const typed = gstin.toUpperCase();
+  if (typed.length !== 15) return null;
+
+  const plausible = (candidate: string) =>
+    isValidGstin(candidate) && PAN_HOLDER_TYPES.includes(candidate[5]!) && candidate[13] === "Z";
+  const unique = (candidates: Set<string>) => {
+    const valid = [...candidates].filter(plausible);
+    return valid.length === 1 ? valid[0]! : valid.length > 1 ? "" : null;
+  };
+
+  const swaps = new Set<string>();
+  const transpositions = new Set<string>();
+  for (let i = 0; i < 15; i++) {
+    const swap = LOOKALIKES[typed[i]!];
+    if (swap) swaps.add(typed.slice(0, i) + swap + typed.slice(i + 1));
+    if (i < 14 && typed[i] !== typed[i + 1])
+      transpositions.add(typed.slice(0, i) + typed[i + 1] + typed[i] + typed.slice(i + 2));
+  }
+
+  const bySwap = unique(swaps);
+  if (bySwap !== null) return bySwap || null;
+  return unique(transpositions) || null;
+}
+
+/** Individual, company, HUF, firm, AOP, trust, BOI, local authority, AJP, government. */
+const PAN_HOLDER_TYPES = "PCHFATBLJG";
+
 function checkTaxMath(row: NormalizedInvoiceRow): string[] {
   const errors: string[] = [];
   const tolerance = 2; // ₹2 tolerance for rounding
@@ -115,10 +173,26 @@ export function validateInvoices(
 
     // VAL-002: GSTIN format
     if (row.buyerGstin && !checkGstin(row.buyerGstin)) {
+      const likely = suggestGstinCorrection(row.buyerGstin);
       errors.push(
-        GSTIN_REGEX.test(row.buyerGstin)
+        (GSTIN_REGEX.test(row.buyerGstin)
           ? `GSTIN ${row.buyerGstin} fails its own check digit — one character is wrong`
-          : `Invalid GSTIN format: ${row.buyerGstin}`
+          : `Invalid GSTIN format: ${row.buyerGstin}`) +
+          (likely ? ` — probably ${likely}, the only valid GSTIN one typing slip away` : "")
+      );
+    }
+
+    // VAL-002b: A business does not supply itself. The buyer's GSTIN being the
+    // seller's own is a purchase bill in the pile — a supplier's invoice to
+    // this business — and reported here it declared someone else's sale as
+    // this seller's turnover.
+    if (
+      row.buyerGstin &&
+      supplierGstin &&
+      row.buyerGstin.toUpperCase() === supplierGstin.toUpperCase()
+    ) {
+      errors.push(
+        "The buyer's GSTIN is your own: this is a bill you received, not a sale you made. GSTR-1 reports only your sales — remove it."
       );
     }
 

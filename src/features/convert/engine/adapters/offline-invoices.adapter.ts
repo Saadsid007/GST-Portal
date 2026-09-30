@@ -252,7 +252,10 @@ export class OfflineInvoicesAdapter {
         rowIndex: i + 1,
         sourcePlatformId: "offline",
         sourcePlatformName: "Offline & Direct Invoices",
-        sourceFileName: context.fileName,
+        // Invoices read one per PDF are converted together, so the batch's
+        // name is the first file's; every row of thirty then pointed the user
+        // at "INV2608 CANCELLED.pdf". Each row carries the file it came from.
+        sourceFileName: getVal(row, "File Name") || context.fileName,
         sourceFileType: context.reportType || "offline_invoices",
         invoiceNumber,
         invoiceDate,
@@ -278,6 +281,21 @@ export class OfflineInvoicesAdapter {
         errors,
         reviews: [],
       };
+
+      // An invoice the seller voided is a number issued and cancelled: Table 13
+      // counts it, and no table carries its value.
+      if (/cancel/i.test(getVal(row, "Status", "Document Status", "Invoice Status"))) {
+        Object.assign(tx, {
+          documentOnly: "cancelled",
+          taxableValue: 0,
+          igstAmount: 0,
+          cgstAmount: 0,
+          sgstAmount: 0,
+          cessAmount: 0,
+          totalValue: 0,
+          errors: [],
+        } satisfies Partial<NormalizedInvoiceRow>);
+      }
 
       transactions.push(tx);
     }

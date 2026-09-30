@@ -71,6 +71,12 @@ export interface ReconstructedTable {
   discarded: DiscardedRegion[];
   /** 0–100 confidence that this is a real data table. */
   score: number;
+  /**
+   * Set when the file was read and found to be no part of the seller's sales —
+   * a bill received from a supplier. The import lists it as skipped, with this
+   * reason, rather than converting it.
+   */
+  skipReason?: string;
 }
 
 export interface DiscardedRegion {

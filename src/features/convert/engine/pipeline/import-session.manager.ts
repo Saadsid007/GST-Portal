@@ -72,6 +72,11 @@ export class ImportSessionManager {
     const duplicates = detectDuplicateTables(tables);
 
     for (const [index, { fileId, fileName, table }] of tables.entries()) {
+      if (table.skipReason) {
+        skippedSheets.push({ fileName, sheetName: table.sheetName, reason: table.skipReason });
+        continue;
+      }
+
       const duplicate = duplicates.get(index);
       if (duplicate) {
         skippedSheets.push({ fileName, sheetName: table.sheetName, reason: duplicate.reason });
