@@ -16,7 +16,7 @@
  */
 
 import { readdirSync, readFileSync, statSync, existsSync } from "node:fs";
-import { join, extname, basename } from "node:path";
+import { join, extname, basename, dirname } from "node:path";
 
 import { readWorkbook } from "@/features/convert/engine/universal/universal-import.engine";
 import { runConversionPipeline } from "@/features/convert/engine/pipeline/conversion.pipeline";
@@ -126,11 +126,23 @@ interface ComparisonOutcome {
 /**
  * The CA's filed return, if the folder holds one.
  *
- * Only the government-format workbook is used. Our own review report and the
- * PDF extractor's output are also in these folders, and measuring against
- * those would be marking our own homework.
+ * Three forms are someone else's work: the JSON the portal hands back
+ * ("GSTR1_<gstin>_August_2026-2027_<timestamp>.json"), the accountant's
+ * offline-tool workbook ("GSTR1_Excel_Workbook_Template_V2.1 ….xlsx"), and
+ * another tool's "GSTR1_returns_…" export.
+ *
+ * "GSTR1_<gstin>_<MMYYYY>.xlsx/json" is not among them: it is the name this
+ * product gives its own download, and the folders are full of old ones. They
+ * were read as the accountant's return, and "best of N versions" then picked
+ * whichever was closest to us — a folder was scored against its own earlier
+ * output, bugs included, and one reported a ₹36,237 gap that was really a
+ * match to the rupee against the accountant's workbook beside it.
  */
-const CA_RETURN_PATTERNS = [/^GSTR1_[0-9]{2}[A-Z]{5}.*\.(xlsx|json)$/i];
+const CA_RETURN_PATTERNS = [
+  /^GSTR1_[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]_[A-Za-z]+_\d{4}-\d{4}_\d+\.json$/i,
+  /^GSTR1_Excel_Workbook_Template.*\.xlsx$/i,
+  /^GSTR1_returns_.*\.json$/i,
+];
 
 function findCaReturns(files: string[]): string[] {
   return files.filter((f) => CA_RETURN_PATTERNS.some((p) => p.test(basename(f))));
@@ -294,6 +306,16 @@ async function runFolder(folder: string, files: string[]): Promise<FolderOutcome
   // return can match and a comparison would only produce noise.
   if (gstins.size > 1) {
     outcome.multiBusiness = [...gstins];
+    return outcome;
+  }
+
+  // The same when the returns sit in separate sub-folders — "B", "P", "U" for
+  // three clients, "mnh june" and "mnh july" for two months of one. The
+  // templates carry no GSTIN in their names, and pooled, two months' sales
+  // were scored against one month's return.
+  const returnDirs = new Set(caReturns.map((f) => dirname(f)));
+  if (returnDirs.size > 1) {
+    outcome.multiBusiness = [...returnDirs].map((d) => basename(d));
     return outcome;
   }
 
