@@ -8,7 +8,7 @@ import type {
   NormalizedInvoiceRow,
   ConversionSummary,
 } from "@/features/convert/types/convert.types";
-import { ensureTcsGstin } from "@/features/convert/config/eco-registry";
+import { ensureTcsGstin, isValidGstin } from "@/features/convert/config/eco-registry";
 import { isCdnurNote } from "@/features/convert/domain/gst-rules";
 import {
   buildDocumentSeries,
@@ -154,6 +154,11 @@ export function generateGstr1Json(
   // --- B2CS ---
   const supplierState = gstin ? gstin.substring(0, 2) : "";
   const b2csRows = validRows.filter((r) => r.invoiceType === "B2CS" || r.invoiceType === "CDNCS");
+  // One line per place of supply and rate — not per marketplace. A B2CS line
+  // carries no operator field any more (the operator is Table 14's business),
+  // so splitting by it gave the portal two lines with the same state and rate
+  // whenever a seller sold in one state through two marketplaces. The filed
+  // returns carry each state once; the Excel of the same return already did.
   const b2csMap = new Map<
     string,
     {
@@ -164,13 +169,11 @@ export function generateGstr1Json(
       csamt: number;
       rt: number;
       pos: string;
-      ecoGstin: string;
     }
   >();
   for (const row of b2csRows) {
     const rt = r2(row.igstRate > 0 ? row.igstRate : row.cgstRate + row.sgstRate);
-    const ecoGstin = row.ecoGstin ?? "";
-    const key = `${ecoGstin}|${row.placeOfSupply}|${rt}`;
+    const key = `${row.placeOfSupply}|${rt}`;
     if (!b2csMap.has(key)) {
       b2csMap.set(key, {
         txval: 0,
@@ -180,7 +183,6 @@ export function generateGstr1Json(
         csamt: 0,
         rt,
         pos: row.placeOfSupply,
-        ecoGstin,
       });
     }
     const sign = row.invoiceType === "CDNCS" ? -1 : 1;
@@ -366,15 +368,12 @@ export function generateGstr1Json(
   for (const row of validRows) {
     if (!row.ecoGstin || row.sourcePlatformId === "offline") continue;
 
-    let etin = ensureTcsGstin(row.ecoGstin.trim().toUpperCase());
-    if (!/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}C[0-9A-Z]{1}$/.test(etin)) {
-      const st = supplierState || "09";
-      if (etin.includes("MEESHO")) {
-        etin = `${st}AAICA3918J1CR`;
-      } else {
-        etin = `${st}AARCM9332R1CM`;
-      }
-    }
+    // An operator value that is not a GSTIN at all is left out of Table 14
+    // rather than replaced. The replacement this used was another operator's
+    // number with the wrong check digit — Meesho's supplies filed under
+    // Amazon's PAN.
+    const etin = ensureTcsGstin(row.ecoGstin.trim().toUpperCase());
+    if (!isValidGstin(etin)) continue;
 
     if (!ecoMap.has(etin)) {
       ecoMap.set(etin, {

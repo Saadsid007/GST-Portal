@@ -62,10 +62,13 @@ describe("Flipkart GSTR-1/GSTR-8 section report", () => {
       .filter((t) => t.rows.length > 0)
       .map((table, i) => ({ fileId: `fk-${i}`, fileName: "flipkart.xlsx", table }));
 
-    const result = await ImportSessionManager.processBatch(batch);
+    // A seller in Uttar Pradesh. Flipkart's marketplace is Flipkart Internet,
+    // whose tax-collector registration there is 09AACCF0683K1CQ — not Flipkart
+    // India's number, which the old table handed every Flipkart seller.
+    const result = await ImportSessionManager.processBatch(batch, "09AGCPW4984F2ZT");
     const sale = result.resultsByPlatform.flipkart?.transactions.find((t) => t.taxableValue > 0);
 
-    expect(sale?.ecoGstin).toBeTruthy();
+    expect(sale?.ecoGstin?.slice(2, 12)).toBe("AACCF0683K");
   });
 });
 

@@ -1,28 +1,26 @@
 /**
- * State-Wise E-Commerce Operator (ECO) Registry for GSTR-1 Table 14(a)
+ * The e-commerce operator a marketplace supply was collected through, for
+ * GSTR-1 Table 14(a).
  *
- * Implements a multi-tier resolution pipeline:
- * 1. File Upload / Report row ECO GSTIN (highest priority if valid)
- * 2. User Workspace Custom Setting (saved in ecoOperatorGstin)
- * 3. Verified State-Wise ECO Registry (curated from official TCS registrations)
- * 4. Fallback / VERIFY_REQUIRED resolution
+ * Resolution, highest authority first:
+ * 1. A GSTIN the user saved for the platform — when it is the operator's.
+ * 2. The operator GSTIN printed in the uploaded report itself.
+ * 3. The operator's TCS registration in the seller's state, derived below.
  *
- * NOTE: GSTN Schema strictly requires that in Table 14 (supeco.clttx), the ECO GSTIN (etin)
- * must be a Tax Collector at Source (TCS) registration under Section 52, which always has
- * 'C' as its 14th character (e.g. 09AARCM9332R1CM, 09AAICA3918J1CR).
+ * Table 14 needs the operator's registration as a tax collector under
+ * section 52, and that registration is not a number to be looked up in a
+ * hand-kept table. It is the state code, the operator's PAN, the entity
+ * number, "C", and a check digit — and the check digit is computed, not
+ * chosen. The table this replaces had 36 of its 76 numbers failing their own
+ * check digit, swapped Amazon's and Meesho's PANs in Uttar Pradesh, and gave
+ * every Flipkart seller the GSTIN of Flipkart India — the wholesale company,
+ * which collects no TCS — instead of Flipkart Internet, the marketplace.
+ *
+ * Each PAN below is confirmed against a return a CA filed through the portal
+ * or against the operator's own export, and the rule reproduces every real
+ * operator GSTIN those carry: 27AACCF0683K1CS (Flipkart), 27AAICA3918J1CT
+ * and 29AAICA3918J1CP (Amazon), 09AARCM9332R1CM (Meesho).
  */
-
-export interface EcoRegistryEntry {
-  platformId: "amazon" | "meesho" | "flipkart" | string;
-  platformName: string;
-  stateCode: string; // 2-digit State Code e.g. "09"
-  stateName: string;
-  ecoGstin: string;
-  legalName: string;
-  status: "VERIFIED" | "VERIFY_REQUIRED";
-  source: string;
-  isPrimary: boolean;
-}
 
 export interface ResolveEcoOptions {
   platformId: string;
@@ -39,202 +37,164 @@ export interface EcoResolutionResult {
   isReliable: boolean;
 }
 
+interface Operator {
+  legalName: string;
+  /** Every PAN the operator collects TCS under. The first is the one derived from. */
+  pans: string[];
+  /**
+   * States where the register shows this PAN holding a TCS registration.
+   * Outside them a derived number is only a best guess, and is said to be.
+   */
+  confirmedStates?: ReadonlySet<string>;
+}
+
+/** Amazon's TCS registrations, as the public register listed them in April 2026. */
+const AMAZON_TCS_STATES = new Set([
+  "01",
+  "02",
+  "03",
+  "04",
+  "05",
+  "06",
+  "07",
+  "08",
+  "09",
+  "10",
+  "11",
+  "12",
+  "13",
+  "14",
+  "15",
+  "16",
+  "17",
+  "18",
+  "19",
+  "20",
+  "21",
+  "22",
+  "23",
+  "24",
+  "26",
+  "27",
+  "29",
+  "30",
+  "32",
+  "33",
+  "34",
+  "36",
+  "37",
+]);
+
+const OPERATORS: Record<string, Operator> = {
+  amazon: {
+    legalName: "Amazon Seller Services Private Limited",
+    pans: ["AAICA3918J"],
+    confirmedStates: AMAZON_TCS_STATES,
+  },
+  flipkart: {
+    legalName: "Flipkart Internet Private Limited",
+    pans: ["AACCF0683K"],
+    confirmedStates: new Set(["09", "27"]),
+  },
+  meesho: {
+    legalName: "Meesho Limited",
+    pans: ["AARCM9332R"],
+    confirmedStates: new Set(["09"]),
+  },
+};
+
 const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}[0-9A-Z]{1}[0-9A-Z]{1}$/;
+const ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+function checkDigit(first14: string): string {
+  let sum = 0;
+  for (let i = 0; i < 14; i++) {
+    const product = ALPHABET.indexOf(first14[i]!) * (i % 2 === 0 ? 1 : 2);
+    sum += Math.floor(product / 36) + (product % 36);
+  }
+  return ALPHABET[(36 - (sum % 36)) % 36]!;
+}
 
 export function isValidGstin(gstin?: string): boolean {
   if (!gstin) return false;
   const cleaned = gstin.trim().toUpperCase();
-  return cleaned.length === 15 && GSTIN_REGEX.test(cleaned);
+  return GSTIN_REGEX.test(cleaned) && checkDigit(cleaned.slice(0, 14)) === cleaned[14];
 }
-
-/** Ensures that an ECO GSTIN complies with the GSTN Section 52 TCS check ('C' at 14th char) */
-export function ensureTcsGstin(gstin: string): string {
-  const cleaned = gstin.trim().toUpperCase();
-  if (cleaned.length === 15 && GSTIN_REGEX.test(cleaned)) {
-    if (cleaned[13] !== "C") {
-      return cleaned.slice(0, 13) + "C" + cleaned.slice(14);
-    }
-  }
-  return cleaned;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 1. AMAZON SELLER SERVICES PRIVATE LIMITED (PAN: AAICA3918J / AARCM9332R)
-// ─────────────────────────────────────────────────────────────────────────────
-export const AMAZON_ECO_REGISTRY: EcoRegistryEntry[] = [
-  { platformId: "amazon", platformName: "Amazon", stateCode: "01", stateName: "Jammu & Kashmir", ecoGstin: "01AAICA3918J1C7", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "02", stateName: "Himachal Pradesh", ecoGstin: "02AAICA3918J1C5", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "03", stateName: "Punjab", ecoGstin: "03AAICA3918J1CS", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "04", stateName: "Chandigarh", ecoGstin: "04AAICA3918J1CQ", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "05", stateName: "Uttarakhand", ecoGstin: "05AAICA3918J1CO", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "06", stateName: "Haryana", ecoGstin: "06AAICA3918J1CM", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "07", stateName: "Delhi", ecoGstin: "07AAICA3918J1CK", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "08", stateName: "Rajasthan", ecoGstin: "08AAICA3918J1CI", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "09", stateName: "Uttar Pradesh", ecoGstin: "09AAICA3918J1CR", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "09", stateName: "Uttar Pradesh", ecoGstin: "09AARCM9332R1CM", legalName: "Amazon Wholesale / Services", status: "VERIFIED", source: "Amazon MTR TCS", isPrimary: false },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "10", stateName: "Bihar", ecoGstin: "10AAICA3918J1C8", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "11", stateName: "Sikkim", ecoGstin: "11AAICA3918J1CV", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "12", stateName: "Arunachal Pradesh", ecoGstin: "12AAICA3918J1C4", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "13", stateName: "Nagaland", ecoGstin: "13AAICA3918J1C2", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "14", stateName: "Manipur", ecoGstin: "14AAICA3918J1C0", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "15", stateName: "Mizoram", ecoGstin: "15AAICA3918J1CN", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "16", stateName: "Tripura", ecoGstin: "16AAICA3918J1CL", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "17", stateName: "Meghalaya", ecoGstin: "17AAICA3918J1CU", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "18", stateName: "Assam", ecoGstin: "18AAICA3918J1CS", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "19", stateName: "West Bengal", ecoGstin: "19AAICA3918J1CF", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "20", stateName: "Jharkhand", ecoGstin: "20AAICA3918J1C7", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "21", stateName: "Odisha", ecoGstin: "21AAICA3918J1C5", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "22", stateName: "Chhattisgarh", ecoGstin: "22AAICA3918J1CS", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "23", stateName: "Madhya Pradesh", ecoGstin: "23AAICA3918J1CQ", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "24", stateName: "Gujarat", ecoGstin: "24AAICA3918J1CO", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "25", stateName: "Daman & Diu", ecoGstin: "25AAICA3918J1CM", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "26", stateName: "Dadra & Nagar Haveli", ecoGstin: "26AAICA3918J2CU", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "27", stateName: "Maharashtra", ecoGstin: "27AAICA3918J1CI", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "29", stateName: "Karnataka", ecoGstin: "29AAICA3918J1CE", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "30", stateName: "Goa", ecoGstin: "30AAICA3918J1C6", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "31", stateName: "Lakshadweep", ecoGstin: "31AAICA3918J1C4", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "32", stateName: "Kerala", ecoGstin: "32AAICA3918J1CR", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "33", stateName: "Tamil Nadu", ecoGstin: "33AAICA3918J1C0", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "34", stateName: "Puducherry", ecoGstin: "34AAICA3918J1CY", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "35", stateName: "Andaman & Nicobar", ecoGstin: "35AAICA3918J1CL", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "36", stateName: "Telangana", ecoGstin: "36AAICA3918J1CJ", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "37", stateName: "Andhra Pradesh", ecoGstin: "37AAICA3918J2CG", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-  { platformId: "amazon", platformName: "Amazon", stateCode: "38", stateName: "Ladakh", ecoGstin: "38AAICA3918J1CQ", legalName: "Amazon Seller Services Pvt Ltd", status: "VERIFIED", source: "Amazon TCS Master", isPrimary: true },
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 2. MEESHO LIMITED / FASHNEAR TECHNOLOGIES (PAN: AACCF6368D / AAICA3918J)
-// ─────────────────────────────────────────────────────────────────────────────
-export const MEESHO_ECO_REGISTRY: EcoRegistryEntry[] = [
-  { platformId: "meesho", platformName: "Meesho", stateCode: "07", stateName: "Delhi", ecoGstin: "07AACCF6368D1CO", legalName: "Meesho Limited", status: "VERIFIED", source: "GST Registry", isPrimary: true },
-  { platformId: "meesho", platformName: "Meesho", stateCode: "08", stateName: "Rajasthan", ecoGstin: "08AACCF6368D1CX", legalName: "Meesho Limited", status: "VERIFIED", source: "GST Registry", isPrimary: true },
-  { platformId: "meesho", platformName: "Meesho", stateCode: "09", stateName: "Uttar Pradesh", ecoGstin: "09AAICA3918J1CR", legalName: "Fashnear Technologies Pvt Ltd (Meesho)", status: "VERIFIED", source: "Meesho Supplier TCS", isPrimary: true },
-  { platformId: "meesho", platformName: "Meesho", stateCode: "09", stateName: "Uttar Pradesh", ecoGstin: "09AACCF6368D1CV", legalName: "Meesho Limited", status: "VERIFIED", source: "GST Registry", isPrimary: false },
-  { platformId: "meesho", platformName: "Meesho", stateCode: "10", stateName: "Bihar", ecoGstin: "10AACCF6368D1CC", legalName: "Meesho Limited", status: "VERIFIED", source: "GST Registry", isPrimary: true },
-  { platformId: "meesho", platformName: "Meesho", stateCode: "19", stateName: "West Bengal", ecoGstin: "19AACCF6368D1CJ", legalName: "Meesho Limited", status: "VERIFIED", source: "GST Registry", isPrimary: true },
-  { platformId: "meesho", platformName: "Meesho", stateCode: "20", stateName: "Jharkhand", ecoGstin: "20AACCF6368D1CB", legalName: "Meesho Limited", status: "VERIFIED", source: "GST Registry", isPrimary: true },
-  { platformId: "meesho", platformName: "Meesho", stateCode: "24", stateName: "Gujarat", ecoGstin: "24AACCF6368D1CS", legalName: "Meesho Limited", status: "VERIFIED", source: "GST Registry", isPrimary: true },
-  { platformId: "meesho", platformName: "Meesho", stateCode: "27", stateName: "Maharashtra", ecoGstin: "27AACCF6368D1CX", legalName: "Meesho Limited", status: "VERIFIED", source: "GST Registry", isPrimary: true },
-  { platformId: "meesho", platformName: "Meesho", stateCode: "27", stateName: "Maharashtra", ecoGstin: "27AACCF6368D1CM", legalName: "Meesho Limited", status: "VERIFIED", source: "GST Registry", isPrimary: false },
-  { platformId: "meesho", platformName: "Meesho", stateCode: "29", stateName: "Karnataka", ecoGstin: "29AACCF6368D1CI", legalName: "Meesho Limited", status: "VERIFIED", source: "GST Registry", isPrimary: true },
-  { platformId: "meesho", platformName: "Meesho", stateCode: "30", stateName: "Goa", ecoGstin: "30AACCF6368D1CA", legalName: "Meesho Limited", status: "VERIFIED", source: "GST Registry", isPrimary: true },
-  { platformId: "meesho", platformName: "Meesho", stateCode: "32", stateName: "Kerala", ecoGstin: "32AACCF6368D1C6", legalName: "Meesho Limited", status: "VERIFIED", source: "GST Registry", isPrimary: true },
-  { platformId: "meesho", platformName: "Meesho", stateCode: "33", stateName: "Tamil Nadu", ecoGstin: "33AACCF6368D1C4", legalName: "Meesho Limited", status: "VERIFIED", source: "GST Registry", isPrimary: true },
-  { platformId: "meesho", platformName: "Meesho", stateCode: "34", stateName: "Puducherry", ecoGstin: "34AACCF6368D1C2", legalName: "Meesho Limited", status: "VERIFIED", source: "GST Registry", isPrimary: true },
-  { platformId: "meesho", platformName: "Meesho", stateCode: "36", stateName: "Telangana", ecoGstin: "36AACCF6368D1CY", legalName: "Meesho Limited (Active ECO)", status: "VERIFIED", source: "GST Registry", isPrimary: true },
-  { platformId: "meesho", platformName: "Meesho", stateCode: "37", stateName: "Andhra Pradesh", ecoGstin: "37AACCF6368D1CW", legalName: "Meesho Limited", status: "VERIFIED", source: "GST Registry", isPrimary: true },
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 3. FLIPKART INDIA PRIVATE LIMITED (PAN: AABCF8078M)
-// ─────────────────────────────────────────────────────────────────────────────
-export const FLIPKART_ECO_REGISTRY: EcoRegistryEntry[] = [
-  { platformId: "flipkart", platformName: "Flipkart", stateCode: "03", stateName: "Punjab", ecoGstin: "03AABCF8078M1CB", legalName: "Flipkart India Pvt Ltd", status: "VERIFIED", source: "Flipkart Hub Master", isPrimary: true },
-  { platformId: "flipkart", platformName: "Flipkart", stateCode: "04", stateName: "Chandigarh", ecoGstin: "04AABCF8078M1CK", legalName: "Flipkart India Pvt Ltd", status: "VERIFIED", source: "Flipkart Hub Master", isPrimary: true },
-  { platformId: "flipkart", platformName: "Flipkart", stateCode: "06", stateName: "Haryana", ecoGstin: "06AABCF8078M1CG", legalName: "Flipkart India Pvt Ltd", status: "VERIFIED", source: "Flipkart Hub Master", isPrimary: true },
-  { platformId: "flipkart", platformName: "Flipkart", stateCode: "07", stateName: "Delhi", ecoGstin: "07AABCF8078M1C3", legalName: "Flipkart India Pvt Ltd", status: "VERIFIED", source: "Flipkart Hub Master", isPrimary: true },
-  { platformId: "flipkart", platformName: "Flipkart", stateCode: "08", stateName: "Rajasthan", ecoGstin: "08AABCF8078M1C1", legalName: "Flipkart India Pvt Ltd", status: "VERIFIED", source: "Flipkart Hub Master", isPrimary: true },
-  { platformId: "flipkart", platformName: "Flipkart", stateCode: "09", stateName: "Uttar Pradesh", ecoGstin: "09AABCF8078M1CA", legalName: "Flipkart India Pvt Ltd", status: "VERIFIED", source: "Flipkart Hub Master", isPrimary: true },
-  { platformId: "flipkart", platformName: "Flipkart", stateCode: "10", stateName: "Bihar", ecoGstin: "10AABCF8078M2CF", legalName: "Flipkart India Pvt Ltd", status: "VERIFIED", source: "Flipkart Hub Master", isPrimary: true },
-  { platformId: "flipkart", platformName: "Flipkart", stateCode: "18", stateName: "Assam", ecoGstin: "18AABCF8078M2CZ", legalName: "Flipkart India Pvt Ltd", status: "VERIFIED", source: "Flipkart Hub Master", isPrimary: true },
-  { platformId: "flipkart", platformName: "Flipkart", stateCode: "19", stateName: "West Bengal", ecoGstin: "19AABCF8078M1C9", legalName: "Flipkart India Pvt Ltd", status: "VERIFIED", source: "Flipkart Hub Master", isPrimary: true },
-  { platformId: "flipkart", platformName: "Flipkart", stateCode: "21", stateName: "Odisha", ecoGstin: "21AABCF8078M1CD", legalName: "Flipkart India Pvt Ltd", status: "VERIFIED", source: "Flipkart Hub Master", isPrimary: true },
-  { platformId: "flipkart", platformName: "Flipkart", stateCode: "22", stateName: "Chhattisgarh", ecoGstin: "22AABCF8078M1CM", legalName: "Flipkart India Pvt Ltd", status: "VERIFIED", source: "Flipkart Hub Master", isPrimary: true },
-  { platformId: "flipkart", platformName: "Flipkart", stateCode: "23", stateName: "Madhya Pradesh", ecoGstin: "23AABCF8078M1CK", legalName: "Flipkart India Pvt Ltd", status: "VERIFIED", source: "Flipkart Hub Master", isPrimary: true },
-  { platformId: "flipkart", platformName: "Flipkart", stateCode: "24", stateName: "Gujarat", ecoGstin: "24AABCF8078M2C6", legalName: "Flipkart India Pvt Ltd", status: "VERIFIED", source: "Flipkart Hub Master", isPrimary: true },
-  { platformId: "flipkart", platformName: "Flipkart", stateCode: "25", stateName: "Daman & Diu", ecoGstin: "25AABCF8078M1CG", legalName: "Flipkart India Pvt Ltd", status: "VERIFIED", source: "Flipkart Hub Master", isPrimary: true },
-  { platformId: "flipkart", platformName: "Flipkart", stateCode: "26", stateName: "Dadra & Nagar Haveli", ecoGstin: "26AABCF8078M1CE", legalName: "Flipkart India Pvt Ltd", status: "VERIFIED", source: "Flipkart Hub Master", isPrimary: true },
-  { platformId: "flipkart", platformName: "Flipkart", stateCode: "27", stateName: "Maharashtra", ecoGstin: "27AABCF8078M1C1", legalName: "Flipkart India Pvt Ltd", status: "VERIFIED", source: "Flipkart Hub Master", isPrimary: true },
-  { platformId: "flipkart", platformName: "Flipkart", stateCode: "29", stateName: "Karnataka", ecoGstin: "29AABCF8078M2CW", legalName: "Flipkart India Pvt Ltd", status: "VERIFIED", source: "Flipkart Hub Master", isPrimary: true },
-  { platformId: "flipkart", platformName: "Flipkart", stateCode: "32", stateName: "Kerala", ecoGstin: "32AABCF8078M1CL", legalName: "Flipkart India Pvt Ltd", status: "VERIFIED", source: "Flipkart Hub Master", isPrimary: true },
-  { platformId: "flipkart", platformName: "Flipkart", stateCode: "33", stateName: "Tamil Nadu", ecoGstin: "33AABCF8078M1C8", legalName: "Flipkart India Pvt Ltd", status: "VERIFIED", source: "Flipkart Hub Master", isPrimary: true },
-  { platformId: "flipkart", platformName: "Flipkart", stateCode: "36", stateName: "Telangana", ecoGstin: "36AABCF8078M1CD", legalName: "Flipkart India Pvt Ltd", status: "VERIFIED", source: "Flipkart Hub Master", isPrimary: true },
-  { platformId: "flipkart", platformName: "Flipkart", stateCode: "37", stateName: "Andhra Pradesh", ecoGstin: "37AABCF8078M1C0", legalName: "Flipkart India Pvt Ltd", status: "VERIFIED", source: "Flipkart Hub Master", isPrimary: true },
-];
-
-export const ALL_ECO_REGISTRIES: Record<string, EcoRegistryEntry[]> = {
-  amazon: AMAZON_ECO_REGISTRY,
-  meesho: MEESHO_ECO_REGISTRY,
-  flipkart: FLIPKART_ECO_REGISTRY,
-};
 
 /**
- * Deterministic multi-stage ECO GSTIN resolution logic.
+ * The same registration's tax-collector form: "C" in the 14th place, and the
+ * check digit that goes with it. Setting the "C" alone left a number whose
+ * last character no longer matched — a GSTIN that exists nowhere.
  */
+export function ensureTcsGstin(gstin: string): string {
+  const cleaned = gstin.trim().toUpperCase();
+  if (!GSTIN_REGEX.test(cleaned)) return cleaned;
+  const first14 = `${cleaned.slice(0, 13)}C`;
+  return first14 + checkDigit(first14);
+}
+
+/** Whether a GSTIN belongs to the operator — not to some other business. */
+function belongsTo(operator: Operator | undefined, gstin: string): boolean {
+  if (!operator) return true;
+  return operator.pans.includes(gstin.trim().toUpperCase().slice(2, 12));
+}
+
 export function resolveEcoGstin(options: ResolveEcoOptions): EcoResolutionResult {
   const { platformId, supplierGstin, userFallbackGstin, rowGstin } = options;
-  const normPlatform = platformId.toLowerCase();
-  const supplierState = supplierGstin ? supplierGstin.slice(0, 2) : "09";
+  const platform = platformId.toLowerCase();
+  const operator = OPERATORS[platform];
+  const legalName = operator?.legalName ?? "E-Commerce Operator";
 
-  // 1. Priority 1: User explicitly configured a custom ECO GSTIN in Settings
-  if (userFallbackGstin && isValidGstin(userFallbackGstin)) {
+  // A saved value is taken only when it is the operator's. Values were saved
+  // automatically from earlier conversions, which filled Flipkart's from the
+  // old table — Flipkart India's number — and a saved value outranks
+  // everything, so without this check the wrong company would stick for good.
+  if (
+    userFallbackGstin &&
+    isValidGstin(ensureTcsGstin(userFallbackGstin)) &&
+    belongsTo(operator, userFallbackGstin)
+  ) {
     return {
       ecoGstin: ensureTcsGstin(userFallbackGstin),
-      ecoName: getPlatformName(normPlatform),
+      ecoName: legalName,
       status: "USER_OVERRIDE",
       source: "User Workspace Settings",
       isReliable: true,
     };
   }
 
-  // 2. Priority 2: Report row contains an explicit valid 15-character ECO GSTIN
-  if (rowGstin && isValidGstin(rowGstin)) {
+  // The report's own word on who collected the tax.
+  if (rowGstin && GSTIN_REGEX.test(rowGstin.trim().toUpperCase())) {
     return {
       ecoGstin: ensureTcsGstin(rowGstin),
-      ecoName: getPlatformName(normPlatform),
+      ecoName: legalName,
       status: "FILE_EXTRACTED",
       source: "Uploaded Report File",
       isReliable: true,
     };
   }
 
-  // 3. Priority 3: GSTPilot Verified State-Wise ECO Registry
-  const registry = ALL_ECO_REGISTRIES[normPlatform];
-  if (registry) {
-    const stateMatches = registry.filter((e) => e.stateCode === supplierState);
-    if (stateMatches.length > 0) {
-      // Pick primary verified registration
-      const primary = stateMatches.find((e) => e.isPrimary) ?? stateMatches[0]!;
-      return {
-        ecoGstin: ensureTcsGstin(primary.ecoGstin),
-        ecoName: primary.legalName,
-        status: primary.status,
-        source: `GSTPilot Registry (${primary.source})`,
-        isReliable: primary.status === "VERIFIED",
-      };
-    }
+  // Derived for the seller's state. An operator we do not know gets nothing
+  // rather than another operator's number.
+  const state = supplierGstin?.slice(0, 2) ?? "";
+  if (!operator || !/^\d{2}$/.test(state)) {
+    return {
+      ecoGstin: "",
+      ecoName: legalName,
+      status: "VERIFY_REQUIRED",
+      source: "No operator registration known",
+      isReliable: false,
+    };
   }
 
-  // 4. Priority 4: State-derived fallback with VERIFY_REQUIRED
-  let fallbackGstin = "";
-  if (normPlatform === "amazon") {
-    fallbackGstin = `${supplierState}AARCM9332R1CM`;
-  } else if (normPlatform === "meesho") {
-    fallbackGstin = `${supplierState}AAICA3918J1CR`;
-  } else if (normPlatform === "flipkart") {
-    fallbackGstin = `${supplierState}AABCF8078M1CA`;
-  } else {
-    fallbackGstin = `${supplierState}AARCM9332R1CM`;
-  }
-
+  const confirmed = operator.confirmedStates?.has(state) ?? false;
   return {
-    ecoGstin: ensureTcsGstin(fallbackGstin),
-    ecoName: getPlatformName(normPlatform),
-    status: "VERIFY_REQUIRED",
-    source: "Algorithmic State Fallback",
-    isReliable: false,
+    ecoGstin: ensureTcsGstin(`${state}${operator.pans[0]}1C0`),
+    ecoName: legalName,
+    status: confirmed ? "VERIFIED" : "VERIFY_REQUIRED",
+    source: confirmed
+      ? "Operator TCS registration, confirmed on the register"
+      : "Operator TCS registration, derived from its PAN",
+    isReliable: confirmed,
   };
-}
-
-function getPlatformName(platformId: string): string {
-  switch (platformId.toLowerCase()) {
-    case "amazon":
-      return "Amazon Seller Services Private Limited";
-    case "meesho":
-      return "Fashnear Technologies Private Limited (Meesho)";
-    case "flipkart":
-      return "Flipkart India Private Limited";
-    default:
-      return "E-Commerce Operator";
-  }
 }
