@@ -176,3 +176,14 @@ describe("the statutory Nature of Document serial", () => {
     expect(documentTypeSerial("Invoices for outward supply")).toBe(1);
   });
 });
+
+describe("a number that ends in its financial year", () => {
+  it("takes the serial before the year, so the book is one series", () => {
+    expect(documentSeriesStem("RCL/106/2026-27")).toBe(documentSeriesStem("RCL/141/2026-27"));
+    expect(documentSeriesStem("CN/01/2026-27")).not.toBe(documentSeriesStem("RCL/106/2026-27"));
+    // Not a year: 26 is not followed by 30.
+    expect(documentSeriesStem("INV-26-30")).toBe("INV-26-");
+    // A financial-year prefix is left as it was.
+    expect(documentSeriesStem("2026-2027/57")).toBe("2026-2027/");
+  });
+});

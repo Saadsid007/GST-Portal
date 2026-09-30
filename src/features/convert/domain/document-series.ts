@@ -47,9 +47,26 @@ export function documentTypeSerial(documentType: DocumentSeries["documentType"])
  * "IN-1024" and "IN-707" share "IN-"; "2026-2027/57" gives "2026-2027/".
  * Table 13 wants one row per series with its own range, and mixing series
  * produced a range spanning two unrelated books.
+ *
+ * A number may also end in its financial year — "RCL/106/2026-27". The
+ * serial is then the run before the year, not the "27" after it: read that
+ * way every invoice was a series of its own, and Table 13 listed thirty-six
+ * one-document books where the seller keeps one.
  */
 export function documentSeriesStem(invoiceNumber: string): string {
+  const year = FINANCIAL_YEAR_SUFFIX.exec(invoiceNumber);
+  if (year && isConsecutiveYears(year[1]!, year[2]!)) {
+    const body = invoiceNumber.slice(0, year.index);
+    if (/\d$/.test(body)) return `${body.replace(/\d+$/, "")}#${year[0]}`;
+  }
   return invoiceNumber.replace(/\d+\s*$/, "") || "#";
+}
+
+const FINANCIAL_YEAR_SUFFIX = /[/\-\s]((?:20)?\d{2})\s*-\s*((?:20)?\d{2})\s*$/;
+
+/** "2026-27", "26-27", "2026-2027" — a year followed by the next. */
+function isConsecutiveYears(first: string, second: string): boolean {
+  return (Number(first.slice(-2)) + 1) % 100 === Number(second.slice(-2));
 }
 
 /**

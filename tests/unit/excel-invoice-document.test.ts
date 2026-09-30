@@ -53,7 +53,22 @@ describe("recognising a printed invoice", () => {
     expect(looksLikeInvoiceDocument(grid, ["Description of Goods", "HSN CODE"])).toBe(true);
     // The same heading on a sheet that names its documents in a column is a
     // register of many, not one document.
-    expect(looksLikeInvoiceDocument(grid, ["Invoice Number", "Invoice date"])).toBe(false);
+    const register = sheetGrid(
+      XLSX.utils.aoa_to_sheet([
+        ["Tax Invoice Register"],
+        ["Invoice Number", "Invoice date", "Description", "HSN", "Amount"],
+        ["INV-1", "2026-07-01", "Tray", "7326", 100],
+        ["INV-2", "2026-07-02", "Tray", "7326", 200],
+      ])
+    );
+    expect(looksLikeInvoiceDocument(register, ["Invoice Number", "Invoice date"])).toBe(false);
+  });
+
+  it("knows a bill whose heading block the table reader took for its header", () => {
+    // The reader chose the row holding "Invoice No." as the header; the goods
+    // header further down is what shows it is one bill.
+    const { grid } = invoiceSheet();
+    expect(looksLikeInvoiceDocument(grid, ["INDIA BIG SHOP", "Invoice No.", "Dated"])).toBe(true);
   });
 });
 

@@ -38,6 +38,7 @@ export async function loadFileTables(
       "Invoice Number": inv.invoiceNumber,
       "Invoice Date": inv.invoiceDate,
       Type: inv.classification,
+      "Document Type": inv.documentType,
       "Buyer Name": inv.buyerName,
       "Buyer GSTIN": inv.buyerGstin,
       "Place of Supply": inv.placeOfSupplyStateName,

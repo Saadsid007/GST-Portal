@@ -254,6 +254,16 @@ async function runFolder(folder: string, files: string[]): Promise<FolderOutcome
   const rows: NormalizedInvoiceRow[] = result.rows;
   outcome.rows = rows.length;
   outcome.rowsWithErrors = rows.filter((r) => r.errors.length > 0).length;
+  if (process.argv.includes("--errors")) {
+    const tally = new Map<string, number>();
+    for (const r of rows)
+      for (const e of r.errors) {
+        const key = `${r.sourceFileName ?? "?"} | ${r.sourcePlatformName ?? "?"} | ${e}`;
+        tally.set(key, (tally.get(key) ?? 0) + 1);
+      }
+    for (const [key, n] of [...tally].sort((a, b) => b[1] - a[1]).slice(0, 12))
+      process.stdout.write(`   ! ${String(n).padStart(4)}  ${key}\n`);
+  }
   outcome.unmappedSheets = result.sessionResult.unmappedFiles.map((t) => t.sheetName);
   outcome.skippedSheets = result.sessionResult.skippedSheets.map(
     (s) => `${s.sheetName} — ${s.reason}`

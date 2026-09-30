@@ -54,6 +54,15 @@ function taxPattern(name: string): RegExp {
 const GSTIN_REGEX = /[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}/g;
 
 /**
+ * A credit note says so as its title or labels its number as one. Any mention
+ * at all used to be enough, and an export invoice whose terms read "All the
+ * Invoice, Debit & Credit note values are inclusive of GST" became a credit
+ * note — harmless while nothing read the flag, a sale reported as a reversal
+ * once the conversion began to.
+ */
+const CREDIT_NOTE_HEADING = /^\s*(tax\s*)?credit\s*note\s*$|credit\s*note\s*(no\b|number|#|date)/im;
+
+/**
  * Words that survive on any readable Indian tax invoice, whatever its layout.
  * Used only to tell a decoding failure apart from an unfamiliar format.
  */
@@ -106,7 +115,7 @@ export function extractInvoiceFromText(params: {
       supplierGstin: vendor.supplierGstin,
       placeOfSupply: vendor.placeOfSupply,
       totalInvoiceValue: vendor.totalInvoiceValue,
-      isCreditDebitNote: /credit\s*note/i.test(text),
+      isCreditDebitNote: CREDIT_NOTE_HEADING.test(text),
       isExport: EXPORT_SUPPLY.test(text),
     });
 
@@ -118,7 +127,7 @@ export function extractInvoiceFromText(params: {
       invoiceNumber: vendor.invoiceNumber,
       invoiceDate: vendor.invoiceDate,
       classification,
-      documentType: /credit\s*note/i.test(text) ? "Credit Note" : "Invoice",
+      documentType: CREDIT_NOTE_HEADING.test(text) ? "Credit Note" : "Invoice",
       supplierName: vendor.supplierName || "Supplier",
       // The invoice's own supplier wins over a setting that disagrees with it.
       supplierGstin: vendor.supplierGstin || knownSupplierGstin || "",
@@ -817,7 +826,7 @@ export function extractInvoiceFromText(params: {
     supplierGstin,
     placeOfSupply: posCode,
     totalInvoiceValue,
-    isCreditDebitNote: /credit\s*note/i.test(text),
+    isCreditDebitNote: CREDIT_NOTE_HEADING.test(text),
     isExport: EXPORT_SUPPLY.test(text),
   });
 
@@ -852,7 +861,7 @@ export function extractInvoiceFromText(params: {
     invoiceNumber: invoiceNumber || `PDF-${fileName.replace(/\.pdf$/i, "").slice(-12)}`,
     invoiceDate,
     classification,
-    documentType: /credit\s*note/i.test(text) ? "Credit Note" : "Invoice",
+    documentType: CREDIT_NOTE_HEADING.test(text) ? "Credit Note" : "Invoice",
     supplierName: supplierName || "Supplier",
     supplierGstin,
     buyerName: buyerName || (classification === "B2B" ? "Registered Buyer" : "Consumer"),

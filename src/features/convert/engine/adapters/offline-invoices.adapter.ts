@@ -130,13 +130,23 @@ export class OfflineInvoicesAdapter {
         "State Code"
       );
       let pos = transformStateCode(rawPos, buyerGstin);
-      if (!pos && context.supplierGstin) {
+
+      // With no state on the row, CGST and SGST are evidence that the supply
+      // stayed in the seller's state. IGST says the opposite, and a bill with
+      // nothing but IGST has no state to give; it is left blank for the
+      // validator to ask for. Taking the seller's state there turned an
+      // inter-state note into an intra-state one that failed on its own tax,
+      // and a fixed "09" put every such row of a seller anywhere in India in
+      // Uttar Pradesh.
+      const chargedIgst = parseNum(
+        getVal(row, "IGST (Rs)", "IGST Amount", "IGST", "Integrated Tax Amount")
+      );
+      if (!pos && context.supplierGstin && chargedIgst === 0) {
         pos = context.supplierGstin.slice(0, 2);
       }
-      if (!pos) pos = "09";
 
-      const supplierState = context.supplierGstin ? context.supplierGstin.slice(0, 2) : "09";
-      const isInterState = pos !== supplierState;
+      const supplierState = context.supplierGstin ? context.supplierGstin.slice(0, 2) : "";
+      const isInterState = supplierState && pos ? pos !== supplierState : chargedIgst > 0;
 
       // 6. HSN & Line Description
       const rawHsn = getVal(row, "HSN/SAC Code", "HSN/SAC", "HSN Code", "HSN", "SAC", "SAC Code");
@@ -188,7 +198,7 @@ export class OfflineInvoicesAdapter {
 
       const totalTax = round2(taxableValue * (gstRate / 100));
 
-      if (igstAmount === 0 && cgstAmount === 0 && sgstAmount === 0 && taxableValue > 0) {
+      if (igstAmount === 0 && cgstAmount === 0 && sgstAmount === 0 && taxableValue !== 0) {
         if (isInterState) {
           igstAmount = totalTax;
         } else {
@@ -212,7 +222,7 @@ export class OfflineInvoicesAdapter {
         )
       );
 
-      if (totalValue === 0 && taxableValue > 0) {
+      if (totalValue === 0 && taxableValue !== 0) {
         totalValue = round2(taxableValue + igstAmount + cgstAmount + sgstAmount + cessAmount);
       }
 
@@ -221,9 +231,21 @@ export class OfflineInvoicesAdapter {
       const transactionType: TransactionType =
         rawTxType.toLowerCase().includes("credit") ||
         rawTxType.toLowerCase().includes("return") ||
+        rawType.includes("CDN") ||
         taxableValue < 0
           ? "Return"
           : "Sales";
+
+      // A credit note is reported as one, whoever it was issued to. The
+      // registered-buyer branch above ran first and made every credit note
+      // with a GSTIN on it a B2B invoice — a PDF or Excel note to a business
+      // reached Table 4 as an extra sale instead of Table 9B. An unregistered
+      // buyer's note nets into Table 7 as the CA files it. Downstream reads
+      // the direction from the category, so the amounts are carried unsigned.
+      if (transactionType === "Return") {
+        invoiceType = buyerGstin && buyerGstin.length === 15 ? "CDNR" : "CDNCS";
+      }
+      const unsigned = (n: number) => (transactionType === "Return" ? Math.abs(n) : n);
 
       const tx: NormalizedInvoiceRow = {
         id: `offline-${context.fileId}-${i + 1}`,
@@ -243,16 +265,16 @@ export class OfflineInvoicesAdapter {
         itemDescription,
         uqc,
         quantity,
-        taxableValue,
+        taxableValue: unsigned(taxableValue),
         igstRate: isInterState ? gstRate : 0,
         cgstRate: isInterState ? 0 : gstRate / 2,
         sgstRate: isInterState ? 0 : gstRate / 2,
         cessRate: 0,
-        igstAmount,
-        cgstAmount,
-        sgstAmount,
-        cessAmount,
-        totalValue,
+        igstAmount: unsigned(igstAmount),
+        cgstAmount: unsigned(cgstAmount),
+        sgstAmount: unsigned(sgstAmount),
+        cessAmount: unsigned(cessAmount),
+        totalValue: unsigned(totalValue),
         errors,
         reviews: [],
       };
@@ -277,7 +299,7 @@ export class OfflineInvoicesAdapter {
         existing.sgstAmount = round2(existing.sgstAmount + tx.sgstAmount);
         existing.cessAmount = round2(existing.cessAmount + tx.cessAmount);
         existing.totalValue = round2(existing.totalValue + tx.totalValue);
-        existing.quantity = round2((existing.quantity || 1) + (tx.quantity || 1));
+        existing.quantity = round2(existing.quantity + tx.quantity);
         if (tx.itemDescription && existing.itemDescription !== tx.itemDescription) {
           existing.itemDescription = `${existing.itemDescription}; ${tx.itemDescription}`;
         }

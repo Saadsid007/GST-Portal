@@ -356,6 +356,7 @@ export function reconstructWorkbook(
   supplierGstin?: string
 ): ReconstructedTable[] {
   const tables: ReconstructedTable[] = [];
+  const documents: ReconstructedTable[] = [];
   for (const sheetName of workbook.SheetNames) {
     const worksheet = workbook.Sheets[sheetName];
     if (!worksheet) continue;
@@ -368,13 +369,19 @@ export function reconstructWorkbook(
     if (looksLikeInvoiceDocument(sheetGrid(worksheet), table.headers)) {
       const asDocument = invoiceDocumentToTable(sheetName, worksheet, fileName, supplierGstin);
       if (asDocument) {
-        tables.push(asDocument);
+        documents.push(asDocument);
         continue;
       }
     }
 
     if (table.rows.length > 0 && table.headers.length >= 2) tables.push(table);
   }
+
+  // A workbook that is a printed invoice holds nothing else worth reading.
+  // Its other sheets are the template's scratch copies — "Chart1", "Chart2" —
+  // carrying the invoice's HSN and rate beside zeros and no invoice number;
+  // read as tables they became dozens of sales with no document behind them.
+  if (documents.length > 0) return documents;
 
   return tables.sort((a, b) => rank(b) - rank(a));
 }
