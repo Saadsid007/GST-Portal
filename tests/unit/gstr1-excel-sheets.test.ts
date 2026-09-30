@@ -108,12 +108,12 @@ describe("GSTR-1 workbook: HSN summary (Table 12)", () => {
     expect(description.length).toBeLessThanOrEqual(60);
   });
 
-  it("merges a 4-digit heading into its 6-digit form", () => {
+  it("merges a heading with its zero-padded spelling", () => {
     // Marketplace feeds spell the same commodity both ways; two rows for one
     // commodity is what put our Table 12 out of step with the CA's.
     const rows = dataRows(mixed.hsnB2b!);
     expect(rows).toHaveLength(1);
-    expect(rows[0]![0]).toBe("441900");
+    expect(rows[0]![0]).toBe("4419");
     expect(Number(rows[0]![6])).toBeCloseTo(2000, 2);
   });
 

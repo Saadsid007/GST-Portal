@@ -150,7 +150,7 @@ describe("what a transfer is allowed to block", () => {
 
     const failing = validateInvoices(rows, SELLER).rows.find((r) => r.errors.length > 0);
 
-    expect(failing!.errors[0]).toContain("441900");
+    expect(failing!.errors[0]).toContain("4419");
     expect(failing!.hsnCode).toBe("");
   });
 });

@@ -41,25 +41,34 @@ function r2(n: number): number {
 }
 
 /**
- * Canonicalises an HSN code.
+ * Canonicalises an HSN code to one the portal's HSN master holds.
  *
  * Marketplace feeds spell one commodity several ways — "4419" on one line and
- * "441900" on the next — which splits a single HSN across two rows that then
- * disagree with the filed return. A 4-digit heading is padded to the 6-digit
- * form the rest of the file uses so both land in the same bucket.
+ * "441900" on the next — and the two have to land in one row. They used to
+ * meet by padding the heading to six digits, but "441900" and "442100" are
+ * not codes: heading 4421 is subdivided into 442110, 442191 and 442199, and
+ * nothing ends in 00. The portal looks each code up in its master, and on a
+ * filed return it took every other table and silently dropped Table 12.
+ *
+ * So they meet the other way. Trailing zero pairs are padding, not
+ * classification, and are taken off — "441900" is heading 4419, which the
+ * master always holds and which a taxpayer under ₹5 crore may report. A
+ * genuine subheading such as "442199" is left exactly as it was given.
  *
  * Returns "" for a code that classifies nothing: absent, all zeros, or too
  * short to mean anything. The portal rejects such a row outright.
  */
 export function normalizeHsn(raw: string | undefined): string {
-  const digits = String(raw ?? "").replace(/\D/g, "");
+  let digits = String(raw ?? "").replace(/\D/g, "");
   if (!digits || /^0+$/.test(digits)) return "";
-  // 2-digit chapters are too coarse to report; 4 pads to 6, 6 and 8 stand.
+  // 2-digit chapters are too coarse to report.
   if (digits.length < 4) return "";
-  if (digits.length === 4) return `${digits}00`;
-  if (digits.length === 5) return `${digits}0`;
-  if (digits.length === 7) return digits.slice(0, 6);
-  return digits.length > 8 ? digits.slice(0, 8) : digits;
+  if (digits.length > 8) digits = digits.slice(0, 8);
+  // Odd lengths are a typing slip, not a level of the nomenclature.
+  if (digits.length === 5 || digits.length === 7) digits = digits.slice(0, digits.length - 1);
+
+  while (digits.length > 4 && digits.endsWith("00")) digits = digits.slice(0, -2);
+  return digits;
 }
 
 /**

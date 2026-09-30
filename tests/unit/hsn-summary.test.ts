@@ -37,11 +37,17 @@ function row(over: Partial<NormalizedInvoiceRow>): NormalizedInvoiceRow {
 }
 
 describe("canonicalising an HSN code", () => {
-  it("pads a 4-digit heading to the 6-digit form", () => {
+  it("takes the padding off a heading rather than adding it", () => {
     // Marketplace feeds spell one commodity both ways, which split a single
     // HSN into two rows that disagreed with the filed return.
-    expect(normalizeHsn("4419")).toBe("441900");
-    expect(normalizeHsn("441900")).toBe("441900");
+    // "441900" is not a code: heading 4419 is subdivided and nothing in it
+    // ends in 00. The portal looks each code up in its HSN master, and on a
+    // filed return it took every other table and dropped Table 12. The
+    // heading itself is always in the master.
+    expect(normalizeHsn("4419")).toBe("4419");
+    expect(normalizeHsn("441900")).toBe("4419");
+    expect(normalizeHsn("44210000")).toBe("4421");
+    expect(normalizeHsn("44219900")).toBe("442199");
   });
 
   it("keeps 6 and 8 digit codes as they are", () => {
@@ -72,7 +78,7 @@ describe("Table 12", () => {
     ]);
 
     expect(summary.b2c).toHaveLength(1);
-    expect(summary.b2c[0]!.hsnCode).toBe("441900");
+    expect(summary.b2c[0]!.hsnCode).toBe("4419");
     expect(summary.b2c[0]!.taxableValue).toBe(2000);
   });
 
@@ -95,7 +101,7 @@ describe("Table 12", () => {
       row({ hsnCode: "441900", invoiceNumber: "IN-3" }),
     ]);
 
-    expect(summary.b2c.map((r) => r.hsnCode)).toEqual(["441900"]);
+    expect(summary.b2c.map((r) => r.hsnCode)).toEqual(["4419"]);
     expect(summary.unclassified.rows).toBe(2);
     expect(summary.unclassified.taxableValue).toBe(1500);
   });

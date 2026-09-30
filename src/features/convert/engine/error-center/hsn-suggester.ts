@@ -1,4 +1,5 @@
 import type { NormalizedInvoiceRow } from "@/features/convert/types/convert.types";
+import { normalizeHsn } from "@/features/convert/domain/hsn-summary";
 
 /**
  * What HSN a row without one probably carries, and the evidence for it.
@@ -20,12 +21,11 @@ export interface SuggestedHsn {
 /** Below this the upload is not speaking with one voice, and naming a code would mislead. */
 const CONFIDENT_SHARE = 80;
 
-/** The 4-digit heading and its 6-digit form are one commodity, not two. */
-function canonical(hsnCode: string | undefined): string {
-  const digits = (hsnCode ?? "").replace(/\D/g, "");
-  if (digits.length < 4) return "";
-  return digits.length === 4 ? `${digits}00` : digits;
-}
+/**
+ * The same canonical form Table 12 reports, so a suggested code is one the
+ * portal's HSN master holds rather than a padded heading it drops.
+ */
+const canonical = normalizeHsn;
 
 /**
  * The strongest evidence first: another row for the same product.
