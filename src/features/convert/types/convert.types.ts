@@ -44,6 +44,12 @@ export interface NormalizedInvoiceRow {
    * making a new one, and Table 13 counts it under its own heading.
    */
   isDebitNote?: boolean;
+  /**
+   * A document the marketplace issued to the seller rather than one the seller
+   * issued — Flipkart's cash back notes. It moves the value of a supply but is
+   * not in the seller's own books, so Table 13 does not list it.
+   */
+  issuedByOperator?: boolean;
   /** GSTIN of the e-commerce operator that collected TCS. Drives GSTR-1 Table 14(a). */
   ecoGstin?: string;
   /** Legal name of that operator, kept for reports and debugging only. */

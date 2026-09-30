@@ -121,24 +121,30 @@ export class FlipkartAdapter {
       const hasAnyValue = Object.values(row).some((v) => String(v || "").trim() !== "");
       if (!hasAnyValue) continue;
 
-      // The cash back sheet holds notes both ways: a credit note when the
-      // bank's offer is paid out, a debit note when a return takes it back.
-      // Only the credit note reduces the supply; treating every row as one
-      // subtracted the debit notes instead of adding them.
+      // The cash back sheet is Flipkart settling with the seller for a bank's
+      // offer. The customer paid the discounted price and the bank paid the
+      // rest, so the seller's consideration is the list price: on every order
+      // in the sample, the sale's taxable value plus its cash back credit note
+      // comes to the list price over 1.05 to the paisa. The credit note is
+      // part of the sale and is added; the debit note takes it back when the
+      // item is returned. The sheet already signs them that way — Flipkart
+      // collects TCS on the credit notes as supply — so its sign is read, not
+      // the document's name. Subtracting the credit notes put one order in
+      // Assam at 188.57 where the same item was 224.76 in every other state.
+      const cashBackTaxable = num(pick(row, "Taxable Value"));
       const txType =
         layout === "SELLER_HUB_CREDIT"
-          ? /debit/i.test(pick(row, "Document Type"))
-            ? "Sales"
-            : "Return"
+          ? cashBackTaxable < 0
+            ? "Return"
+            : "Sales"
           : readEventType(row);
       if (txType === "SKIP") continue;
 
-      // A document that raises an earlier supply's value: the cash back debit
-      // note, and the one that reverses a return. Both are debit notes, and
-      // Table 13 counts them apart from the seller's invoices.
+      // A document that raises an earlier supply's value — the one that
+      // reverses a return is a debit note, and Table 13 counts it apart from
+      // the seller's invoices.
       const isDebitNote =
-        (layout === "SELLER_HUB_CREDIT" && /debit/i.test(pick(row, "Document Type"))) ||
-        /return\s*cancel/i.test(pick(row, "Event Sub Type"));
+        layout !== "SELLER_HUB_CREDIT" && /return\s*cancel/i.test(pick(row, "Event Sub Type"));
 
       // ── Place of supply ────────────────────────────────────────────────
       // The delivery address decides the place of supply for goods, so it is
@@ -316,6 +322,7 @@ export class FlipkartAdapter {
         invoiceType,
         orderReference: pick(row, "Order Item ID", "Order ID") || undefined,
         isDebitNote: isDebitNote || undefined,
+        issuedByOperator: layout === "SELLER_HUB_CREDIT" || undefined,
 
         buyerName,
         buyerGstin: isB2B ? buyerGstin : "",

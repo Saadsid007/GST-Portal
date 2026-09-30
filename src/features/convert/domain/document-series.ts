@@ -91,6 +91,9 @@ export function buildDocumentSeries(rows: NormalizedInvoiceRow[]): DocumentSerie
   for (const row of rows) {
     const number = row.invoiceNumber.trim();
     if (!number) continue;
+    // Table 13 accounts for the seller's own books. A note the marketplace
+    // issued to the seller is not one of them.
+    if (row.issuedByOperator) continue;
 
     // A debit note raises an earlier supply rather than making a new one, so
     // counting it among the invoices put a marketplace's note series into the
