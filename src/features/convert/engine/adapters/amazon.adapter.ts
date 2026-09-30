@@ -1,3 +1,4 @@
+import { GST_SLABS } from "@/features/convert/engine/universal/signals";
 import type { AdapterResult, SourceContext } from "./types";
 import type {
   NormalizedInvoiceRow,
@@ -36,6 +37,22 @@ export class AmazonAdapter {
       }
     }
 
+    // Every number a shipment, refund or replacement actually used. A cancelled
+    // row that names one of these is not a cancelled document — Amazon lists
+    // "Cancel" against a credit note that was then issued anyway.
+    const usedNumbers = new Set<string>();
+    for (const r of rows) {
+      if (
+        String(r["Transaction Type"] || "")
+          .trim()
+          .toUpperCase() === "CANCEL"
+      )
+        continue;
+      for (const n of [r["Invoice Number"], r["Credit Note No"]]) {
+        if (String(n || "").trim()) usedNumbers.add(String(n).trim());
+      }
+    }
+
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i]!;
       const errors: string[] = [];
@@ -71,24 +88,32 @@ export class AmazonAdapter {
         .trim()
         .toUpperCase();
       let txType: TransactionType = "Sales";
+      let documentOnly: "cancelled" | "issued" | undefined;
+      const statedNumber = String(row["Invoice Number"] || "").trim();
       if (rawTxType === "REFUND" || rawTxType === "RETURN") {
         txType = "Return";
       } else if (rawTxType === "CANCEL") {
-        // Cancelled orders never become invoices — exclude completely.
-        continue;
+        // A cancelled order supplied nothing. But where Amazon had already
+        // numbered the invoice, that number was used and cancelled, and Table
+        // 13 accounts for it: dropping it understated the documents issued and
+        // left the Cancelled column at nothing.
+        if (!statedNumber || usedNumbers.has(statedNumber)) continue;
+        documentOnly = "cancelled";
       } else if (
         rawTxType === "FREEREPLACEMNT" ||
         rawTxType === "FREE_REPLACEMENT" ||
         rawTxType === "FREEREPLACEMENT"
       ) {
-        // FreeReplacement: Amazon ships a free unit to the customer.
-        // If the value is zero, there is no supply to report.
-        // If it carries a taxable value (rare), treat it as a normal B2C sale.
+        // A free replacement at no value is not a supply, but it consumed an
+        // invoice number, which Table 13 counts as issued. One that does carry
+        // a value (rare) is a sale.
         const freeVal = parseFloat(
           row["Tax Exclusive Gross"] || row["Principal Amount Basis"] || "0"
         );
-        if (Math.abs(freeVal) === 0) continue; // zero-value → skip
-        // non-zero falls through as Sales
+        if (Math.abs(freeVal) === 0) {
+          if (!statedNumber) continue;
+          documentOnly = "issued";
+        }
       }
 
       // 2. Identities
@@ -220,7 +245,10 @@ export class AmazonAdapter {
       if (!gstRate && Math.abs(taxableValue) > 0 && Math.abs(totalTax) > 0) {
         gstRate = Math.round((Math.abs(totalTax) / Math.abs(taxableValue)) * 100);
       }
-      const validSlabs = [0, 5, 12, 18, 28];
+      // Every rate a GST invoice can carry, including 40% from September 2025
+      // and 3% on precious metals. Snapping to a list without them turned a
+      // 40% item into a 28% one when Amazon left the rate column blank.
+      const validSlabs: readonly number[] = GST_SLABS;
       if (!validSlabs.includes(gstRate)) {
         gstRate = validSlabs.reduce(
           (prev, curr) => (Math.abs(curr - gstRate) < Math.abs(prev - gstRate) ? curr : prev),
@@ -371,6 +399,15 @@ export class AmazonAdapter {
         errors,
         reviews: rowReviews.length > 0 ? rowReviews : undefined,
       };
+
+      // A number with no supply: kept for Table 13 and nothing else, so none
+      // of a supply's checks apply to it.
+      if (documentOnly) {
+        tx.documentOnly = documentOnly;
+        tx.transactionType = "Adjustment";
+        tx.errors = [];
+        tx.reviews = undefined;
+      }
 
       if (errors.length > 0) {
         _errorRows++;

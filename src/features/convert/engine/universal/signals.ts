@@ -12,8 +12,13 @@ import { STATE_CODES } from "@/features/convert/domain/state-codes";
 /** Structure of a GSTIN: state code, PAN, entity number, Z, checksum. */
 export const GSTIN_PATTERN = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z][0-9A-Z][0-9A-Z]$/i;
 
-/** GST slabs notified under the Act, plus the cess-only 0.1/0.25 rates. */
-export const GST_SLABS = [0, 0.1, 0.25, 1, 1.5, 3, 5, 6, 7.5, 12, 18, 28] as const;
+/**
+ * Every rate a GST line can carry: the slabs, the 0.1/0.25 special rates, and
+ * 40% — the rate on sin and luxury goods since 22 September 2025. Without it a
+ * 40% line read as "not a GST slab", a data fault, when it was the law.
+ * The one list the whole import checks rates against.
+ */
+export const GST_SLABS = [0, 0.1, 0.25, 1, 1.5, 3, 5, 6, 7.5, 12, 18, 28, 40] as const;
 
 const STATE_NAMES = new Map<string, string>(
   Object.entries(STATE_CODES).map(([code, name]) => [normaliseStateName(name), code])

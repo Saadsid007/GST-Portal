@@ -1,3 +1,4 @@
+import { GST_SLABS } from "@/features/convert/engine/universal/signals";
 import type {
   NormalizedInvoiceRow,
   InvoiceCategory,
@@ -17,8 +18,8 @@ import {
   FALLBACK_BUYER_NAME,
 } from "./transformers";
 
-/** GST slabs notified under the Act. Anything outside these is a data problem, not a rate. */
-const GST_SLABS = [0, 0.1, 0.25, 1, 1.5, 3, 5, 6, 7.5, 12, 18, 28];
+// Anything outside these is a data problem, not a rate. Shared rather than
+// copied: the copy here had no 40% slab.
 
 function round2(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;

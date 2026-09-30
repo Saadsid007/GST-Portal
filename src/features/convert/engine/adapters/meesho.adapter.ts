@@ -1,3 +1,4 @@
+import { GST_SLABS } from "@/features/convert/engine/universal/signals";
 import type { AdapterResult, SourceContext } from "./types";
 import type {
   NormalizedInvoiceRow,
@@ -159,7 +160,9 @@ export class MeeshoAdapter {
         gstRate = Math.round((Math.abs(totalTax) / Math.abs(taxableValue)) * 100);
       }
 
-      const validSlabs = [0, 5, 12, 18, 28];
+      // The shared list, which carries 40% — this copy did not, and snapped a
+      // 40% line to 28%.
+      const validSlabs: readonly number[] = GST_SLABS;
       if (!validSlabs.includes(gstRate)) {
         gstRate = validSlabs.reduce(
           (prev, curr) => (Math.abs(curr - gstRate) < Math.abs(prev - gstRate) ? curr : prev),

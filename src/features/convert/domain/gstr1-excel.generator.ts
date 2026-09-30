@@ -274,8 +274,12 @@ export async function generateGstr1Excel(
   // did not know the PAN rule — so a delivery challan to the seller's own
   // branch was declared here as a B2B sale while the JSON of the same return
   // correctly left it out.
+  const clean = rows.filter((r) => r.errors.length === 0);
+  // Cancelled invoices and zero-value replacements used a number and supplied
+  // nothing. Every table leaves them out; Table 13 counts them.
+  const documentOnlyRows = clean.filter((r) => r.documentOnly);
   const validRows = excludeStockTransfers(
-    rows.filter((r) => r.errors.length === 0),
+    clean.filter((r) => !r.documentOnly),
     gstin
   );
 
@@ -676,7 +680,7 @@ export async function generateGstr1Excel(
   // A stock transfer is reported as a supply, but its document is not one of
   // the seller's own books — Amazon numbers these from its shipment ids.
   const docRowsData = buildDocumentSeries(
-    validRows.filter((r) => !isStockTransferRow(r, gstin))
+    [...validRows, ...documentOnlyRows].filter((r) => !isStockTransferRow(r, gstin))
   ).map((s) => ({
     name: s.documentType,
     from: s.from,

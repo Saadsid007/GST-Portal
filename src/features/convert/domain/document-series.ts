@@ -85,7 +85,7 @@ export function isRealSeries(stem: string, documentCount: number): boolean {
 export function buildDocumentSeries(rows: NormalizedInvoiceRow[]): DocumentSeries[] {
   const groups = new Map<
     string,
-    { documentType: DocumentSeries["documentType"]; nums: Set<string> }
+    { documentType: DocumentSeries["documentType"]; nums: Set<string>; supplied: Set<string> }
   >();
 
   for (const row of rows) {
@@ -109,8 +109,15 @@ export function buildDocumentSeries(rows: NormalizedInvoiceRow[]): DocumentSerie
     // space, and splitting a composite key on one put the document type's
     // second word into the series stem.
     const key = `${documentType}\0${stem}`;
-    const group = groups.get(key) ?? { documentType, nums: new Set<string>() };
+    const group = groups.get(key) ?? {
+      documentType,
+      nums: new Set<string>(),
+      supplied: new Set<string>(),
+    };
     group.nums.add(number);
+    // A number is cancelled only if nothing else in the month used it: a
+    // marketplace can list a number as cancelled and then issue it after all.
+    if (row.documentOnly !== "cancelled") group.supplied.add(number);
     groups.set(key, group);
   }
 
@@ -129,10 +136,10 @@ export function buildDocumentSeries(rows: NormalizedInvoiceRow[]): DocumentSerie
       from: sorted[0]!,
       to: sorted[sorted.length - 1]!,
       totalNumber: sorted.length,
-      // Cancellations are not derivable from a marketplace export — a
-      // cancelled invoice simply never appears in it. Reporting 0 states what
-      // is known rather than implying the books were checked.
-      cancelled: 0,
+      // Only what the export records. Amazon lists an invoice it issued and
+      // then cancelled; a number that appears nowhere in the upload may have
+      // been cancelled too, but nothing here says so.
+      cancelled: sorted.filter((n) => !group.supplied.has(n)).length,
     });
   }
 

@@ -50,6 +50,13 @@ export interface NormalizedInvoiceRow {
    * not in the seller's own books, so Table 13 does not list it.
    */
   issuedByOperator?: boolean;
+  /**
+   * A document number that was used but carries no supply: an invoice issued
+   * and then cancelled, or a zero-value free replacement. It adds nothing to
+   * any table of the return except Table 13, which accounts for every number
+   * the seller's books used — "cancelled" counts in its Cancelled column.
+   */
+  documentOnly?: "cancelled" | "issued";
   /** GSTIN of the e-commerce operator that collected TCS. Drives GSTR-1 Table 14(a). */
   ecoGstin?: string;
   /** Legal name of that operator, kept for reports and debugging only. */

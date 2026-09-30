@@ -94,6 +94,13 @@ export function validateInvoices(
   const issues: ValidationIssue[] = [];
 
   const validated = rows.map((row) => {
+    // A cancelled invoice has no value, rate or place of supply to check — it
+    // is a number accounted for in Table 13 and nothing else. Validating it
+    // like a supply turned every cancellation into an error.
+    if (row.documentOnly) {
+      return { ...row, errors: [], reviews: [] };
+    }
+
     const errors: string[] = [];
     const reviews: string[] = [];
     let hsnSuggestion: SuggestedHsn | null = null;

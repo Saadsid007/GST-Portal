@@ -56,8 +56,14 @@ export class RuleEngine {
     // validator asks for it.
     return rows.filter(
       // Marketplace exports include cancelled / free-replacement lines that carry no value at all;
-      // they are not supplies and must not reach GSTR-1.
-      (row) => rule.allowZeroTaxableValue || row.taxableValue !== 0 || row.totalValue !== 0
+      // they are not supplies and must not reach GSTR-1. A line an adapter has kept on purpose as
+      // a document number alone is the exception: it reaches Table 13 and no other table, and
+      // dropping it here left every cancelled invoice out of the Cancelled column.
+      (row) =>
+        Boolean(row.documentOnly) ||
+        rule.allowZeroTaxableValue ||
+        row.taxableValue !== 0 ||
+        row.totalValue !== 0
     );
   }
 }

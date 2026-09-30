@@ -66,8 +66,12 @@ export function generateGstr1Json(
   // Moving stock between the seller's own registrations is not an outward
   // supply, so it is held back from every table — not just from Table 4, which
   // was the only place this file used to check.
+  const clean = rows.filter((r) => r.errors.length === 0);
+  // Cancelled invoices and zero-value replacements used a number and supplied
+  // nothing. Every table leaves them out; Table 13 counts them.
+  const documentOnlyRows = clean.filter((r) => r.documentOnly);
   const validRows = excludeStockTransfers(
-    rows.filter((r) => r.errors.length === 0),
+    clean.filter((r) => !r.documentOnly),
     gstin
   );
   const fp = deriveFilingPeriod(validRows, period);
@@ -327,7 +331,9 @@ export function generateGstr1Json(
   // cannot disagree. This file grew its own prefix-grouping with no test of
   // whether a "series" was one, and enumerated every marketplace order
   // reference as a separate entry.
-  const series = buildDocumentSeries(validRows.filter(isEligibleDocInvoice));
+  const series = buildDocumentSeries(
+    [...validRows, ...documentOnlyRows].filter(isEligibleDocInvoice)
+  );
 
   const docSeries = (docTyp: DocumentSeries["documentType"]) => {
     const mine = series.filter((s) => s.documentType === docTyp);

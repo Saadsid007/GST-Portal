@@ -80,6 +80,13 @@ export function processNetSales(rows: NormalizedInvoiceRow[]): NetSalesResult {
     totalReturnCess = 0;
 
   for (const row of rows) {
+    // A number with no supply behind it — a cancelled invoice — has nothing to
+    // net. It passes through as it came, for Table 13 to count.
+    if (row.documentOnly) {
+      processedRows.push(row);
+      continue;
+    }
+
     const isReturn =
       row.transactionType === "Return" || row.taxableValue < 0 || row.invoiceType === "CDNR";
     const absTaxable = Math.abs(row.taxableValue);
