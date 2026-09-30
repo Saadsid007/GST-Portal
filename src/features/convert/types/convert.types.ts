@@ -33,6 +33,17 @@ export interface NormalizedInvoiceRow {
   totalValue: number;
   originalInvoiceNumber?: string;
   originalInvoiceDate?: string;
+  /**
+   * The marketplace's order line this row belongs to. A note the marketplace
+   * issues later — a cash back credit note, say — names the order and not the
+   * invoice, so this is the only key that joins it back to its sale.
+   */
+  orderReference?: string;
+  /**
+   * A debit note: it raises the value of an earlier supply rather than
+   * making a new one, and Table 13 counts it under its own heading.
+   */
+  isDebitNote?: boolean;
   /** GSTIN of the e-commerce operator that collected TCS. Drives GSTR-1 Table 14(a). */
   ecoGstin?: string;
   /** Legal name of that operator, kept for reports and debugging only. */

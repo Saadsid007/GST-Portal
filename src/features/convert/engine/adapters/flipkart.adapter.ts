@@ -133,6 +133,13 @@ export class FlipkartAdapter {
           : readEventType(row);
       if (txType === "SKIP") continue;
 
+      // A document that raises an earlier supply's value: the cash back debit
+      // note, and the one that reverses a return. Both are debit notes, and
+      // Table 13 counts them apart from the seller's invoices.
+      const isDebitNote =
+        (layout === "SELLER_HUB_CREDIT" && /debit/i.test(pick(row, "Document Type"))) ||
+        /return\s*cancel/i.test(pick(row, "Event Sub Type"));
+
       // ── Place of supply ────────────────────────────────────────────────
       // The delivery address decides the place of supply for goods, so it is
       // preferred over the billing address wherever Flipkart gives both.
@@ -268,8 +275,13 @@ export class FlipkartAdapter {
       }
 
       const itemDescription = pick(row, "Product Title/Description", "Product Description");
+      // A cash back note moves money, not goods: defaulting it to one unit
+      // took nineteen items out of Table 12 that never came back.
       const quantity =
-        parseInt(pick(row, "Item Quantity", "Total Quantity in Nos.", "Quantity") || "1", 10) || 1;
+        layout === "SELLER_HUB_CREDIT"
+          ? 0
+          : parseInt(pick(row, "Item Quantity", "Total Quantity in Nos.", "Quantity") || "1", 10) ||
+            1;
 
       if (!pos) errors.push("Missing Place of Supply");
 
@@ -302,6 +314,8 @@ export class FlipkartAdapter {
         invoiceNumber,
         invoiceDate,
         invoiceType,
+        orderReference: pick(row, "Order Item ID", "Order ID") || undefined,
+        isDebitNote: isDebitNote || undefined,
 
         buyerName,
         buyerGstin: isB2B ? buyerGstin : "",

@@ -2,6 +2,7 @@ import type { ReconstructedTable } from "@/features/convert/engine/universal/typ
 import { PlatformDetector } from "@/features/convert/engine/detection/platform.detector";
 import { classifyCompanionSheet } from "@/features/convert/engine/detection/companion-sheets";
 import { detectDuplicateTables } from "@/features/convert/engine/detection/duplicate-tables";
+import { inheritCommodityByOrder } from "@/features/convert/engine/enrichment/order-reference";
 import { detectFragmentSheets } from "@/features/convert/engine/detection/fragment-sheets";
 import {
   dropAppendedDuplicateReturns,
@@ -199,6 +200,8 @@ export class ImportSessionManager {
     // the two copies may be reported.
     const deduped = dropAppendedDuplicateReturns(enriched);
     const finalRows = flagUnreferencedRows(deduped.rows);
+    // Notes issued in a sheet of their own name the order, not the commodity.
+    inheritCommodityByOrder(finalRows);
     if (deduped.dropped.length > 0) {
       skippedSheets.push({
         fileName: "Meesho sales export",

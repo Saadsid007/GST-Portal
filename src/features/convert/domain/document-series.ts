@@ -12,7 +12,7 @@ import type { NormalizedInvoiceRow } from "@/features/convert/types/convert.type
 
 /** One entry of Table 13. */
 export interface DocumentSeries {
-  documentType: "Invoices for outward supply" | "Credit Note";
+  documentType: "Invoices for outward supply" | "Debit Note" | "Credit Note";
   from: string;
   to: string;
   totalNumber: number;
@@ -21,6 +21,7 @@ export interface DocumentSeries {
 
 const DOC_TYPE_ORDER: DocumentSeries["documentType"][] = [
   "Invoices for outward supply",
+  "Debit Note",
   "Credit Note",
 ];
 
@@ -32,6 +33,7 @@ const DOC_TYPE_ORDER: DocumentSeries["documentType"][] = [
  */
 const DOC_TYPE_SERIAL: Record<DocumentSeries["documentType"], number> = {
   "Invoices for outward supply": 1,
+  "Debit Note": 4,
   "Credit Note": 5,
 };
 
@@ -90,8 +92,12 @@ export function buildDocumentSeries(rows: NormalizedInvoiceRow[]): DocumentSerie
     const number = row.invoiceNumber.trim();
     if (!number) continue;
 
-    const documentType: DocumentSeries["documentType"] =
-      row.invoiceType === "CDNR" || row.invoiceType === "CDNCS"
+    // A debit note raises an earlier supply rather than making a new one, so
+    // counting it among the invoices put a marketplace's note series into the
+    // seller's own book.
+    const documentType: DocumentSeries["documentType"] = row.isDebitNote
+      ? "Debit Note"
+      : row.invoiceType === "CDNR" || row.invoiceType === "CDNCS"
         ? "Credit Note"
         : "Invoices for outward supply";
 

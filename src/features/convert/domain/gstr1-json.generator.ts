@@ -344,9 +344,11 @@ export function generateGstr1Json(
     };
   };
 
-  const docDet = [docSeries("Invoices for outward supply"), docSeries("Credit Note")].filter(
-    (d): d is NonNullable<typeof d> => d !== null
-  );
+  const docDet = [
+    docSeries("Invoices for outward supply"),
+    docSeries("Debit Note"),
+    docSeries("Credit Note"),
+  ].filter((d): d is NonNullable<typeof d> => d !== null);
 
   const docIssue = docDet.length > 0 ? { doc_det: docDet } : undefined;
 
