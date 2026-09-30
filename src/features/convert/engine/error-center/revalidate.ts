@@ -69,7 +69,8 @@ export interface RevalidatedPipeline {
  */
 export function revalidateRows(
   rows: NormalizedInvoiceRow[],
-  gstinNumber: string
+  gstinNumber: string,
+  returnPeriod = ""
 ): RevalidatedPipeline {
   const netResult = processNetSales(rows);
   const validation = validateInvoices(netResult.processedRows, gstinNumber);
@@ -84,6 +85,6 @@ export function revalidateRows(
   return {
     rows: validation.rows,
     statement,
-    gstr1Json: generateGstr1Json(validation.rows, gstinNumber, "", statement as never),
+    gstr1Json: generateGstr1Json(validation.rows, gstinNumber, returnPeriod, statement as never),
   };
 }

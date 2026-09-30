@@ -68,7 +68,12 @@ export function StepUpload({ state, onChange, onNext, onBack }: Props) {
         file: item.file,
       }));
 
-      const res = await parseMultiPlatformFilesAction(fileInputs, state.gstinNumber);
+      const res = await parseMultiPlatformFilesAction(
+        fileInputs,
+        state.gstinNumber,
+        undefined,
+        state.returnPeriod
+      );
 
       if (!res.success) {
         toast.error(res.error);

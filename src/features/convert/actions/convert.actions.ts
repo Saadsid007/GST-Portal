@@ -216,7 +216,8 @@ export async function evaluateWorkbooksAction(files: MultiUploadFileInput[], gst
 export async function parseMultiPlatformFilesAction(
   files: MultiUploadFileInput[],
   gstinNumber: string,
-  answersByFile?: Record<string, QuestionAnswer[]>
+  answersByFile?: Record<string, QuestionAnswer[]>,
+  returnPeriod = ""
 ) {
   const session = await requireSession();
   const startTime = Date.now();
@@ -380,7 +381,12 @@ export async function parseMultiPlatformFilesAction(
   );
 
   // 8. Generate GSTR-1 JSON
-  const gstr1Json = generateGstr1Json(validationResult.rows, gstinNumber, "", statement as never);
+  const gstr1Json = generateGstr1Json(
+    validationResult.rows,
+    gstinNumber,
+    returnPeriod,
+    statement as never
+  );
   const processingTimeMs = Date.now() - startTime;
 
   // 9. Auto-run GSTR-1 comparison if a reference GSTR-1 file was uploaded in step 5
@@ -435,14 +441,18 @@ export async function parseMultiPlatformFilesAction(
   };
 }
 
-export async function applyAutoFixAction(rows: NormalizedInvoiceRow[], gstinNumber: string) {
+export async function applyAutoFixAction(
+  rows: NormalizedInvoiceRow[],
+  gstinNumber: string,
+  returnPeriod = ""
+) {
   await requireSession();
 
   const { rows: fixedRows, summary: fixSummary } = applyAutoFixers(rows, gstinNumber);
 
   return {
     success: true as const,
-    data: { ...revalidateRows(fixedRows, gstinNumber), fixSummary },
+    data: { ...revalidateRows(fixedRows, gstinNumber, returnPeriod), fixSummary },
   };
 }
 
@@ -455,7 +465,8 @@ export async function applyAutoFixAction(rows: NormalizedInvoiceRow[], gstinNumb
 export async function applySuggestedRatesAction(
   rows: NormalizedInvoiceRow[],
   gstinNumber: string,
-  rowIds?: string[]
+  rowIds?: string[],
+  returnPeriod = ""
 ) {
   await requireSession();
 
@@ -475,7 +486,7 @@ export async function applySuggestedRatesAction(
 
   return {
     success: true as const,
-    data: { ...revalidateRows(withRates, gstinNumber), appliedCount },
+    data: { ...revalidateRows(withRates, gstinNumber, returnPeriod), appliedCount },
   };
 }
 
@@ -490,7 +501,8 @@ export async function applySuggestedRatesAction(
 export async function applySuggestedHsnAction(
   rows: NormalizedInvoiceRow[],
   gstinNumber: string,
-  rowIds?: string[]
+  rowIds?: string[],
+  returnPeriod = ""
 ) {
   await requireSession();
 
@@ -509,7 +521,7 @@ export async function applySuggestedHsnAction(
 
   return {
     success: true as const,
-    data: { ...revalidateRows(withHsn, gstinNumber), appliedCount },
+    data: { ...revalidateRows(withHsn, gstinNumber, returnPeriod), appliedCount },
   };
 }
 
@@ -519,10 +531,14 @@ export async function applySuggestedHsnAction(
  * Rows carry errors from the last validation pass, so after a batch of manual edits the badges
  * can lag behind what the data now supports. This is the user's explicit "check it again".
  */
-export async function revalidateAllAction(rows: NormalizedInvoiceRow[], gstinNumber: string) {
+export async function revalidateAllAction(
+  rows: NormalizedInvoiceRow[],
+  gstinNumber: string,
+  returnPeriod = ""
+) {
   await requireSession();
 
-  const result = revalidateRows(rows, gstinNumber);
+  const result = revalidateRows(rows, gstinNumber, returnPeriod);
   return {
     success: true as const,
     data: { ...result, errorCount: result.statement.errorInvoices },
@@ -540,7 +556,8 @@ export async function updateRowAction(
   rows: NormalizedInvoiceRow[],
   rowId: string,
   patch: EditableRowFields,
-  gstinNumber: string
+  gstinNumber: string,
+  returnPeriod = ""
 ) {
   await requireSession();
 
@@ -565,7 +582,7 @@ export async function updateRowAction(
     return applyRateToRow(merged, patch.gstRate, supplierState);
   });
 
-  const result = revalidateRows(nextRows, gstinNumber);
+  const result = revalidateRows(nextRows, gstinNumber, returnPeriod);
   return {
     success: true as const,
     data: { ...result, rowErrors: result.rows.find((r) => r.id === rowId)?.errors ?? [] },

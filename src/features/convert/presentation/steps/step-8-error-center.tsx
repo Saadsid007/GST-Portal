@@ -149,7 +149,13 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
     if (!editingRowId) return;
     setSaving(true);
     try {
-      const res = await updateRowAction(rows, editingRowId, patch, state.gstinNumber);
+      const res = await updateRowAction(
+        rows,
+        editingRowId,
+        patch,
+        state.gstinNumber,
+        state.returnPeriod
+      );
       if (res.success) {
         onChange({
           rows: res.data.rows,
@@ -173,7 +179,12 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
   async function handleApplySuggestedHsn(rowIds?: string[]) {
     setApplyingHsn(true);
     try {
-      const res = await applySuggestedHsnAction(rows, state.gstinNumber, rowIds);
+      const res = await applySuggestedHsnAction(
+        rows,
+        state.gstinNumber,
+        rowIds,
+        state.returnPeriod
+      );
       if (res.success) {
         onChange({
           rows: res.data.rows,
@@ -196,7 +207,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
   async function handleRevalidateAll() {
     setRevalidating(true);
     try {
-      const res = await revalidateAllAction(rows, state.gstinNumber);
+      const res = await revalidateAllAction(rows, state.gstinNumber, state.returnPeriod);
       if (res.success) {
         onChange({
           rows: res.data.rows,
@@ -219,7 +230,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
   async function handleAutoFixAll() {
     setAutoFixing(true);
     try {
-      const res = await applyAutoFixAction(rows, state.gstinNumber);
+      const res = await applyAutoFixAction(rows, state.gstinNumber, state.returnPeriod);
       if (res.success) {
         onChange({
           rows: res.data.rows,
@@ -241,7 +252,12 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
   async function handleApplySuggestedRates(rowIds?: string[]) {
     setApplyingRates(true);
     try {
-      const res = await applySuggestedRatesAction(rows, state.gstinNumber, rowIds);
+      const res = await applySuggestedRatesAction(
+        rows,
+        state.gstinNumber,
+        rowIds,
+        state.returnPeriod
+      );
       if (res.success) {
         onChange({
           rows: res.data.rows,
