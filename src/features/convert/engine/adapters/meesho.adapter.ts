@@ -202,8 +202,12 @@ export class MeeshoAdapter {
         rowGstin: row["eco_tcs_gstin"] || row["ECO GSTIN"] || fileEcoGstin,
       });
 
-      // Quantity
-      const quantity = parseInt(row["quantity"] || row["Qty"] || "1", 10) || 1;
+      // Quantity. A price reduction on an earlier month's order comes with
+      // quantity 0 — value goes back, no goods do. Defaulting that 0 to 1 took
+      // a unit off Table 12 for every such line; only a blank cell means 1.
+      const rawQuantity = String(row["quantity"] ?? row["Qty"] ?? "").trim();
+      const parsedQuantity = Math.abs(parseInt(rawQuantity, 10));
+      const quantity = rawQuantity && Number.isFinite(parsedQuantity) ? parsedQuantity : 1;
 
       // Strictly validate Columns H, I, J, M as required fields for Meesho
       const rawGstRate = row["gst_rate"] ?? row["GST Rate"] ?? row["Tax Rate"];
