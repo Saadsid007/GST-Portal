@@ -66,6 +66,12 @@ function detectLayout(sheetName: string, columns: string[]): Layout {
  * supplied, so reporting it would overstate both the turnover and the tax.
  */
 function readEventType(row: Record<string, string>): TransactionType | "SKIP" {
+  // A return that was itself cancelled puts the sale back. Flipkart files it
+  // under Event Type "Return" with the reversal only in the sub-type, so
+  // reading the type alone subtracted the sale a second time.
+  const subType = pick(row, "Event Sub Type").toUpperCase();
+  if (subType.includes("RETURN") && subType.includes("CANCEL")) return "Sales";
+
   const raw = pick(row, "Event Type", "Event Sub Type", "Transaction Type").toUpperCase();
   if (!raw) return "Sales";
   if (raw.includes("CANCEL")) return "SKIP";
@@ -115,7 +121,16 @@ export class FlipkartAdapter {
       const hasAnyValue = Object.values(row).some((v) => String(v || "").trim() !== "");
       if (!hasAnyValue) continue;
 
-      const txType = layout === "SELLER_HUB_CREDIT" ? "Return" : readEventType(row);
+      // The cash back sheet holds notes both ways: a credit note when the
+      // bank's offer is paid out, a debit note when a return takes it back.
+      // Only the credit note reduces the supply; treating every row as one
+      // subtracted the debit notes instead of adding them.
+      const txType =
+        layout === "SELLER_HUB_CREDIT"
+          ? /debit/i.test(pick(row, "Document Type"))
+            ? "Sales"
+            : "Return"
+          : readEventType(row);
       if (txType === "SKIP") continue;
 
       // ── Place of supply ────────────────────────────────────────────────
