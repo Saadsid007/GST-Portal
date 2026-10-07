@@ -42,6 +42,49 @@ const HEADER_REQUIRED_FIELDS = new Set([
   "cessAmount",
 ]);
 
+/**
+ * Headers that name a figure a GST return never carries, by field.
+ *
+ * Billing software exports its invoice list with the books' columns alongside
+ * the tax ones. Zoho's "Invoice Details" has Total, Balance and Exchange Rate
+ * and no taxable value: the engine took "Balance" — what the customer still
+ * owes — for the taxable value, so a paid invoice was filed at zero, and the
+ * exchange rate of 1 for a 1% GST rate. Arithmetic cannot catch either, as an
+ * unpaid invoice's balance is its total and 1% is a notified slab. The header
+ * can, and says so plainly.
+ */
+const NOT_A_GST_FIGURE =
+  /\b(balance|outstanding|receivable|paid|received|payments?|exchange|currency|conversion|fx|round(ed|ing)?\s*off|write\s*off|amount\s*due|due\s*amount)\b/i;
+const NOT_AN_INVOICE_DATE = /\b(due|payment|paid|expiry)\b/i;
+const NOT_A_DESCRIPTION = /\b(treatment|status)\b/i;
+
+const VETOED_HEADERS: Record<string, RegExp> = {
+  taxableValue: NOT_A_GST_FIGURE,
+  totalValue: NOT_A_GST_FIGURE,
+  igstAmount: NOT_A_GST_FIGURE,
+  cgstAmount: NOT_A_GST_FIGURE,
+  sgstAmount: NOT_A_GST_FIGURE,
+  igstRate: NOT_A_GST_FIGURE,
+  cgstRate: NOT_A_GST_FIGURE,
+  sgstRate: NOT_A_GST_FIGURE,
+  quantity: NOT_A_GST_FIGURE,
+  placeOfSupply: NOT_A_GST_FIGURE,
+  invoiceDate: NOT_AN_INVOICE_DATE,
+  itemDescription: NOT_A_DESCRIPTION,
+};
+
+function headerVeto(header: string, field: string): Evidence[] {
+  const veto = VETOED_HEADERS[field];
+  if (!veto || !veto.test(header.replace(/[_\-.]+/g, " "))) return [];
+  return [
+    {
+      source: "HEADER_TOKEN",
+      detail: `"${header}" names a figure of the books, not of the return`,
+      weight: -100,
+    },
+  ];
+}
+
 type ValueScorer = (samples: string[], profile: BaseProfile) => Evidence[];
 
 interface BaseProfile {
@@ -711,7 +754,10 @@ export function discoverFields(table: ReconstructedTable): ColumnProfile[] {
     const hypotheses: FieldHypothesis[] = [];
 
     for (const field of CANONICAL_FIELDS) {
-      const evidence: Evidence[] = [...headerEvidence(profile.header, field)];
+      const evidence: Evidence[] = [
+        ...headerEvidence(profile.header, field),
+        ...headerVeto(profile.header, field.key),
+      ];
 
       const scorer = VALUE_SCORERS[field.key];
       if (scorer && profile.samples.length > 0) {

@@ -198,9 +198,12 @@ export function recoverRows(
   const hsnSlabs = buildHsnSlabs(rows);
 
   rows.forEach((row, index) => {
-    const interState = Boolean(
-      supplierStateCode && row.placeOfSupply && supplierStateCode !== row.placeOfSupply
-    );
+    // Without a place of supply the bill's own tax says which side it is on;
+    // read as intra-state, an IGST-only sale was re-split into CGST and SGST.
+    const interState =
+      supplierStateCode && row.placeOfSupply
+        ? supplierStateCode !== row.placeOfSupply
+        : row.igstAmount !== 0 && row.cgstAmount + row.sgstAmount === 0;
 
     // ── Place of supply from the buyer's GSTIN ──────────────────────────────
     // The first two characters of a GSTIN are the state code by construction,
@@ -222,6 +225,36 @@ export function recoverRows(
           },
         ],
       });
+    }
+
+    // ── Taxable value from a total and the tax charged ──────────────────────
+    // An invoice list from billing software (Zoho's "Invoice Details") gives
+    // the bill's total and each tax, and no taxable value. What is left of the
+    // total once the tax is taken out is the value the tax was charged on —
+    // exact, where backing it out of a rate would round.
+    const statedTax = totalTax(row);
+    if (row.taxableValue === 0 && row.totalValue !== 0 && statedTax !== 0) {
+      const taxable = round2(row.totalValue - statedTax - row.cessAmount);
+      if (Math.abs(taxable) > Math.abs(statedTax)) {
+        row.taxableValue = taxable;
+        recoveries.push({
+          rowIndex: index,
+          field: "taxableValue",
+          value: `${taxable}`,
+          confidence: 96,
+          path: [
+            `Invoice total ${round2(row.totalValue)}`,
+            `Less the tax the file states, ${round2(statedTax)}`,
+          ],
+          evidence: [
+            {
+              source: "ARITHMETIC",
+              detail: `${round2(row.totalValue)} − ${round2(statedTax)} = ${taxable}`,
+              weight: 55,
+            },
+          ],
+        });
+      }
     }
 
     // ── Rate ────────────────────────────────────────────────────────────────

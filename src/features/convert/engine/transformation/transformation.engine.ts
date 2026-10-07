@@ -100,7 +100,7 @@ export function transformMappedRows(
       (rawInvoiceNumber.length > 16 ? rawInvoiceNumber.slice(-16) : rawInvoiceNumber) ||
       `${ctx.platformId.toUpperCase()}-${idx + 1}`;
     const invoiceDate = transformDate(raw.invoiceDate);
-    const pos = transformStateCode(raw.placeOfSupply, buyerGstin);
+    const statedPos = transformStateCode(raw.placeOfSupply, buyerGstin);
     const hsnCode = transformHsn(raw.hsnCode);
     const itemDescription = String(raw.itemDescription ?? "").trim() || undefined;
     const uqc = transformUqc(raw.uqc);
@@ -117,7 +117,27 @@ export function transformMappedRows(
     let igstAmount = transformNumber(raw.igstAmount, 2);
     const cessAmount = transformNumber(raw.cessAmount, 2);
 
-    const isInterState = supplierState !== "" && pos !== "" && supplierState !== pos;
+    // With no state on the row, the tax the bill charged is the evidence of
+    // where the supply was: CGST and SGST alone say it stayed in the seller's
+    // state, IGST alone that it left — with no state to name, which the
+    // validator asks for. Read as intra-state by default, an invoice list's
+    // IGST-only sale to an unregistered buyer was split into CGST and SGST.
+    const billedIntra = igstAmount === 0 && cgstAmount + sgstAmount !== 0;
+    const billedInter = igstAmount !== 0 && cgstAmount + sgstAmount === 0;
+    // A return is left to take its state from the sale it reverses, which the
+    // merge finds; its own tax columns are the less reliable witness.
+    const mayBeReturn =
+      taxableValue < 0 ||
+      Boolean(raw.originalInvoiceNumber) ||
+      Boolean(ctx.fileTypeId?.includes("return") || ctx.fileTypeId?.includes("credit_note"));
+    const pos = statedPos || (billedIntra && !mayBeReturn ? supplierState : "");
+    const isInterState = supplierState !== "" && pos !== "" ? supplierState !== pos : billedInter;
+    const billedTaxHead =
+      supplierState !== "" && pos !== "" && (isInterState ? billedIntra : billedInter)
+        ? isInterState
+          ? ("CGST+SGST" as const)
+          : ("IGST" as const)
+        : undefined;
 
     // Many marketplace exports carry a single "gst_rate" / "total tax" column that lands on the
     // IGST fields. Redistribute it to match the actual place-of-supply before validation.
@@ -242,6 +262,7 @@ export function transformMappedRows(
       originalInvoiceDate,
       ecoGstin,
       ecoName,
+      ...(billedTaxHead && { billedTaxHead }),
       errors: [],
     };
   });

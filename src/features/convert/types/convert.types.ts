@@ -57,6 +57,12 @@ export interface NormalizedInvoiceRow {
    * the seller's books used — "cancelled" counts in its Cancelled column.
    */
   documentOnly?: "cancelled" | "issued";
+  /**
+   * The tax the source bill charged, set only where it is not the tax the law
+   * requires for the place of supply. The row carries the legal split, as the
+   * portal accepts nothing else; this keeps the bill's own mistake in view.
+   */
+  billedTaxHead?: "IGST" | "CGST+SGST";
   /** GSTIN of the e-commerce operator that collected TCS. Drives GSTR-1 Table 14(a). */
   ecoGstin?: string;
   /** Legal name of that operator, kept for reports and debugging only. */

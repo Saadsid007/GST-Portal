@@ -274,6 +274,23 @@ export function validateInvoices(
       }
     }
 
+    // VAL-007b: The bill charged the other tax. The row is reported the way
+    // the law requires, but the seller has collected the wrong tax from the
+    // buyer, and only a corrected bill (or a credit note and a fresh invoice)
+    // puts that right.
+    if (row.billedTaxHead) {
+      issues.push({
+        rowId: row.id,
+        rowIndex: row.rowIndex,
+        field: "placeOfSupply",
+        message:
+          row.billedTaxHead === "CGST+SGST"
+            ? `Invoice ${row.invoiceNumber} charges CGST and SGST on a supply to another state; it is reported as IGST, which the law requires. Correct the bill.`
+            : `Invoice ${row.invoiceNumber} charges IGST on a supply within your state; it is reported as CGST and SGST, which the law requires. Correct the bill.`,
+        severity: "WARNING",
+      });
+    }
+
     // VAL-008: Duplicate invoice detection
     // Only check B2B and CDNR invoices. B2CS supplies are aggregated by POS + rate.
     // Scoped by invoiceType + invoiceNumber + hsnCode + rate so distinct line items for the
