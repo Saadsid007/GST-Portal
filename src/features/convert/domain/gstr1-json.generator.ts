@@ -1,7 +1,8 @@
 /**
  * GSTR-1 JSON Generator
- * Produces GSTN Offline Tool v3.0+ compatible JSON
- * Tables: b2b, b2cl, b2cs, cdnr, exp, hsn, supeco, doc_issue
+ * Writes the file the GST Returns Offline Tool (V3.2.4) writes, field for
+ * field, so the portal takes it as the tool's own.
+ * Tables: b2b, b2cl, b2cs, cdnr, cdnur, hsn, supeco, doc_issue
  */
 
 import type {
@@ -23,6 +24,80 @@ import {
 
 function r2(n: number) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
+}
+
+/**
+ * The GST Returns Offline Tool release this file is written as.
+ *
+ * The portal refuses a file stamped with an older release than the current
+ * one — "download the latest version of Offline tool" — whatever its content.
+ * This said GST3.1.6, four releases behind, and every upload was turned away.
+ * Read from the official tool (gst.gov.in, V3.2.4, `formDataFormat`); when
+ * GSTN ships a new release, this and the structures below are checked
+ * against it again.
+ */
+export const OFFLINE_TOOL_VERSION = "GST3.2.4";
+
+function rateOf(r: NormalizedInvoiceRow): number {
+  return r2(r.igstRate > 0 ? r.igstRate : r.cgstRate + r.sgstRate);
+}
+
+interface JsonItem {
+  num: number;
+  itm_det: {
+    txval: number;
+    rt: number;
+    iamt?: number;
+    camt?: number;
+    samt?: number;
+    csamt: number;
+  };
+}
+
+/**
+ * An invoice's lines as the tool writes them: one item per rate, numbered
+ * rate × 100 + 1 (5% is 501, 18% is 1801), with IGST for a supply to another
+ * state and equal CGST and SGST within it.
+ *
+ * Every item used to be numbered 501, and an invoice with two rates went out
+ * as two invoices of the same number — both of which the portal refuses.
+ */
+function itemsByRate(rows: NormalizedInvoiceRow[], interState: boolean): JsonItem[] {
+  const byRate = new Map<number, { txval: number; tax: number; csamt: number }>();
+  for (const row of rows) {
+    const rt = rateOf(row);
+    const bucket = byRate.get(rt) ?? { txval: 0, tax: 0, csamt: 0 };
+    bucket.txval = r2(bucket.txval + Math.abs(row.taxableValue));
+    bucket.tax = r2(
+      bucket.tax + Math.abs(row.igstAmount) + Math.abs(row.cgstAmount) + Math.abs(row.sgstAmount)
+    );
+    bucket.csamt = r2(bucket.csamt + Math.abs(row.cessAmount));
+    byRate.set(rt, bucket);
+  }
+  return [...byRate.entries()].map(([rt, b]) => {
+    // CGST and SGST are each half the rate, and the tool writes them equal.
+    const half = r2(b.tax / 2);
+    return {
+      num: Math.round(rt * 100) + 1,
+      itm_det: interState
+        ? { txval: b.txval, rt, iamt: b.tax, csamt: b.csamt }
+        : { txval: b.txval, rt, camt: half, samt: half, csamt: b.csamt },
+    };
+  });
+}
+
+/** Rows of one document, keyed by its number. */
+function groupByDocument(rows: NormalizedInvoiceRow[]): NormalizedInvoiceRow[][] {
+  const docs = new Map<string, NormalizedInvoiceRow[]>();
+  for (const row of rows) {
+    const key = row.invoiceNumber.trim().toUpperCase();
+    docs.set(key, [...(docs.get(key) ?? []), row]);
+  }
+  return [...docs.values()];
+}
+
+function documentValue(rows: NormalizedInvoiceRow[]): number {
+  return r2(rows.reduce((sum, r) => sum + Math.abs(r.totalValue), 0));
 }
 
 // GSTN portal requires DD-MM-YYYY format, not YYYY-MM-DD.
@@ -76,87 +151,53 @@ export function generateGstr1Json(
   );
   const fp = deriveFilingPeriod(validRows, period);
 
-  // --- B2B ---
-  const b2bRaw = validRows.filter((r) => r.invoiceType === "B2B");
-  const b2bAggMap = new Map<string, NormalizedInvoiceRow>();
-  for (const r of b2bRaw) {
-    const rate = r2(r.igstRate > 0 ? r.igstRate : r.cgstRate + r.sgstRate);
-    const key = `${r.buyerGstin}|${r.invoiceNumber.trim().toUpperCase()}|${r.placeOfSupply}|${rate}`;
-    if (!b2bAggMap.has(key)) {
-      b2bAggMap.set(key, { ...r });
-    } else {
-      const existing = b2bAggMap.get(key)!;
-      existing.totalValue = r2(existing.totalValue + r.totalValue);
-      existing.taxableValue = r2(existing.taxableValue + r.taxableValue);
-      existing.igstAmount = r2(existing.igstAmount + r.igstAmount);
-      existing.cgstAmount = r2(existing.cgstAmount + r.cgstAmount);
-      existing.sgstAmount = r2(existing.sgstAmount + r.sgstAmount);
-      existing.cessAmount = r2(existing.cessAmount + r.cessAmount);
-      existing.quantity = r2(existing.quantity + r.quantity);
-    }
-  }
-  const b2bRows = Array.from(b2bAggMap.values());
-  const b2bMap = new Map<string, { inv: typeof b2bRows }>();
-  for (const row of b2bRows) {
-    const key = row.buyerGstin;
-    if (!b2bMap.has(key)) b2bMap.set(key, { inv: [] });
-    b2bMap.get(key)!.inv.push(row);
-  }
-  const b2b = Array.from(b2bMap.entries()).map(([buyerGstin, { inv }]) => ({
-    ctin: buyerGstin,
-    inv: inv.map((r) => ({
-      inum: r.invoiceNumber,
-      idt: toGstnDate(r.invoiceDate),
-      val: r.totalValue,
-      pos: r.placeOfSupply,
-      rchrg: "N",
-      inv_typ: "R",
-      itms: [
-        {
-          num: 501,
-          itm_det: {
-            txval: r.taxableValue,
-            rt: r.igstRate > 0 ? r.igstRate : r.cgstRate + r.sgstRate,
-            iamt: r.igstAmount > 0 ? r.igstAmount : undefined,
-            camt: r.cgstAmount > 0 ? r.cgstAmount : undefined,
-            samt: r.sgstAmount > 0 ? r.sgstAmount : undefined,
-            csamt: 0,
-          },
-        },
-      ],
-    })),
+  const supplierState = gstin ? gstin.substring(0, 2) : "";
+  // The tool decides the tax heads the way the portal checks them: by the
+  // place of supply against the supplier's state.
+  const isInter = (pos: string) => Boolean(supplierState) && pos !== supplierState;
+
+  /** Rows grouped by a key, in first-seen order. */
+  const groupBy = (list: NormalizedInvoiceRow[], key: (r: NormalizedInvoiceRow) => string) => {
+    const groups = new Map<string, NormalizedInvoiceRow[]>();
+    for (const row of list) groups.set(key(row), [...(groups.get(key(row)) ?? []), row]);
+    return [...groups.entries()];
+  };
+
+  // --- B2B (Table 4) ---
+  const b2b = groupBy(
+    validRows.filter((r) => r.invoiceType === "B2B"),
+    (r) => r.buyerGstin.toUpperCase()
+  ).map(([ctin, list]) => ({
+    ctin,
+    inv: groupByDocument(list).map((doc) => {
+      const head = doc[0]!;
+      return {
+        inum: head.invoiceNumber.trim(),
+        idt: toGstnDate(head.invoiceDate),
+        val: documentValue(doc),
+        pos: head.placeOfSupply,
+        rchrg: "N",
+        inv_typ: "R",
+        itms: itemsByRate(doc, isInter(head.placeOfSupply)),
+      };
+    }),
   }));
 
-  // --- B2CL ---
-  const b2clRows = validRows.filter((r) => r.invoiceType === "B2CL");
-  const b2clMap = new Map<string, typeof b2clRows>();
-  for (const row of b2clRows) {
-    const key = row.placeOfSupply;
-    if (!b2clMap.has(key)) b2clMap.set(key, []);
-    b2clMap.get(key)!.push(row);
-  }
-  const b2cl = Array.from(b2clMap.entries()).map(([pos, rowsList]) => ({
+  // --- B2CL (Table 5) — inter-state by definition ---
+  const b2cl = groupBy(
+    validRows.filter((r) => r.invoiceType === "B2CL"),
+    (r) => r.placeOfSupply
+  ).map(([pos, list]) => ({
     pos,
-    inv: rowsList.map((r) => ({
-      inum: r.invoiceNumber,
-      idt: toGstnDate(r.invoiceDate),
-      val: r.totalValue,
-      itms: [
-        {
-          num: 501,
-          itm_det: {
-            txval: r.taxableValue,
-            rt: r.igstRate,
-            iamt: r.igstAmount,
-            csamt: 0,
-          },
-        },
-      ],
+    inv: groupByDocument(list).map((doc) => ({
+      inum: doc[0]!.invoiceNumber.trim(),
+      idt: toGstnDate(doc[0]!.invoiceDate),
+      val: documentValue(doc),
+      itms: itemsByRate(doc, true),
     })),
   }));
 
   // --- B2CS ---
-  const supplierState = gstin ? gstin.substring(0, 2) : "";
   const b2csRows = validRows.filter((r) => r.invoiceType === "B2CS" || r.invoiceType === "CDNCS");
   // One line per place of supply and rate — not per marketplace. A B2CS line
   // carries no operator field any more (the operator is Table 14's business),
@@ -200,48 +241,46 @@ export function generateGstr1Json(
   const b2cs = Array.from(b2csMap.values())
     .filter((val) => Math.abs(val.txval) > 0.001)
     .map((val) => {
-      const isInter = supplierState && val.pos !== supplierState;
+      const inter = isInter(val.pos);
+      // Equal halves, as the tool writes them: summed line by line, CGST and
+      // SGST could drift a paisa apart.
+      const half = r2((val.iamt + val.camt + val.samt) / 2);
       return {
-        sply_ty: isInter ? "INTER" : "INTRA",
+        sply_ty: inter ? "INTER" : "INTRA",
         rt: val.rt,
         typ: "OE",
         pos: val.pos,
         txval: val.txval,
-        ...(isInter ? { iamt: val.iamt, csamt: 0 } : { camt: val.camt, samt: val.samt, csamt: 0 }),
+        ...(inter
+          ? { iamt: r2(val.iamt + val.camt + val.samt), csamt: val.csamt }
+          : { camt: half, samt: half, csamt: val.csamt }),
       };
     });
 
   // --- CDNR (B2B Credit Notes) ---
-  const cdnrRows = validRows.filter((r) => r.invoiceType === "CDNR");
-  const cdnrMap = new Map<string, typeof cdnrRows>();
-  for (const row of cdnrRows) {
-    const key = row.buyerGstin || "UNREGISTERED";
-    if (!cdnrMap.has(key)) cdnrMap.set(key, []);
-    cdnrMap.get(key)!.push(row);
-  }
-  const cdnr = Array.from(cdnrMap.entries()).map(([ctin, rows]) => ({
-    ctin: ctin === "UNREGISTERED" ? "" : ctin,
-    nt: rows.map((r) => ({
-      ntty: "C",
-      nt_num: r.invoiceNumber,
-      nt_dt: toGstnDate(r.invoiceDate),
-      val: Math.abs(r.totalValue),
-      rsn: "01",
-      p_gst: "N",
-      itms: [
-        {
-          num: 501,
-          itm_det: {
-            txval: Math.abs(r.taxableValue),
-            rt: r.igstRate > 0 ? r.igstRate : r.cgstRate + r.sgstRate,
-            iamt: Math.abs(r.igstAmount) > 0 ? Math.abs(r.igstAmount) : undefined,
-            camt: Math.abs(r.cgstAmount) > 0 ? Math.abs(r.cgstAmount) : undefined,
-            samt: Math.abs(r.sgstAmount) > 0 ? Math.abs(r.sgstAmount) : undefined,
-            csamt: 0,
-          },
-        },
-      ],
-    })),
+  // Since the 2020 delinking a note is reported in its own right: place of
+  // supply, reverse charge and supply type, as an invoice is. The reason and
+  // pre-GST fields this wrote ("rsn", "p_gst") belong to the old schema, and
+  // the note had no place of supply at all; the tool writes neither and the
+  // portal refuses the file for both.
+  const cdnr = groupBy(
+    validRows.filter((r) => r.invoiceType === "CDNR" && r.buyerGstin.length === 15),
+    (r) => r.buyerGstin.toUpperCase()
+  ).map(([ctin, list]) => ({
+    ctin,
+    nt: groupByDocument(list).map((doc) => {
+      const head = doc[0]!;
+      return {
+        ntty: head.isDebitNote ? "D" : "C",
+        nt_num: head.invoiceNumber.trim(),
+        nt_dt: toGstnDate(head.invoiceDate),
+        val: documentValue(doc),
+        pos: head.placeOfSupply,
+        rchrg: "N",
+        inv_typ: "R",
+        itms: itemsByRate(doc, isInter(head.placeOfSupply)),
+      };
+    }),
   }));
 
   // --- CDNUR (B2C Large & Export Credit Notes only) ---
@@ -253,30 +292,23 @@ export function generateGstr1Json(
       isCdnurNote(r) ||
       (r.invoiceType === "EXP" && (r.transactionType === "Return" || r.taxableValue < 0))
   );
-  const cdnur = cdnurRows.map((r) => ({
-    typ: "OE",
-    ntty: "C",
-    nt_num: r.invoiceNumber,
-    nt_dt: toGstnDate(r.invoiceDate),
-    val: Math.abs(r.totalValue),
-    pos: r.placeOfSupply,
-    sply_ty: supplierState && r.placeOfSupply !== supplierState ? "INTER" : "INTRA",
-    rsn: "01",
-    p_gst: "N",
-    itms: [
-      {
-        num: 501,
-        itm_det: {
-          txval: Math.abs(r.taxableValue),
-          rt: r.igstRate > 0 ? r.igstRate : r.cgstRate + r.sgstRate,
-          iamt: Math.abs(r.igstAmount) > 0 ? Math.abs(r.igstAmount) : undefined,
-          camt: Math.abs(r.cgstAmount) > 0 ? Math.abs(r.cgstAmount) : undefined,
-          samt: Math.abs(r.sgstAmount) > 0 ? Math.abs(r.sgstAmount) : undefined,
-          csamt: 0,
-        },
-      },
-    ],
-  }));
+  // The tool knows three kinds of unregistered note — a large B2C sale, and an
+  // export with or without payment of tax. "OE" is a Table 7 type; written
+  // here, it named none of them.
+  const cdnur = groupByDocument(cdnurRows).map((doc) => {
+    const head = doc[0]!;
+    const typ =
+      head.invoiceType === "EXP" ? (head.exportType === "WPAY" ? "EXPWP" : "EXPWOP") : "B2CL";
+    return {
+      typ,
+      ntty: head.isDebitNote ? "D" : "C",
+      nt_num: head.invoiceNumber.trim(),
+      nt_dt: toGstnDate(head.invoiceDate),
+      val: documentValue(doc),
+      ...(typ === "B2CL" ? { pos: head.placeOfSupply } : {}),
+      itms: itemsByRate(doc, typ !== "B2CL" || isInter(head.placeOfSupply)),
+    };
+  });
 
   // --- HSN Summary (Table 12) ---
   // Built by the shared domain helper so the JSON and the Excel of one return
@@ -408,13 +440,12 @@ export function generateGstr1Json(
     cgst: val.camt,
     sgst: val.samt,
     cess: val.csamt,
-    flag: "N",
   }));
 
   const gstr1 = {
     gstin,
     fp,
-    version: "GST3.1.6",
+    version: OFFLINE_TOOL_VERSION,
     hash: "hash",
     b2b: b2b.length > 0 ? b2b : undefined,
     b2cl: b2cl.length > 0 ? b2cl : undefined,

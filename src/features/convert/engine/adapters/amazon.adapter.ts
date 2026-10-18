@@ -142,7 +142,7 @@ export class AmazonAdapter {
       const rawPos = String(
         row["Ship To State"] || row["Customer Bill To State"] || row["Bill To State"] || ""
       ).trim();
-      const pos = transformStateCode(rawPos) || rawPos;
+      let pos = transformStateCode(rawPos) || rawPos;
 
       const isB2B = Boolean(buyerGstin);
 
@@ -279,6 +279,28 @@ export class AmazonAdapter {
         : rowSellerGstin
           ? rowSellerGstin.substring(0, 2)
           : transformStateCode(rawSupplierStateInRow) || "";
+
+      // Bill to one state, ship to another. Goods a business buyer has sent
+      // to a third address are supplied where that buyer is registered (IGST
+      // Act s.10(1)(b)), and Amazon's invoice charges the tax that way: a buyer
+      // in the seller's own state, goods shipped to Karnataka, CGST and SGST.
+      // Read from the ship-to state, the sale became inter-state, was filed as
+      // IGST, and no longer matched the invoice the buyer claims credit on.
+      // Only where the tax charged agrees with the buyer's state and not the
+      // delivery's; between two other states either reading is IGST.
+      const buyerState = buyerGstin.length === 15 ? buyerGstin.slice(0, 2) : "";
+      if (buyerState && supplierStateInAdapter && pos && buyerState !== pos) {
+        const billedIntra = rawIgstTax === 0 && (rawCgstTax !== 0 || rawSgstTax !== 0);
+        const billedInter = rawIgstTax !== 0 && rawCgstTax === 0 && rawSgstTax === 0;
+        const buyerIntra = buyerState === supplierStateInAdapter;
+        const shipToIntra = pos === supplierStateInAdapter;
+        if (
+          (billedIntra && buyerIntra && !shipToIntra) ||
+          (billedInter && !buyerIntra && shipToIntra)
+        ) {
+          pos = buyerState;
+        }
+      }
 
       const isInterState =
         supplierStateInAdapter && pos

@@ -16,6 +16,15 @@ import type { NormalizedInvoiceRow, ValidationIssue } from "@/features/convert/t
 
 const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}[0-9A-Z]{1}[0-9A-Z]{1}$/;
 
+/**
+ * The document numbers the Returns Offline Tool accepts (`inum`, `nt_num`):
+ * letters, digits, hyphen and slash. A Meesho sub-order "…721409_1" or a
+ * number with a space reached the JSON as it was and the upload failed.
+ * Only documents listed by number are held to it; Table 7 is a state total.
+ */
+const DOCUMENT_NUMBER = /^[a-zA-Z0-9\-/]{1,16}$/;
+const NUMBERED_IN_RETURN = new Set(["B2B", "B2CL", "CDNR", "EXP"]);
+
 function round2(n: number) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
@@ -199,6 +208,14 @@ export function validateInvoices(
     // VAL-003: Invoice number length
     if (row.invoiceNumber && row.invoiceNumber.length > 16) {
       errors.push(`Invoice number exceeds 16 characters: "${row.invoiceNumber}"`);
+    } else if (
+      row.invoiceNumber &&
+      NUMBERED_IN_RETURN.has(row.invoiceType) &&
+      !DOCUMENT_NUMBER.test(row.invoiceNumber.trim())
+    ) {
+      errors.push(
+        `Invoice number "${row.invoiceNumber}" has a character the portal refuses — only letters, digits, "-" and "/" are allowed`
+      );
     }
 
     // VAL-004: Place of supply

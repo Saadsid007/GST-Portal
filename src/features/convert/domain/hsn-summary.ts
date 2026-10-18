@@ -41,6 +41,72 @@ function r2(n: number): number {
 }
 
 /**
+ * The units the GST Returns Offline Tool (v3.2.4) offers for goods. A code
+ * outside this list is refused, so anything else a feed spells is reported
+ * as "OTH" — the list's own catch-all.
+ */
+const GSTN_UQC = new Set([
+  "BAG",
+  "BAL",
+  "BDL",
+  "BKL",
+  "BOU",
+  "BOX",
+  "BTL",
+  "BUN",
+  "CAN",
+  "CBM",
+  "CCM",
+  "CMS",
+  "CTN",
+  "DOZ",
+  "DRM",
+  "GGK",
+  "GMS",
+  "GRS",
+  "GYD",
+  "KGS",
+  "KLR",
+  "KME",
+  "LTR",
+  "MLT",
+  "MTR",
+  "MTS",
+  "NOS",
+  "PAC",
+  "PCS",
+  "PRS",
+  "QTL",
+  "ROL",
+  "SET",
+  "SQF",
+  "SQM",
+  "SQY",
+  "TBS",
+  "TGM",
+  "THD",
+  "TON",
+  "TUB",
+  "UGS",
+  "UNT",
+  "YDS",
+  "OTH",
+]);
+
+/** A service has no unit: the tool reports a SAC (99…) as "NA", quantity 0. */
+export function isServiceCode(hsnCode: string): boolean {
+  return hsnCode.startsWith("99");
+}
+
+function reportableUqc(hsnCode: string, uqc: string | undefined): string {
+  if (isServiceCode(hsnCode)) return "NA";
+  const code = String(uqc ?? "")
+    .trim()
+    .toUpperCase();
+  return GSTN_UQC.has(code) ? code : "OTH";
+}
+
+/**
  * Canonicalises an HSN code to one the portal's HSN master holds.
  *
  * Marketplace feeds spell one commodity several ways — "4419" on one line and
@@ -112,7 +178,7 @@ export function buildHsnSummary(rows: NormalizedInvoiceRow[]): HsnSummary {
     const target = isB2b ? b2bAgg : b2cAgg;
 
     const rate = r2(row.igstRate > 0 ? row.igstRate : row.cgstRate + row.sgstRate);
-    const uqc = row.uqc || "PCS";
+    const uqc = reportableUqc(hsnCode, row.uqc || "PCS");
     const key = `${hsnCode}|${rate}|${uqc}`;
 
     const bucket =
@@ -135,7 +201,7 @@ export function buildHsnSummary(rows: NormalizedInvoiceRow[]): HsnSummary {
     const sign = row.invoiceType === "CDNR" || row.invoiceType === "CDNCS" ? -1 : 1;
 
     if (!bucket.description) bucket.description = hsnDescription(row.itemDescription);
-    bucket.quantity = r2(bucket.quantity + row.quantity * sign);
+    if (uqc !== "NA") bucket.quantity = r2(bucket.quantity + row.quantity * sign);
     bucket.totalValue = r2(bucket.totalValue + Math.abs(row.totalValue) * sign);
     bucket.taxableValue = r2(bucket.taxableValue + Math.abs(row.taxableValue) * sign);
     bucket.igstAmount = r2(bucket.igstAmount + Math.abs(row.igstAmount) * sign);
