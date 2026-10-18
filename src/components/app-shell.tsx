@@ -137,7 +137,9 @@ function SidebarContent({
           title={SITE.name}
         >
           {collapsed ? (
-            <AppLogo size="sm" className="max-w-[36px] overflow-hidden" />
+            // The shield is the left 28% of the wordmark: at h-6 / h-7 that is
+            // 20px / 24px, so the clip shows the mark and none of the "G".
+            <AppLogo size="sm" className="max-w-[20px] overflow-hidden sm:max-w-[24px]" />
           ) : (
             <AppLogo size="sm" priority />
           )}
