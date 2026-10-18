@@ -27,14 +27,24 @@ export class AmazonAdapter {
     // Amazon sometimes leaves the HSN/SAC column blank for certain ASINs.
     // We do a quick pre-scan of ALL rows (before GSTIN filter) to collect any
     // ASIN that appears with a valid HSN, then use that mapping to fill blanks.
-    const asinHsnMap = new Map<string, string>();
+    //
+    // The MTR spells the column "Asin". This read "ASIN" only, so the map was
+    // always empty: FBA shipments Amazon left uncoded (warehouse LKO1) fell
+    // out of Table 12 while every other line of the same ASIN carried 442190.
+    // An ASIN coded two ways in one file is left to the user, not guessed.
+    const asinOf = (r: Record<string, string>) => String(r["Asin"] || r["ASIN"] || "").trim();
+    const asinCodes = new Map<string, Set<string>>();
     for (const r of rows) {
-      const asin = String(r["ASIN"] || "").trim();
+      const asin = asinOf(r);
       const rawHsn = String(r["Hsn/sac"] || r["HSN/SAC"] || "").trim();
       if (asin && rawHsn && /\d{4,8}/.test(rawHsn)) {
-        const digits = rawHsn.replace(/\D/g, "");
-        if (digits) asinHsnMap.set(asin, digits);
+        const code = transformHsn(rawHsn);
+        if (code) asinCodes.set(asin, (asinCodes.get(asin) ?? new Set()).add(code));
       }
+    }
+    const asinHsnMap = new Map<string, string>();
+    for (const [asin, codes] of asinCodes) {
+      if (codes.size === 1) asinHsnMap.set(asin, [...codes][0]!);
     }
 
     // Every number a shipment, refund or replacement actually used. A cancelled
@@ -379,7 +389,7 @@ export class AmazonAdapter {
         hsnCode: (() => {
           // Step 5: Use ASIN→HSN map to fill blank HSN before falling back to generic
           const rawHsn = String(row["Hsn/sac"] || row["HSN/SAC"] || "");
-          const asin = String(row["ASIN"] || "").trim();
+          const asin = asinOf(row);
           if (rawHsn.trim()) return transformHsn(rawHsn); // has its own HSN
           if (asin && asinHsnMap.has(asin)) return asinHsnMap.get(asin)!; // filled from map
           // Nothing in the file says what this is. Left blank rather than

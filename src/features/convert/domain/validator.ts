@@ -3,6 +3,7 @@
  */
 
 import { STATE_CODES } from "./state-codes";
+import { normalizeHsn } from "./hsn-summary";
 import { isStockTransferRow, isReportableTransfer } from "./stock-transfer";
 import {
   suggestHsn,
@@ -256,6 +257,20 @@ export function validateInvoices(
       } else if (!/^\d{4}(\d{2}(\d{2})?)?$/.test(row.hsnCode.replace(/\s/g, ""))) {
         errors.push(`Invalid HSN code: "${row.hsnCode}" (must be 4, 6, or 8 digits)`);
       }
+    }
+
+    // VAL-005b: A sale to a consumer needs no HSN to be filed in Table 7, but
+    // Table 12 lists every supply by code, and a line without one is left out
+    // of it. Nothing said so: the summary came out short of Table 7 and the
+    // user found out from the portal, if at all.
+    if (isB2C && !isTransfer && !normalizeHsn(row.hsnCode)) {
+      issues.push({
+        rowId: row.id,
+        rowIndex: row.rowIndex,
+        field: "hsnCode",
+        message: `No HSN code on ${row.invoiceNumber || "this sale"} — it is reported in Table 7 but left out of the HSN summary (Table 12). Add the code so the two agree.`,
+        severity: "WARNING",
+      });
     }
 
     // VAL-006: Tax calculation
