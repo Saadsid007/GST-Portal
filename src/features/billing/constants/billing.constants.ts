@@ -29,6 +29,8 @@ export const TRANSACTION_TYPES = [
   "PROMO_CODE",
   "CAMPAIGN",
   "FREE_TRIAL",
+  // Credits spent as rupees off a plan or GSTIN add-on.
+  "PURCHASE",
 ] as const;
 
 /** Types that add credits. Everything else is a debit or a zero-value audit row. */

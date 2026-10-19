@@ -15,7 +15,7 @@ export default async function AdminPage() {
       <PageHeader
         eyebrow="Administration"
         title="Wallets"
-        description="Look up any user's wallet, adjust their balance, freeze an account or change their plan. Every adjustment is written to the audit log."
+        description="Look up any user's credits, add or take back credits, or freeze a wallet. 1 credit = ₹1 off their next plan or add-on, applied automatically at checkout. Every change is in the audit log."
       />
       <AdminWalletTools />
     </div>

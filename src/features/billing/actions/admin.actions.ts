@@ -13,23 +13,13 @@ import {
   type CreditCodeRow,
 } from "@/features/billing/services/credit-code.service";
 import { getPricingConfig, writeConfig } from "@/features/billing/services/config.service";
-import {
-  getFreeTrialLimits,
-  getReferralRewards,
-  getActiveCampaign,
-} from "@/features/billing/services/config.service";
+import { getFreeTrialLimits, getReferralRewards } from "@/features/billing/services/config.service";
 import { adjustWallet, setWalletFrozen } from "@/features/billing/services/wallet.service";
 import {
   adminCreditSchema,
-  bonusSlabsSchema,
-  campaignSchema,
   createCreditCodeSchema,
-  freeTrialSchema,
   freezeWalletSchema,
-  generationCostSchema,
-  rechargePacksSchema,
   referralRewardsSchema,
-  setPlanSchema,
 } from "@/features/billing/schemas/billing.schemas";
 import type {
   ActionResult,
@@ -113,37 +103,6 @@ export async function getAdminBillingConfigAction(): Promise<ActionResult<AdminB
   };
 }
 
-export async function saveBonusSlabsAction(slabs: unknown): Promise<ActionResult<null>> {
-  await requireAdmin();
-  const parsed = bonusSlabsSchema.safeParse(slabs);
-  if (!parsed.success) {
-    return { success: false, error: parsed.error.issues[0]?.message ?? "Invalid slab table" };
-  }
-  return saveConfig(BILLING_CONFIG_KEYS.bonusSlabs, parsed.data, "BONUS_SLABS_UPDATED");
-}
-
-export async function saveRechargePacksAction(packs: unknown): Promise<ActionResult<null>> {
-  await requireAdmin();
-  const parsed = rechargePacksSchema.safeParse(packs);
-  if (!parsed.success) {
-    return { success: false, error: parsed.error.issues[0]?.message ?? "Invalid packs" };
-  }
-  return saveConfig(BILLING_CONFIG_KEYS.rechargePacks, parsed.data, "RECHARGE_PACKS_UPDATED");
-}
-
-export async function saveGenerationCostAction(cost: number): Promise<ActionResult<null>> {
-  await requireAdmin();
-  const parsed = generationCostSchema.safeParse({ cost });
-  if (!parsed.success) {
-    return { success: false, error: parsed.error.issues[0]?.message ?? "Invalid cost" };
-  }
-  return saveConfig(
-    BILLING_CONFIG_KEYS.generationCost,
-    parsed.data.cost,
-    "GENERATION_COST_UPDATED"
-  );
-}
-
 export async function saveReferralRewardsAction(rewards: unknown): Promise<ActionResult<null>> {
   await requireAdmin();
   const parsed = referralRewardsSchema.safeParse(rewards);
@@ -151,28 +110,6 @@ export async function saveReferralRewardsAction(rewards: unknown): Promise<Actio
     return { success: false, error: parsed.error.issues[0]?.message ?? "Invalid rewards" };
   }
   return saveConfig(BILLING_CONFIG_KEYS.referralRewards, parsed.data, "REFERRAL_REWARDS_UPDATED");
-}
-
-export async function saveFreeTrialAction(trial: unknown): Promise<ActionResult<null>> {
-  await requireAdmin();
-  const parsed = freeTrialSchema.safeParse(trial);
-  if (!parsed.success) {
-    return { success: false, error: parsed.error.issues[0]?.message ?? "Invalid trial limits" };
-  }
-  return saveConfig(BILLING_CONFIG_KEYS.freeTrial, parsed.data, "FREE_TRIAL_UPDATED");
-}
-
-export async function saveCampaignAction(campaign: unknown): Promise<ActionResult<null>> {
-  await requireAdmin();
-  // `null` clears the campaign entirely, which is how a promotion is ended.
-  if (campaign === null) {
-    return saveConfig(BILLING_CONFIG_KEYS.activeCampaign, null, "CAMPAIGN_CLEARED");
-  }
-  const parsed = campaignSchema.safeParse(campaign);
-  if (!parsed.success) {
-    return { success: false, error: parsed.error.issues[0]?.message ?? "Invalid campaign" };
-  }
-  return saveConfig(BILLING_CONFIG_KEYS.activeCampaign, parsed.data, "CAMPAIGN_UPDATED");
 }
 
 export async function createCreditCodeAction(input: unknown): Promise<ActionResult<null>> {
@@ -295,33 +232,3 @@ export async function freezeWalletAction(input: unknown): Promise<ActionResult<n
 }
 
 /** Grants or revokes a CA plan. `monthsValid: null` means it never expires. */
-export async function setPlanAction(input: unknown): Promise<ActionResult<null>> {
-  const session = await requireAdmin();
-  const parsed = setPlanSchema.safeParse(input);
-  if (!parsed.success) {
-    return { success: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
-  }
-
-  const currentPeriodEnd =
-    parsed.data.monthsValid === null
-      ? null
-      : new Date(Date.now() + parsed.data.monthsValid * 30 * 24 * 60 * 60 * 1000);
-
-  await prisma.subscription.upsert({
-    where: { userId: parsed.data.userId },
-    create: { userId: parsed.data.userId, plan: parsed.data.plan, currentPeriodEnd },
-    update: { plan: parsed.data.plan, status: "ACTIVE", currentPeriodEnd },
-  });
-
-  await audit(session.user.id, "PLAN_SET", "Subscription", parsed.data.userId, {
-    plan: parsed.data.plan,
-    monthsValid: parsed.data.monthsValid,
-  });
-  revalidatePath("/admin/billing");
-  return { success: true, data: null };
-}
-
-export async function getCampaignAction(): Promise<ActionResult<Campaign | null>> {
-  await requireAdmin();
-  return { success: true, data: await getActiveCampaign() };
-}

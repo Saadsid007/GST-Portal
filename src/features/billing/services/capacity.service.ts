@@ -534,8 +534,10 @@ export async function addGstinCapacity(input: {
   amountRupees: number;
   paymentId: string;
   providerOrderId?: string;
+  /** The Payment row a UPI QR order already wrote; completed in place. */
+  paymentRecordId?: string;
 }): Promise<GSTINCapacityStatus> {
-  const { userId, quantity, amountRupees, paymentId, providerOrderId } = input;
+  const { userId, quantity, amountRupees, paymentId, providerOrderId, paymentRecordId } = input;
   const now = new Date();
   const sub = await getOrCreateSubscription(userId, now);
 
@@ -560,7 +562,23 @@ export async function addGstinCapacity(input: {
       },
     };
 
-    if (providerOrderId) {
+    if (paymentRecordId) {
+      // Completed in place: a second row reused the captured payment id, broke
+      // its unique index and rolled the purchase back after the customer paid.
+      const existing = await tx.payment.findUniqueOrThrow({ where: { id: paymentRecordId } });
+      await tx.payment.update({
+        where: { id: paymentRecordId },
+        data: {
+          providerPaymentId: paymentId,
+          status: "SUCCESS",
+          planSlug: paymentData.planSlug,
+          metadata: {
+            ...((existing.metadata ?? {}) as Record<string, unknown>),
+            ...paymentData.metadata,
+          },
+        },
+      });
+    } else if (providerOrderId) {
       await tx.payment.upsert({
         where: { providerOrderId },
         create: { ...paymentData, providerOrderId },

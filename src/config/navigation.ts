@@ -8,7 +8,6 @@ import {
   FileSpreadsheet,
   Wallet,
   Users,
-  Tags,
   Ticket,
   Megaphone,
   ShieldCheck,
@@ -76,10 +75,10 @@ export const NAV_GROUPS: NavGroup[] = [
         description: "Previously generated returns",
       },
       {
-        label: "Wallet",
+        label: "Billing & wallet",
         href: "/billing",
         icon: Wallet,
-        description: "Credits, recharges and referrals",
+        description: "Your plan, payments and wallet credits",
       },
       {
         label: "Refer & earn",
@@ -123,12 +122,6 @@ export const NAV_GROUPS: NavGroup[] = [
         href: "/admin/users",
         icon: KeyRound,
         description: "Who can open this admin panel",
-      },
-      {
-        label: "Pricing",
-        href: "/admin/pricing",
-        icon: Tags,
-        description: "Subscription tiers and additional GSTIN pricing",
       },
       {
         label: "Wallets",

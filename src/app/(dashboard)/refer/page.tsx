@@ -28,12 +28,12 @@ export default async function ReferPage() {
     {
       icon: UserPlus,
       title: "They sign up",
-      body: `They create an account through your link and get ${refereeCredits} credits to start with.`,
+      body: `They sign up with your link. When they buy their first plan, ${refereeCredits} credits land in their wallet.`,
     },
     {
       icon: Wallet,
       title: "You both earn",
-      body: `Once they make their first recharge, ${referrerCredits} credits land in your wallet.`,
+      body: `At the same moment ${referrerCredits} credits land in yours — ₹${referrerCredits} off your next plan.`,
     },
   ];
 
@@ -42,7 +42,7 @@ export default async function ReferPage() {
       <PageHeader
         eyebrow="Rewards"
         title="Refer & earn"
-        description="Credits for you and for whoever you bring along. Credits never expire and work on any return."
+        description="Credits for you and whoever you bring along. 1 credit = ₹1 off any plan, renewal or GSTIN add-on, applied automatically. Credits never expire."
         actions={
           <Badge variant="success" size="md">
             <Gift className="size-3" aria-hidden />
@@ -85,8 +85,8 @@ export default async function ReferPage() {
           <RedeemCodePanel />
           <Card variant="subtle" className="p-4">
             <p className="text-xs text-muted-foreground">
-              Codes are issued for campaigns and support credits. Each one can be redeemed once per
-              account and lands in your wallet immediately.
+              Codes come from campaigns and support. Each can be redeemed once per account; the
+              credits land in your wallet at once and come off your next purchase.
             </p>
           </Card>
         </section>
@@ -95,7 +95,8 @@ export default async function ReferPage() {
       <Card variant="accent" className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center">
         <Wallet className="size-5 flex-shrink-0 text-primary-ink" aria-hidden />
         <p className="flex-1 text-sm">
-          Everything you earn here shows up in your wallet ledger alongside recharges and bonuses.
+          Everything you earn here is in your wallet ledger on the Billing page, and is taken off
+          your next purchase automatically.
         </p>
         <Link
           href="/billing"

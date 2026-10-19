@@ -9,6 +9,11 @@ import { getPublicRoutes, isPrivatePath, toAbsoluteUrl } from "@/lib/seo/routes"
  *
  * /login and /register are deliberately absent: see getUnlistedPublicPaths().
  */
+// Rebuilt hourly, and at once when a post is published (blog actions revalidate
+// /sitemap.xml). Without this it was generated at build and froze there: a
+// post published after a deploy stayed out of it until the next one.
+export const revalidate = 3600;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const routes = getPublicRoutes();
   const seen = new Set(routes.map((route) => route.path));

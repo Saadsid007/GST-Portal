@@ -42,6 +42,8 @@ import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
 export interface BillingOverview {
+  /** Credits (1 = ₹1) taken off the next plan or add-on automatically. */
+  wallet: { balance: number; isFrozen: boolean; referralEarned: number };
   subscription: SubscriptionStatusSummary;
   capacity: GSTINCapacityStatus;
   entitlements: WorkspaceEntitlements;
@@ -70,20 +72,26 @@ export async function getBillingOverviewAction(): Promise<{
     const session = await requireSession();
     const userId = session.user.id;
 
-    const [subscription, capacity, entitlements, payments] = await Promise.all([
+    const [subscription, capacity, entitlements, payments, wallet] = await Promise.all([
       getOrCreateSubscription(userId),
       getGstinCapacity(userId),
       getWorkspaceEntitlements(userId),
       prisma.payment.findMany({
-        where: { userId },
+        // Unpaid QR orders are not part of anyone's billing history.
+        where: { userId, status: { not: "CREATED" } },
         orderBy: { createdAt: "desc" },
         take: 50,
+      }),
+      prisma.wallet.findUnique({
+        where: { userId },
+        select: { balance: true, isFrozen: true, referralEarned: true },
       }),
     ]);
 
     return {
       success: true,
       data: {
+        wallet: wallet ?? { balance: 0, isFrozen: false, referralEarned: 0 },
         subscription,
         capacity,
         entitlements,

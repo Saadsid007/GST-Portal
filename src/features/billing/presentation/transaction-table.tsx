@@ -18,6 +18,7 @@ const LABELS: Record<TransactionType, string> = {
   PROMO_CODE: "Credit Code",
   CAMPAIGN: "Campaign Bonus",
   FREE_TRIAL: "Free Trial",
+  PURCHASE: "Used on a purchase",
 };
 
 export function TransactionTable() {

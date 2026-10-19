@@ -7,11 +7,8 @@ import {
   adminCreditAction,
   freezeWalletAction,
   searchWalletsAction,
-  setPlanAction,
   type AdminWalletRow,
 } from "@/features/billing/actions/admin.actions";
-import { CA_PLAN_IDS } from "@/features/billing/constants/billing.constants";
-import type { CaPlanId } from "@/features/billing/types/billing.types";
 
 const INPUT =
   "w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition";
@@ -85,9 +82,7 @@ export function AdminWalletTools() {
                 <th className="px-4 py-2.5 text-left font-bold">User</th>
                 <th className="px-4 py-2.5 text-left font-bold">Plan</th>
                 <th className="px-4 py-2.5 text-right font-bold">Balance</th>
-                <th className="px-4 py-2.5 text-right font-bold">Recharged</th>
-                <th className="px-4 py-2.5 text-right font-bold">Used</th>
-                <th className="px-4 py-2.5 text-right font-bold">Free</th>
+                <th className="px-4 py-2.5 text-right font-bold">Spent on purchases</th>
                 <th className="px-4 py-2.5 text-right font-bold" />
               </tr>
             </thead>
@@ -104,13 +99,7 @@ export function AdminWalletTools() {
                   <td className="px-4 py-2.5 font-semibold">{row.plan}</td>
                   <td className="px-4 py-2.5 text-right font-bold tabular-nums">{row.balance}</td>
                   <td className="px-4 py-2.5 text-right text-muted-foreground tabular-nums">
-                    ₹{row.lifetimeRecharged}
-                  </td>
-                  <td className="px-4 py-2.5 text-right text-muted-foreground tabular-nums">
                     {row.lifetimeUsed}
-                  </td>
-                  <td className="px-4 py-2.5 text-right text-muted-foreground tabular-nums">
-                    {row.freeGenerationsUsed}
                   </td>
                   <td className="px-4 py-2.5 text-right">
                     <div className="flex items-center justify-end gap-1.5">
@@ -143,10 +132,6 @@ export function AdminWalletTools() {
 function WalletActions({ row, onDone }: { row: AdminWalletRow; onDone: () => Promise<void> }) {
   const [credits, setCredits] = useState("");
   const [reason, setReason] = useState("");
-  const [plan, setPlan] = useState<CaPlanId>(
-    (CA_PLAN_IDS as readonly string[]).includes(row.plan) ? (row.plan as CaPlanId) : "FREE"
-  );
-  const [months, setMonths] = useState("1");
   const [pending, startTransition] = useTransition();
 
   return (
@@ -157,7 +142,7 @@ function WalletActions({ row, onDone }: { row: AdminWalletRow; onDone: () => Pro
 
       <div className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[1fr_2fr_auto]">
         <label className="space-y-1 text-[10px] font-bold text-muted-foreground uppercase">
-          Credits (negative claws back)
+          Credits = ₹ off (negative takes back)
           <input
             type="number"
             value={credits}
@@ -172,7 +157,7 @@ function WalletActions({ row, onDone }: { row: AdminWalletRow; onDone: () => Pro
             type="text"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder="Goodwill credit for failed generation"
+            placeholder="Goodwill credit for a delayed activation"
             className={INPUT}
           />
         </label>
@@ -197,53 +182,6 @@ function WalletActions({ row, onDone }: { row: AdminWalletRow; onDone: () => Pro
           className="rounded-lg bg-primary px-3.5 py-2 text-xs font-bold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
         >
           Apply
-        </button>
-      </div>
-
-      <div className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[1fr_1fr_auto]">
-        <label className="space-y-1 text-[10px] font-bold text-muted-foreground uppercase">
-          Plan
-          <select
-            value={plan}
-            onChange={(e) => setPlan(e.target.value as CaPlanId)}
-            className={INPUT}
-          >
-            {CA_PLAN_IDS.map((id) => (
-              <option key={id} value={id}>
-                {id}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="space-y-1 text-[10px] font-bold text-muted-foreground uppercase">
-          Months valid (blank = never expires)
-          <input
-            type="number"
-            min={1}
-            value={months}
-            onChange={(e) => setMonths(e.target.value)}
-            className={INPUT}
-          />
-        </label>
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() =>
-            startTransition(async () => {
-              const result = await setPlanAction({
-                userId: row.userId,
-                plan,
-                monthsValid: months === "" ? null : Number(months),
-              });
-              if (result.success) {
-                toast.success(`Plan set to ${plan}`);
-                await onDone();
-              } else toast.error(result.error);
-            })
-          }
-          className="rounded-lg border border-border px-3.5 py-2 text-xs font-bold transition hover:bg-muted disabled:opacity-50"
-        >
-          Set plan
         </button>
       </div>
 

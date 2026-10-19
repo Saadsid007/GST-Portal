@@ -5,6 +5,7 @@ import type { BillingOverview } from "@/features/billing/actions/billing.actions
 import { GstinUsageWidget } from "@/features/billing/presentation/gstin-usage-widget";
 import { PlanComparisonGrid } from "@/features/billing/presentation/plan-comparison-grid";
 import { PaymentHistoryTable } from "@/features/billing/presentation/payment-history-table";
+import { WalletCreditsSection } from "@/features/billing/presentation/wallet-credits-section";
 import { cancelAutoRenewalAction } from "@/features/billing/actions/billing.actions";
 import {
   ShieldCheck,
@@ -174,6 +175,12 @@ export function BillingDashboard({ initialData }: Props) {
 
       {/* Payment History */}
       <PaymentHistoryTable history={data.paymentHistory} />
+
+      <WalletCreditsSection
+        balance={data.wallet.balance}
+        isFrozen={data.wallet.isFrozen}
+        referralEarned={data.wallet.referralEarned}
+      />
     </div>
   );
 }

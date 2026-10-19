@@ -2,27 +2,15 @@
 
 import { useCallback, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Loader2, Percent, Plus, Save, Sparkles, Ticket, Trash2, Zap } from "lucide-react";
+import { Loader2, Plus, Save, Sparkles, Ticket } from "lucide-react";
 import {
   createCreditCodeAction,
   getAdminBillingConfigAction,
-  saveBonusSlabsAction,
-  saveCampaignAction,
-  saveFreeTrialAction,
-  saveGenerationCostAction,
-  saveRechargePacksAction,
   saveReferralRewardsAction,
   setCreditCodeActiveAction,
   type AdminBillingConfig,
 } from "@/features/billing/actions/admin.actions";
-import type {
-  BonusSlab,
-  Campaign,
-  FreeTrialLimits,
-  RechargePack,
-  ReferralRewards,
-} from "@/features/billing/types/billing.types";
-import { AdminWalletTools } from "@/features/billing/presentation/admin-wallet-tools";
+import type { ReferralRewards } from "@/features/billing/types/billing.types";
 
 const INPUT =
   "w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition";
@@ -33,15 +21,11 @@ const BTN =
  * Every billing config section lives behind one server read, so admin screens
  * declare which slices they want rather than each fetching separately.
  */
-export type AdminBillingSectionKey =
-  | "generationCost"
-  | "bonusSlabs"
-  | "rechargePacks"
-  | "rewards"
-  | "trial"
-  | "campaign"
-  | "creditCodes"
-  | "walletTools";
+// Generation cost, recharge packs, bonus slabs, the seasonal recharge bonus and
+// the per-generation trial were the credit-per-return model. Returns are
+// unlimited on every plan now, nothing in the product read those values, and
+// editing them changed nothing a customer could see — so they are gone.
+export type AdminBillingSectionKey = "rewards" | "creditCodes";
 
 /**
  * `initialConfig` is fetched by the server component that renders this, so the
@@ -67,14 +51,7 @@ export function AdminBillingSections({
 
   return (
     <div className="space-y-6">
-      {has("generationCost") && (
-        <GenerationCostSection cost={config.generationCost} onSaved={reload} />
-      )}
-      {has("bonusSlabs") && <BonusSlabsSection slabs={config.slabs} onSaved={reload} />}
-      {has("rechargePacks") && <RechargePacksSection packs={config.packs} onSaved={reload} />}
       {has("rewards") && <RewardsSection rewards={config.rewards} onSaved={reload} />}
-      {has("trial") && <TrialSection trial={config.trial} onSaved={reload} />}
-      {has("campaign") && <CampaignSection campaign={config.campaign} onSaved={reload} />}
       {has("creditCodes") && (
         <CreditCodesSection
           codes={config.creditCodes}
@@ -82,7 +59,6 @@ export function AdminBillingSections({
           onSaved={reload}
         />
       )}
-      {has("walletTools") && <AdminWalletTools />}
     </div>
   );
 }
@@ -108,239 +84,6 @@ function Card({
       </div>
       {children}
     </section>
-  );
-}
-
-function GenerationCostSection({ cost, onSaved }: { cost: number; onSaved: () => Promise<void> }) {
-  const [value, setValue] = useState(String(cost));
-  const [pending, startTransition] = useTransition();
-
-  return (
-    <Card
-      title="Generation Cost"
-      icon={<Zap className="size-4 text-warning" />}
-      hint="Credits deducted for one GSTR-1 return. 1 credit = ₹1."
-    >
-      <div className="flex max-w-xs items-end gap-2">
-        <input
-          type="number"
-          min={1}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          className={INPUT}
-        />
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() =>
-            startTransition(async () => {
-              const result = await saveGenerationCostAction(Number(value));
-              if (result.success) {
-                toast.success("Generation cost updated");
-                await onSaved();
-              } else toast.error(result.error);
-            })
-          }
-          className={BTN}
-        >
-          {pending ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}{" "}
-          Save
-        </button>
-      </div>
-    </Card>
-  );
-}
-
-function BonusSlabsSection({
-  slabs,
-  onSaved,
-}: {
-  slabs: BonusSlab[];
-  onSaved: () => Promise<void>;
-}) {
-  const [rows, setRows] = useState<BonusSlab[]>(slabs);
-  const [pending, startTransition] = useTransition();
-
-  function patch(index: number, patchValue: Partial<BonusSlab>) {
-    setRows((current) => current.map((row, i) => (i === index ? { ...row, ...patchValue } : row)));
-  }
-
-  return (
-    <Card
-      title="Wallet Bonus Slabs"
-      icon={<Percent className="size-4 text-success" />}
-      hint="Ranges must be contiguous with no gaps, and the top slab must be open-ended. Validated on save."
-    >
-      <div className="space-y-2">
-        {rows.map((row, index) => (
-          <div key={index} className="grid grid-cols-[1fr_1fr_1fr_auto] items-center gap-2">
-            <input
-              type="number"
-              value={row.minAmount}
-              onChange={(e) => patch(index, { minAmount: Number(e.target.value) })}
-              placeholder="Min ₹"
-              className={INPUT}
-            />
-            <input
-              type="number"
-              value={row.maxAmount ?? ""}
-              onChange={(e) =>
-                patch(index, { maxAmount: e.target.value === "" ? null : Number(e.target.value) })
-              }
-              placeholder="Max ₹ (blank = no limit)"
-              className={INPUT}
-            />
-            <input
-              type="number"
-              step="0.1"
-              value={row.bonusPercent}
-              onChange={(e) => patch(index, { bonusPercent: Number(e.target.value) })}
-              placeholder="Bonus %"
-              className={INPUT}
-            />
-            <button
-              type="button"
-              onClick={() => setRows((current) => current.filter((_, i) => i !== index))}
-              className="rounded-lg border border-border p-2 transition hover:bg-destructive/10 hover:text-destructive"
-              aria-label="Remove slab"
-            >
-              <Trash2 className="size-3.5" />
-            </button>
-          </div>
-        ))}
-      </div>
-
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() =>
-            setRows((current) => [
-              ...current,
-              { minAmount: (current.at(-1)?.maxAmount ?? 0) + 1, maxAmount: null, bonusPercent: 0 },
-            ])
-          }
-          className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3.5 py-2 text-xs font-semibold transition hover:bg-muted"
-        >
-          <Plus className="size-3.5" /> Add slab
-        </button>
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() =>
-            startTransition(async () => {
-              const result = await saveBonusSlabsAction(rows);
-              if (result.success) {
-                toast.success("Bonus slabs updated — live immediately, no deploy needed");
-                await onSaved();
-              } else toast.error(result.error);
-            })
-          }
-          className={BTN}
-        >
-          {pending ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}{" "}
-          Save slabs
-        </button>
-      </div>
-    </Card>
-  );
-}
-
-function RechargePacksSection({
-  packs,
-  onSaved,
-}: {
-  packs: RechargePack[];
-  onSaved: () => Promise<void>;
-}) {
-  const [rows, setRows] = useState<RechargePack[]>(packs);
-  const [pending, startTransition] = useTransition();
-
-  function patch(index: number, patchValue: Partial<RechargePack>) {
-    setRows((current) => current.map((row, i) => (i === index ? { ...row, ...patchValue } : row)));
-  }
-
-  return (
-    <Card
-      title="Recharge Packs"
-      icon={<Ticket className="size-4 text-primary-ink" />}
-      hint="Only one pack should be starred Most Popular. Custom amounts below the first bonus slab earn nothing, by design."
-    >
-      <div className="space-y-2">
-        {rows.map((row, index) => (
-          <div key={row.id} className="grid grid-cols-[1fr_1fr_auto_auto] items-center gap-2">
-            <input
-              type="text"
-              value={row.label}
-              onChange={(e) => patch(index, { label: e.target.value })}
-              placeholder="Label"
-              className={INPUT}
-            />
-            <input
-              type="number"
-              value={row.amount}
-              onChange={(e) => patch(index, { amount: Number(e.target.value) })}
-              placeholder="₹"
-              className={INPUT}
-            />
-            <label className="flex items-center gap-1.5 px-2 text-xs font-semibold whitespace-nowrap">
-              <input
-                type="checkbox"
-                checked={row.popular}
-                onChange={(e) =>
-                  setRows((current) =>
-                    current.map((item, i) => ({
-                      ...item,
-                      popular: i === index && e.target.checked,
-                    }))
-                  )
-                }
-              />
-              Popular
-            </label>
-            <button
-              type="button"
-              onClick={() => setRows((current) => current.filter((_, i) => i !== index))}
-              className="rounded-lg border border-border p-2 transition hover:bg-destructive/10 hover:text-destructive"
-              aria-label="Remove pack"
-            >
-              <Trash2 className="size-3.5" />
-            </button>
-          </div>
-        ))}
-      </div>
-
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() =>
-            setRows((current) => [
-              ...current,
-              { id: `pack-${current.length + 1}`, label: "New Pack", amount: 99, popular: false },
-            ])
-          }
-          className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3.5 py-2 text-xs font-semibold transition hover:bg-muted"
-        >
-          <Plus className="size-3.5" /> Add pack
-        </button>
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() =>
-            startTransition(async () => {
-              const result = await saveRechargePacksAction(rows);
-              if (result.success) {
-                toast.success("Recharge packs updated");
-                await onSaved();
-              } else toast.error(result.error);
-            })
-          }
-          className={BTN}
-        >
-          {pending ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}{" "}
-          Save packs
-        </button>
-      </div>
-    </Card>
   );
 }
 
@@ -397,209 +140,6 @@ function RewardsSection({
         {pending ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}{" "}
         Save rewards
       </button>
-    </Card>
-  );
-}
-
-function TrialSection({
-  trial,
-  onSaved,
-}: {
-  trial: FreeTrialLimits;
-  onSaved: () => Promise<void>;
-}) {
-  const [value, setValue] = useState(trial);
-  const [pending, startTransition] = useTransition();
-
-  return (
-    <Card
-      title="Free Trial"
-      icon={<Ticket className="size-4 text-primary-ink" />}
-      hint="Applies to accounts that have never recharged."
-    >
-      <div className="grid max-w-2xl grid-cols-1 items-end gap-3 sm:grid-cols-3">
-        <label className="space-y-1 text-xs font-bold text-muted-foreground uppercase">
-          Max GSTINs
-          <input
-            type="number"
-            value={value.maxGstins}
-            onChange={(e) => setValue({ ...value, maxGstins: Number(e.target.value) })}
-            className={INPUT}
-          />
-        </label>
-        <label className="space-y-1 text-xs font-bold text-muted-foreground uppercase">
-          Free generations
-          <input
-            type="number"
-            value={value.maxGenerations}
-            onChange={(e) => setValue({ ...value, maxGenerations: Number(e.target.value) })}
-            className={INPUT}
-          />
-        </label>
-        <label className="flex items-center gap-2 py-2 text-xs font-semibold">
-          <input
-            type="checkbox"
-            checked={value.watermark}
-            onChange={(e) => setValue({ ...value, watermark: e.target.checked })}
-          />
-          Watermark trial output
-        </label>
-      </div>
-      <button
-        type="button"
-        disabled={pending}
-        onClick={() =>
-          startTransition(async () => {
-            const result = await saveFreeTrialAction(value);
-            if (result.success) {
-              toast.success("Free trial limits updated");
-              await onSaved();
-            } else toast.error(result.error);
-          })
-        }
-        className={BTN}
-      >
-        {pending ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}{" "}
-        Save trial
-      </button>
-    </Card>
-  );
-}
-
-const EMPTY_CAMPAIGN: Campaign = {
-  id: "campaign",
-  name: "",
-  isActive: false,
-  bonusMultiplier: 1,
-  extraBonusPercent: 0,
-  startsAt: null,
-  endsAt: null,
-};
-
-function CampaignSection({
-  campaign,
-  onSaved,
-}: {
-  campaign: Campaign | null;
-  onSaved: () => Promise<void>;
-}) {
-  const [value, setValue] = useState<Campaign>(campaign ?? EMPTY_CAMPAIGN);
-  const [pending, startTransition] = useTransition();
-
-  return (
-    <Card
-      title="Seasonal Campaign"
-      icon={<Sparkles className="size-4 text-primary-ink" />}
-      hint="Diwali, filing season, FY end, cashback — configuration only, never a code change. The multiplier scales the slab bonus (1.5 turns 10% into 15%); the extra percent is added on top."
-    >
-      <div className="grid max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2">
-        <label className="space-y-1 text-xs font-bold text-muted-foreground uppercase">
-          Campaign name
-          <input
-            type="text"
-            value={value.name}
-            onChange={(e) => setValue({ ...value, name: e.target.value })}
-            placeholder="Diwali Dhamaka"
-            className={INPUT}
-          />
-        </label>
-        <label className="space-y-1 text-xs font-bold text-muted-foreground uppercase">
-          Bonus multiplier
-          <input
-            type="number"
-            step="0.1"
-            value={value.bonusMultiplier}
-            onChange={(e) => setValue({ ...value, bonusMultiplier: Number(e.target.value) })}
-            className={INPUT}
-          />
-        </label>
-        <label className="space-y-1 text-xs font-bold text-muted-foreground uppercase">
-          Extra bonus %
-          <input
-            type="number"
-            step="0.1"
-            value={value.extraBonusPercent}
-            onChange={(e) => setValue({ ...value, extraBonusPercent: Number(e.target.value) })}
-            className={INPUT}
-          />
-        </label>
-        <div className="grid grid-cols-2 gap-2">
-          <label className="space-y-1 text-xs font-bold text-muted-foreground uppercase">
-            Starts
-            <input
-              type="date"
-              value={value.startsAt?.slice(0, 10) ?? ""}
-              onChange={(e) =>
-                setValue({
-                  ...value,
-                  startsAt: e.target.value ? new Date(e.target.value).toISOString() : null,
-                })
-              }
-              className={INPUT}
-            />
-          </label>
-          <label className="space-y-1 text-xs font-bold text-muted-foreground uppercase">
-            Ends
-            <input
-              type="date"
-              value={value.endsAt?.slice(0, 10) ?? ""}
-              onChange={(e) =>
-                setValue({
-                  ...value,
-                  endsAt: e.target.value ? new Date(e.target.value).toISOString() : null,
-                })
-              }
-              className={INPUT}
-            />
-          </label>
-        </div>
-      </div>
-
-      <label className="flex items-center gap-2 text-xs font-semibold">
-        <input
-          type="checkbox"
-          checked={value.isActive}
-          onChange={(e) => setValue({ ...value, isActive: e.target.checked })}
-        />
-        Campaign is live
-      </label>
-
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() =>
-            startTransition(async () => {
-              const result = await saveCampaignAction({ ...value, id: value.name || "campaign" });
-              if (result.success) {
-                toast.success("Campaign saved");
-                await onSaved();
-              } else toast.error(result.error);
-            })
-          }
-          className={BTN}
-        >
-          {pending ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}{" "}
-          Save campaign
-        </button>
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() =>
-            startTransition(async () => {
-              const result = await saveCampaignAction(null);
-              if (result.success) {
-                toast.success("Campaign cleared");
-                setValue(EMPTY_CAMPAIGN);
-                await onSaved();
-              } else toast.error(result.error);
-            })
-          }
-          className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3.5 py-2 text-xs font-semibold transition hover:bg-muted"
-        >
-          Clear campaign
-        </button>
-      </div>
     </Card>
   );
 }

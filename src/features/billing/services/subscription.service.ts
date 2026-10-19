@@ -228,9 +228,14 @@ export async function activatePaidPlan(input: {
   planSlug: PlanSlug;
   paymentId: string;
   providerOrderId?: string;
+  /**
+   * The Payment row this purchase already has — a UPI QR order writes one
+   * before the customer pays. It is completed in place.
+   */
+  paymentRecordId?: string;
   amountRupees: number;
 }): Promise<SubscriptionStatusSummary> {
-  const { userId, planSlug, paymentId, providerOrderId, amountRupees } = input;
+  const { userId, planSlug, paymentId, providerOrderId, paymentRecordId, amountRupees } = input;
   const plan = getPlanDefinition(planSlug);
   const now = new Date();
   const startDate = now;
@@ -256,7 +261,25 @@ export async function activatePaidPlan(input: {
       },
     };
 
-    if (providerOrderId) {
+    if (paymentRecordId) {
+      // A QR order's row, already claimed as SUCCESS by the settler. Creating a
+      // second row here reused the captured payment id, hit its unique index
+      // and rolled the activation back: the customer had paid and the plan
+      // never switched on.
+      const existing = await tx.payment.findUniqueOrThrow({ where: { id: paymentRecordId } });
+      await tx.payment.update({
+        where: { id: paymentRecordId },
+        data: {
+          providerPaymentId: paymentId,
+          status: "SUCCESS",
+          planSlug: plan.slug,
+          metadata: {
+            ...((existing.metadata ?? {}) as Record<string, unknown>),
+            ...paymentData.metadata,
+          },
+        },
+      });
+    } else if (providerOrderId) {
       await tx.payment.upsert({
         where: { providerOrderId },
         create: { ...paymentData, providerOrderId },

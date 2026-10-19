@@ -29,15 +29,13 @@ export default async function AdminCampaignsPage() {
 
       <div className="border-t border-border pt-6">
         <div className="mb-4">
-          <h2 className="text-base font-bold">Promotional Rules & Trial Defaults</h2>
+          <h2 className="text-base font-bold">Referral rewards</h2>
           <p className="text-xs text-muted-foreground">
-            Configure seasonal bonus campaign rates, referral reward tiers and fallback trial days.
+            Credits each side earns when a referred seller buys their first plan. 1 credit = ₹1 off
+            any plan or add-on.
           </p>
         </div>
-        <AdminBillingSections
-          sections={["campaign", "rewards", "trial"]}
-          initialConfig={result.data}
-        />
+        <AdminBillingSections sections={["rewards"]} initialConfig={result.data} />
       </div>
     </div>
   );

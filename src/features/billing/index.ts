@@ -1,7 +1,6 @@
 export { calculateBonus, findBonusSlab } from "./domain/bonus-calculator";
 export { canAddGstin, getActivePlan, getWalletSummary } from "./services/entitlement.service";
 export { creditWallet, debitWallet, getOrCreateWallet } from "./services/wallet.service";
-export { WalletCard } from "./presentation/wallet-card";
 export type {
   BonusBreakdown,
   BonusSlab,

@@ -114,10 +114,15 @@ export async function applyReferral(
     );
   }
 
-  const wallet = await prisma.wallet.findUnique({ where: { userId: refereeId } });
-  if (wallet && wallet.lifetimeRecharged > 0) {
+  // The reward pays out on the first paid purchase, so a code applied after it
+  // could never pay — and a wallet recharge counts the same way.
+  const [wallet, paidPurchases] = await Promise.all([
+    prisma.wallet.findUnique({ where: { userId: refereeId } }),
+    prisma.payment.count({ where: { userId: refereeId, status: "SUCCESS", amount: { gt: 0 } } }),
+  ]);
+  if ((wallet && wallet.lifetimeRecharged > 0) || paidPurchases > 0) {
     throw new ReferralError(
-      "Referral codes can only be applied before your first recharge.",
+      "Referral codes can only be applied before your first purchase.",
       "TOO_LATE"
     );
   }
@@ -196,7 +201,7 @@ export async function settleReferralOnFirstRecharge(
       userId: referral.referrerId,
       credits: rewards.referrerCredits,
       type: "REFERRAL_REWARD",
-      description: "Referral reward — your invite made their first recharge",
+      description: "Referral reward — your invite made their first purchase",
       referenceId: referral.id,
     },
     tx

@@ -78,7 +78,14 @@ export function PurchaseQrDialog({
           : await createGstinAddonQrOrderAction(intent.quantity);
 
       if (cancelled || !alive.current) return;
-      if (result.success && result.data) {
+      if (result.success && result.data?.kind === "wallet") {
+        // The wallet covered it: already settled, nothing to scan.
+        const summary = `${result.data.summary} — paid with ${result.data.creditsApplied} wallet credits`;
+        setPhase({ state: "paid", summary });
+        toast.success(summary);
+        if (onSuccess) onSuccess();
+        else router.refresh();
+      } else if (result.success && result.data) {
         setPhase({ state: "awaiting", qr: result.data });
       } else {
         setPhase({ state: "error", message: result.error ?? "Could not generate the QR code." });
@@ -171,6 +178,12 @@ export function PurchaseQrDialog({
               <p className="text-3xl font-bold tracking-tight tabular-nums">
                 ₹{phase.qr.amount.toLocaleString("en-IN")}
               </p>
+              {phase.qr.creditsApplied > 0 && (
+                <p className="mt-1 text-xs text-success-ink tabular-nums">
+                  ₹{phase.qr.listPrice.toLocaleString("en-IN")} − {phase.qr.creditsApplied} wallet
+                  credits
+                </p>
+              )}
               <p className="mt-1 text-xs font-medium text-foreground">{phase.qr.summary}</p>
               <p className="mt-0.5 text-2xs text-muted-foreground">
                 Locked to this QR — the amount cannot be changed
