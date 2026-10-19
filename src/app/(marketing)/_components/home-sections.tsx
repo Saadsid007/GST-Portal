@@ -101,7 +101,7 @@ const FEATURES = [
   {
     icon: FileJson,
     title: "Government-ready output",
-    body: "GSTN v3.0 schema JSON for direct upload, plus a multi-sheet Excel workbook your CA can actually review.",
+    body: "JSON in the official offline tool v3.2.4 format for direct upload, plus a multi-sheet Excel workbook your CA can actually review.",
     stat: "JSON + Excel, every time",
   },
   {
@@ -275,7 +275,7 @@ export const FAQS = [
   },
   {
     q: "Is the output accepted by the GST portal?",
-    a: "GSTPilot generates JSON against the GSTN v3.0 schema for direct upload, alongside a multi-sheet Excel workbook for review. Validation runs before generation so schema errors surface here rather than on the portal.",
+    a: "GSTPilot generates JSON exactly as the official GST Returns Offline Tool v3.2.4 writes it, for direct upload, alongside a multi-sheet Excel workbook for review. Validation runs before generation so schema errors surface here rather than on the portal.",
   },
   {
     q: "How much does it cost?",
@@ -334,7 +334,8 @@ export function ClosingCta() {
             File your next GSTR-1 in minutes
           </h2>
           <p className="mx-auto max-w-xl text-sm text-primary-foreground/80">
-            30-day free trial with 7 GSTINs. Unlimited returns, no card required, no spreadsheet surgery.
+            30-day free trial with 7 GSTINs. Unlimited returns, no card required, no spreadsheet
+            surgery.
           </p>
           <div className="flex flex-col items-center justify-center gap-3 pt-1 sm:flex-row">
             <Button asChild size="xl" className="bg-background text-foreground hover:bg-card">

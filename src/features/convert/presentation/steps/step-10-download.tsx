@@ -108,7 +108,7 @@ export function Step10Download({ state, onReset }: Props) {
     <div className="space-y-8 p-6 md:p-8">
       <div className="mx-auto max-w-lg space-y-2 text-center">
         <span className="rounded-full bg-success/10 px-3 py-1 text-xs font-bold tracking-wider text-success uppercase">
-          Step 10 of 10 — Complete
+          Done
         </span>
         <div className="mx-auto mt-2 flex size-12 items-center justify-center rounded-full bg-success/10 text-success">
           <CheckCircle2 className="size-6" />
@@ -152,7 +152,8 @@ export function Step10Download({ state, onReset }: Props) {
             <div>
               <h3 className="text-base font-bold">GSTR-1 Excel Workbook</h3>
               <p className="mt-1 text-xs text-muted-foreground">
-                Official GSTN Offline Template v2.1 (32 sheets) with B2B, B2CS, CDNR, HSN, ECO & DOCS
+                Official GSTN Offline Template v2.1 (32 sheets) with B2B, B2CS, CDNR, HSN, ECO &
+                DOCS
               </p>
             </div>
           </div>

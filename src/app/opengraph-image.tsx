@@ -38,7 +38,7 @@ export default function OpengraphImage() {
         Marketplace reports to GSTR-1 in seconds
       </div>
       <div style={{ marginTop: 32, fontSize: 30, color: "#cbd5e1", maxWidth: 880 }}>
-        Amazon · Flipkart · Meesho · Myntra — net sales after returns, GSTN v3.0 JSON and Excel.
+        Amazon · Flipkart · Meesho · Myntra — net sales after returns, portal-ready JSON and Excel.
       </div>
     </div>,
     size

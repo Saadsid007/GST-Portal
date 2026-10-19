@@ -22,11 +22,7 @@ const NAV_LINKS = [
  * layout itself stay a server component, so marketing pages stream instead of
  * waiting on the client bundle.
  */
-export function MarketingNav({
-  initialSession,
-}: {
-  initialSession?: { user: { id: string; name?: string; email: string } } | null;
-}) {
+export function MarketingNav() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -58,7 +54,7 @@ export function MarketingNav({
 
       <div className="flex flex-shrink-0 items-center gap-1.5 sm:gap-2">
         <ThemeToggle />
-        <AuthActions initialSession={initialSession} />
+        <AuthActions />
 
         <Button
           variant="outline"
@@ -95,20 +91,15 @@ export function MarketingNav({
               </Link>
             );
           })}
-          <MobileAuthLinks initialSession={initialSession} onNavigate={() => setMenuOpen(false)} />
+          <MobileAuthLinks onNavigate={() => setMenuOpen(false)} />
         </nav>
       )}
     </>
   );
 }
 
-function AuthActions({
-  initialSession,
-}: {
-  initialSession?: { user: { id: string; name?: string; email: string } } | null;
-}) {
-  const { data: clientSession } = authClient.useSession();
-  const session = clientSession ?? initialSession;
+function AuthActions() {
+  const { data: session } = authClient.useSession();
 
   if (session?.user) {
     return (
@@ -141,15 +132,8 @@ function AuthActions({
   );
 }
 
-function MobileAuthLinks({
-  initialSession,
-  onNavigate,
-}: {
-  initialSession?: { user: { id: string; name?: string; email: string } } | null;
-  onNavigate: () => void;
-}) {
-  const { data: clientSession } = authClient.useSession();
-  const session = clientSession ?? initialSession;
+function MobileAuthLinks({ onNavigate }: { onNavigate: () => void }) {
+  const { data: session } = authClient.useSession();
 
   return session?.user ? (
     <Link

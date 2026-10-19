@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import type { NormalizedInvoiceRow } from "@/features/convert/types/convert.types";
 import type { MultiConvertState } from "@/features/convert/presentation/convert-workbench";
 import { parseMultiPlatformFilesAction } from "@/features/convert/actions/convert.actions";
 import { Loader2, CheckCircle2 } from "lucide-react";
@@ -10,7 +11,8 @@ import { cn } from "@/lib/utils";
 interface Props {
   state: MultiConvertState;
   onChange: (updates: Partial<MultiConvertState>) => void;
-  onNext: () => void;
+  /** Called with the rows the pipeline produced, so the caller can route on them. */
+  onNext: (rows: NormalizedInvoiceRow[]) => void;
   onBack: () => void;
 }
 
@@ -75,8 +77,9 @@ export function Step7Processing({ state, onChange, onNext, onBack }: Props) {
               : `${detected.length} operator GSTINs detected and saved for future returns`
           );
         }
+        const rows = res.data.rows;
         setTimeout(() => {
-          if (mounted) onNext();
+          if (mounted) onNext(rows);
         }, 500);
       } catch (err) {
         if (mounted) {
@@ -103,7 +106,7 @@ export function Step7Processing({ state, onChange, onNext, onBack }: Props) {
     <div className="mx-auto max-w-xl space-y-8 p-8 text-center md:p-12">
       <div>
         <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold tracking-wider text-primary-ink uppercase">
-          Step 7 of 10
+          Step 3 of 4 · Processing
         </span>
         <h2 className="mt-3 text-2xl font-bold">Executing Pipeline Engine</h2>
         <p className="mt-1 text-sm text-muted-foreground">

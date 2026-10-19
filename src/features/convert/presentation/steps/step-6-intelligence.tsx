@@ -73,6 +73,16 @@ export function Step6Intelligence({ state, onChange, onNext, onBack }: Props) {
 
         setUserMappings(initialMappings);
         setAnswers(initialAnswers);
+
+        // Nothing to ask: every file was understood. The screen existed to
+        // show the engine's reading, and for a recognised marketplace export
+        // that is a page of green ticks to click past — so it goes straight on.
+        const questionCount = res.data.reports.reduce((n, r) => n + r.questions.length, 0);
+        if (questionCount === 0) {
+          onChange({ answersByFile: {} });
+          onNext();
+          return;
+        }
       } catch (err) {
         if (mounted) {
           const msg = err instanceof Error ? err.message : "Evaluation failed";
@@ -230,7 +240,7 @@ export function Step6Intelligence({ state, onChange, onNext, onBack }: Props) {
         <div>
           <div className="flex items-center gap-2">
             <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold tracking-wider text-primary-ink uppercase">
-              Step 6 of 10
+              Step 3 of 4 · Questions
             </span>
             {aiWasUsed && (
               <span className="flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-bold text-amber-600">

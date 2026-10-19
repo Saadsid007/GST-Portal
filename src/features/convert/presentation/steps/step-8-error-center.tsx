@@ -334,7 +334,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
       <div className="flex flex-col justify-between gap-4 border-b border-border pb-6 sm:flex-row sm:items-center">
         <div>
           <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold tracking-wider text-primary-ink uppercase">
-            Step 8 of 10
+            Step 3 of 4 · Fix issues
           </span>
           <h2 className="mt-2 text-xl font-bold">
             Smart Error Resolution Center & TCS Reconciliation
@@ -751,7 +751,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
               </h3>
               <p className="mt-0.5 text-xs text-muted-foreground">
                 Upload the GSTR-1 JSON filed on the portal, Amazon&apos;s auto-generated GSTR-1, or
-                the Government GSTR-1 Template V2.1. The JSON is the strongest check — it is what
+                the Government GSTR-1 Template V2.2. The JSON is the strongest check — it is what
                 was actually filed, where a workbook may still be a working draft. Reference data is{" "}
                 <strong>never merged</strong> — it&apos;s validation-only.
               </p>
@@ -1382,7 +1382,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
           onClick={onBack}
           className="flex w-full items-center justify-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold transition hover:bg-accent sm:w-auto"
         >
-          <ArrowLeft className="size-4" /> Back to Mapping
+          <ArrowLeft className="size-4" /> Back to upload
         </button>
 
         <button

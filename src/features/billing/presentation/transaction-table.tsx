@@ -107,7 +107,8 @@ export function TransactionTable() {
         <p className="px-5 py-10 text-center text-xs text-muted-foreground">Loading ledger…</p>
       ) : rows.length === 0 ? (
         <p className="px-5 py-10 text-center text-xs text-muted-foreground">
-          No transactions yet. Your recharges and generations will appear here.
+          No credits yet. Credits you earn from referrals and codes — and spend on plans — appear
+          here.
         </p>
       ) : (
         <div className="overflow-x-auto">

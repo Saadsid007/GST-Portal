@@ -57,7 +57,7 @@ const COMPARISON_ROWS: ComparisonRow[] = [
     caFirm: true,
   },
   {
-    feature: "Official GSTN JSON v3.0 + multi-sheet Excel",
+    feature: "Portal-ready JSON (Offline Tool v3.2.4 format) + Excel",
     starter: true,
     growth: true,
     business: true,

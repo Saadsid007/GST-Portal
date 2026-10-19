@@ -140,7 +140,7 @@ export function TrustStrip() {
     {
       icon: ShieldCheck,
       label: "Official GSTN JSON & Excel",
-      detail: "100% compliant with Offline Tool v3.0",
+      detail: "Matches the GST Offline Tool v3.2.4 format",
     },
     {
       icon: Lock,

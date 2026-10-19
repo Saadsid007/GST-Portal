@@ -14,10 +14,7 @@ import type {
   QuestionAnswer,
 } from "@/features/convert/engine/universal/types";
 import type { Gstr1ComparisonResult } from "@/features/convert/engine/comparison/gstr1.comparator";
-import { Step1Gstin } from "./steps/step-1-gstin";
-import { Step2Period } from "./steps/step-2-period";
-import { Step3Platforms } from "./steps/step-3-platforms";
-import { Step4RulesCheck } from "./steps/step-4-rules-check";
+import { StepSetup, periodMonthsAgo } from "./steps/step-setup";
 import { Step5Upload } from "./steps/step-5-upload";
 import { Step6Intelligence } from "./steps/step-6-intelligence";
 import { Step7Processing } from "./steps/step-7-processing";
@@ -25,38 +22,51 @@ import { Step8ErrorCenter } from "./steps/step-8-error-center";
 import { Step9Generate } from "./steps/step-9-generate";
 import { Step10Download } from "./steps/step-10-download";
 import { cn, formatPeriod } from "@/lib/utils";
-import {
-  Check,
-  Lock,
-  Building2,
-  CalendarRange,
-  Store,
-  ShieldCheck,
-  UploadCloud,
-  Columns3,
-  Cpu,
-  AlertTriangle,
-  FileJson,
-  Download,
-} from "lucide-react";
+import { Check, Building2, UploadCloud, AlertTriangle, Download } from "lucide-react";
 
-const STEPS = [
-  { id: 1, label: "GST Profile", icon: Building2, hint: "Pick the GSTIN you are filing for" },
-  { id: 2, label: "Return Period", icon: CalendarRange, hint: "Choose the month of the return" },
-  { id: 3, label: "Marketplaces", icon: Store, hint: "Select every platform to combine" },
-  { id: 4, label: "Rules Check", icon: ShieldCheck, hint: "Confirm the files each platform needs" },
-  { id: 5, label: "Upload Reports", icon: UploadCloud, hint: "Attach the marketplace exports" },
+/**
+ * Four stages a person sees, over the screens that do the work.
+ *
+ * The wizard showed all ten — profile, period, marketplaces, a rules check,
+ * upload, the engine's reading, the pipeline, errors, approval, download — as
+ * ten stops. Most are automatic: the reading only needs the user when it has
+ * a question, the pipeline runs by itself, and the error centre only matters
+ * when there are errors. Those now pass without a click.
+ */
+const STAGES = [
   {
-    id: 6,
-    label: "Intelligence",
-    icon: Columns3,
-    hint: "Review engine understanding and answer questions",
+    id: "setup",
+    label: "Setup",
+    icon: Building2,
+    hint: "GSTIN, month and marketplaces",
+    steps: [1],
   },
-  { id: 7, label: "Pipeline", icon: Cpu, hint: "Normalize, merge and compute net sales" },
-  { id: 8, label: "Error Center", icon: AlertTriangle, hint: "Resolve validation issues" },
-  { id: 9, label: "Generate", icon: FileJson, hint: "Review totals and approve" },
-  { id: 10, label: "Download", icon: Download, hint: "Grab your GSTR-1 JSON and Excel" },
-];
+  {
+    id: "upload",
+    label: "Upload",
+    icon: UploadCloud,
+    hint: "Attach the marketplace exports",
+    steps: [5],
+  },
+  {
+    id: "review",
+    label: "Review",
+    icon: AlertTriangle,
+    hint: "We read, check and net your files",
+    steps: [6, 7, 8],
+  },
+  {
+    id: "download",
+    label: "Download",
+    icon: Download,
+    hint: "Approve and download GSTR-1",
+    steps: [9, 10],
+  },
+] as const;
+
+function stageOf(step: number) {
+  return STAGES.findIndex((s) => (s.steps as readonly number[]).includes(step));
+}
 
 interface Props {
   profiles: GstinProfile[];
@@ -102,9 +112,8 @@ const EMPTY_STATE: MultiConvertState = {
  * into the filing for anyone who never opened step 2.
  */
 function currentReturnPeriod(): string {
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  return `${month}${now.getFullYear()}`;
+  // GSTR-1 is filed for the month just ended, so that is the default.
+  return periodMonthsAgo(1);
 }
 
 export function ConvertWorkbench({ profiles, platforms }: Props) {
@@ -145,6 +154,16 @@ export function ConvertWorkbench({ profiles, platforms }: Props) {
     setState((prev) => ({ ...prev, ...updates }));
   }, []);
 
+  // The error centre is a stop only when the pipeline left something to fix
+  // or confirm; a clean run goes straight to approval.
+  const afterProcessing = useCallback(
+    (rows: NormalizedInvoiceRow[]) => {
+      const needsAttention = rows.some((r) => r.errors.length > 0 || (r.reviews?.length ?? 0) > 0);
+      goTo(needsAttention ? 8 : 9);
+    },
+    [goTo]
+  );
+
   function reset() {
     const defaultProfile = profiles.find((p) => p.isDefault) ?? profiles[0];
     const defaultMonth = currentReturnPeriod();
@@ -177,8 +196,9 @@ export function ConvertWorkbench({ profiles, platforms }: Props) {
     );
   }
 
-  const active = STEPS[step - 1] ?? STEPS[0]!;
-  const percent = Math.round(((step - 1) / (STEPS.length - 1)) * 100);
+  const stageIndex = Math.max(0, stageOf(step));
+  const active = STAGES[stageIndex]!;
+  const percent = Math.round((stageIndex / (STAGES.length - 1)) * 100);
 
   return (
     <div className="space-y-5">
@@ -196,7 +216,7 @@ export function ConvertWorkbench({ profiles, platforms }: Props) {
             </div>
             <div className="min-w-0">
               <p className="text-[11px] font-bold tracking-wider text-primary-ink uppercase">
-                Step {step} of {STEPS.length} · {percent}% complete
+                Step {stageIndex + 1} of {STAGES.length}
               </p>
               <h2 className="truncate text-lg font-bold">{active.label}</h2>
               <p className="truncate text-xs text-muted-foreground">{active.hint}</p>
@@ -231,57 +251,46 @@ export function ConvertWorkbench({ profiles, platforms }: Props) {
 
       {/* Step rail */}
       <div className="-mx-1 scrollbar-none flex items-center gap-1 overflow-x-auto px-1 pb-1">
-        {STEPS.map((s, idx) => {
-          const isDone = step > s.id;
-          const isActive = step === s.id;
-          const isLocked = s.id > step;
+        {STAGES.map((s, idx) => {
+          const isDone = stageIndex > idx;
+          const isActive = stageIndex === idx;
+          const isLocked = idx > stageIndex;
 
           return (
             <div key={s.id} className="flex flex-shrink-0 items-center">
               <button
                 type="button"
-                ref={(el) => {
-                  pillRefs.current[s.id] = el;
-                }}
                 onClick={() => {
-                  if (s.id < step) goTo(s.id);
+                  // Back to setup or upload only; review and download are
+                  // reached by running the files, not by jumping.
+                  if (isDone && idx <= 1) goTo(s.steps[0]);
                 }}
-                disabled={isLocked}
+                disabled={isLocked || (isDone && idx > 1)}
                 aria-current={isActive ? "step" : undefined}
-                title={isLocked ? `${s.label} — complete the earlier steps first` : s.hint}
+                title={s.hint}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-semibold transition-all",
-                  isDone && "cursor-pointer text-success hover:bg-success/10",
-                  isActive && "brand-gradient text-primary-foreground shadow-sm",
-                  isLocked && "cursor-not-allowed text-muted-foreground/50"
+                  "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+                  isDone && "text-success-ink hover:bg-success/10",
+                  isActive && "bg-primary text-primary-foreground",
+                  isLocked && "cursor-not-allowed text-muted-foreground/60"
                 )}
               >
                 <span
                   className={cn(
-                    "flex size-5 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold transition-all",
-                    isDone && "bg-success/20 text-success",
-                    isActive && "animate-pulse-ring bg-primary-foreground text-primary-ink",
-                    isLocked && "bg-muted text-muted-foreground/60"
+                    "flex size-5 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold",
+                    isDone && "bg-success/20",
+                    isActive && "bg-primary-foreground/20",
+                    isLocked && "bg-muted"
                   )}
                 >
-                  {isDone ? (
-                    <Check className="size-3" />
-                  ) : isLocked ? (
-                    <Lock className="size-2.5" />
-                  ) : (
-                    s.id
-                  )}
+                  {isDone ? <Check className="size-3" /> : idx + 1}
                 </span>
                 <span className="whitespace-nowrap">{s.label}</span>
               </button>
-
-              {idx < STEPS.length - 1 && (
+              {idx < STAGES.length - 1 && (
                 <span
                   aria-hidden
-                  className={cn(
-                    "mx-0.5 h-0.5 w-4 flex-shrink-0 rounded-full transition-colors duration-300",
-                    step > s.id ? "bg-success" : "bg-border"
-                  )}
+                  className={cn("mx-1 h-px w-6 flex-shrink-0", isDone ? "bg-success" : "bg-border")}
                 />
               )}
             </div>
@@ -301,38 +310,19 @@ export function ConvertWorkbench({ profiles, platforms }: Props) {
             transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
           >
             {step === 1 && (
-              <Step1Gstin
+              <StepSetup
                 state={state}
                 profiles={profiles}
                 onChange={updateState}
-                onNext={() => goTo(2)}
+                onNext={() => goTo(5)}
               />
-            )}
-            {step === 2 && (
-              <Step2Period
-                state={state}
-                onChange={updateState}
-                onNext={() => goTo(3)}
-                onBack={() => goTo(1)}
-              />
-            )}
-            {step === 3 && (
-              <Step3Platforms
-                state={state}
-                onChange={updateState}
-                onNext={() => goTo(4)}
-                onBack={() => goTo(2)}
-              />
-            )}
-            {step === 4 && (
-              <Step4RulesCheck state={state} onNext={() => goTo(5)} onBack={() => goTo(3)} />
             )}
             {step === 5 && (
               <Step5Upload
                 state={state}
                 onChange={updateState}
                 onNext={() => goTo(6)}
-                onBack={() => goTo(4)}
+                onBack={() => goTo(1)}
               />
             )}
             {step === 6 && (
@@ -347,8 +337,8 @@ export function ConvertWorkbench({ profiles, platforms }: Props) {
               <Step7Processing
                 state={state}
                 onChange={updateState}
-                onNext={() => goTo(8)}
-                onBack={() => goTo(6)}
+                onNext={afterProcessing}
+                onBack={() => goTo(5)}
               />
             )}
             {step === 8 && (
@@ -356,7 +346,7 @@ export function ConvertWorkbench({ profiles, platforms }: Props) {
                 state={state}
                 onChange={updateState}
                 onNext={() => goTo(9)}
-                onBack={() => goTo(6)}
+                onBack={() => goTo(5)}
               />
             )}
             {step === 9 && (
@@ -366,7 +356,7 @@ export function ConvertWorkbench({ profiles, platforms }: Props) {
                   updateState({ watermark });
                   goTo(10);
                 }}
-                onBack={() => goTo(8)}
+                onBack={() => goTo(5)}
               />
             )}
             {step === 10 && <Step10Download state={state} onReset={reset} />}

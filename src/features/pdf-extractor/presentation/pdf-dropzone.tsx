@@ -57,7 +57,7 @@ export function PdfDropzone({ files, onFilesChange, isProcessing, onExtract }: P
   };
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/60">
+    <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
       <div
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -66,7 +66,7 @@ export function PdfDropzone({ files, onFilesChange, isProcessing, onExtract }: P
         className={`relative flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 text-center transition-all duration-200 ${
           isDragOver
             ? "scale-[0.99] border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/30"
-            : "border-slate-300 bg-slate-50/50 hover:border-slate-400 dark:border-slate-700 dark:bg-slate-900/40 dark:hover:border-slate-600"
+            : "border-border-strong bg-muted/30 hover:border-border-strong"
         }`}
       >
         <input
@@ -82,16 +82,14 @@ export function PdfDropzone({ files, onFilesChange, isProcessing, onExtract }: P
           <UploadCloud className="h-7 w-7 animate-pulse" />
         </div>
 
-        <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
-          Upload Invoices in Bulk
-        </h3>
-        <p className="mt-1 max-w-md text-sm text-slate-500 dark:text-slate-400">
+        <h3 className="text-base font-semibold text-foreground">Upload Invoices in Bulk</h3>
+        <p className="mt-1 max-w-md text-sm text-muted-foreground">
           Drag and drop B2B, B2C, D2C store, or offline vendor invoices — as PDFs, or as the Excel
           template you bill from, one invoice per file. We will extract GSTINs, POS, HSN and tax,
           and classify them automatically.
         </p>
 
-        <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-slate-200/60 px-3 py-1 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+        <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
           PDF, XLSX or XLS — 50+ invoices at once
         </span>
       </div>
@@ -99,7 +97,7 @@ export function PdfDropzone({ files, onFilesChange, isProcessing, onExtract }: P
       {files.length > 0 && (
         <div className="mt-5 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            <span className="text-sm font-medium text-foreground">
               Selected Files ({files.length})
             </span>
             <button
@@ -115,13 +113,13 @@ export function PdfDropzone({ files, onFilesChange, isProcessing, onExtract }: P
             {files.map((file, idx) => (
               <div
                 key={`${file.name}-${idx}`}
-                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-100/80 px-3 py-1.5 text-xs text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-300"
+                className="flex items-center gap-2 rounded-lg border border-border bg-muted/80 px-3 py-1.5 text-xs text-foreground shadow-sm"
               >
                 <FileText className="h-3.5 w-3.5 flex-shrink-0 text-indigo-500" />
                 <span className="max-w-[180px] truncate font-medium" title={file.name}>
                   {file.name}
                 </span>
-                <span className="text-[10px] text-slate-400">
+                <span className="text-[10px] text-muted-foreground">
                   ({(file.size / 1024).toFixed(0)} KB)
                 </span>
                 <button
@@ -130,7 +128,7 @@ export function PdfDropzone({ files, onFilesChange, isProcessing, onExtract }: P
                     removeFile(idx);
                   }}
                   disabled={isProcessing}
-                  className="rounded p-0.5 text-slate-400 hover:bg-slate-200 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                  className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>

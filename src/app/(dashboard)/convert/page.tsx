@@ -10,8 +10,9 @@ export default async function ConvertPage() {
   const session = await requireSession();
 
   const [profiles, platforms] = await Promise.all([
+    // Only active GSTINs can be filed for; archived ones were offered here too.
     prisma.gstinProfile.findMany({
-      where: { userId: session.user.id },
+      where: { userId: session.user.id, status: "ACTIVE" },
       orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
     }),
     Promise.resolve(PLATFORMS_CONFIG),
@@ -22,7 +23,8 @@ export default async function ConvertPage() {
       <div>
         <h1 className="text-2xl font-bold">Convert to GSTR-1</h1>
         <p className="mt-0.5 text-sm text-muted-foreground">
-          Upload your marketplace Excel file and download GSTN-ready GSTR-1 JSON &amp; Excel
+          Four steps: choose the GSTIN and month, upload your marketplace reports, review, download
+          the portal-ready JSON and Excel.
         </p>
       </div>
       <ConvertWorkbench profiles={profiles} platforms={platforms} />

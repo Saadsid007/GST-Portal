@@ -61,20 +61,18 @@ export function PdfExtractorView({ initialGstin = "" }: PdfExtractorViewProps) {
   return (
     <div className="space-y-6 pb-12">
       {/* Header Banner */}
-      <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-gradient-to-r from-indigo-900/10 via-slate-900/5 to-transparent p-6 shadow-sm md:flex-row md:items-center md:justify-between dark:border-slate-800 dark:from-indigo-950/40">
+      <div className="flex flex-col gap-4 rounded-2xl border border-border bg-gradient-to-r from-indigo-900/10 via-foreground/5 to-transparent p-6 shadow-sm md:flex-row md:items-center md:justify-between dark:from-indigo-950/40">
         <div>
           <div className="flex items-center gap-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm">
               <FileSpreadsheet className="h-5 w-5" />
             </div>
-            <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">
-              Invoice Extractor & Classifier
-            </h1>
+            <h1 className="text-xl font-bold text-foreground">Invoice Extractor & Classifier</h1>
             <span className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-semibold text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
               Standalone
             </span>
           </div>
-          <p className="mt-1.5 max-w-2xl text-sm text-slate-600 dark:text-slate-400">
+          <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">
             Upload offline client invoices, shipping receipts or D2C store bills — as PDFs, or as
             the Excel template you bill from, one invoice per file. We extract all GST parameters,
             classify into B2B &amp; B2C, and provide 1-click clipboard copy ready for GSTR-1 Excel
@@ -85,7 +83,7 @@ export function PdfExtractorView({ initialGstin = "" }: PdfExtractorViewProps) {
         {result && (
           <button
             onClick={handleReset}
-            className="inline-flex w-fit cursor-pointer items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition-all hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700/80"
+            className="inline-flex w-fit cursor-pointer items-center gap-2 rounded-xl border border-border-strong bg-card px-4 py-2 text-xs font-semibold text-foreground transition-all hover:bg-muted/50"
           >
             <RotateCcw className="h-4 w-4" />
             <span>Upload New Batch</span>

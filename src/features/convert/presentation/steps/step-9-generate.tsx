@@ -73,7 +73,7 @@ export function Step9Generate({ state, onNext, onBack }: Props) {
     <div className="space-y-6 p-6 md:p-8">
       <div>
         <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold tracking-wider text-primary-ink uppercase">
-          Step 9 of 10 — Review & Final Approval
+          Step 4 of 4 — Approve and download
         </span>
         <h2 className="mt-2 text-xl font-bold">Confirm & Generate Government GSTR-1</h2>
         <p className="mt-0.5 text-sm text-muted-foreground">
@@ -112,11 +112,12 @@ export function Step9Generate({ state, onNext, onBack }: Props) {
           <div className="space-y-1 rounded-xl border border-border bg-background p-4 text-xs">
             <p className="font-bold text-muted-foreground">Generated Files Format:</p>
             <p className="flex items-center gap-2 font-semibold text-foreground">
-              <FileJson className="size-4 text-primary-ink" /> GSTN Offline Tool v3.0 JSON Payload
+              <FileJson className="size-4 text-primary-ink" /> Portal-ready JSON (GST Offline Tool
+              v3.2.4 format)
             </p>
             <p className="flex items-center gap-2 font-semibold text-foreground">
-              <FileSpreadsheet className="size-4 text-emerald-600 dark:text-emerald-400" />{" "}
-              Official Multi-Sheet Excel (B2B, B2CL, B2CS, CDNR, HSN, ECO, DOCS)
+              <FileSpreadsheet className="size-4 text-emerald-600 dark:text-emerald-400" /> Official
+              Multi-Sheet Excel (B2B, B2CL, B2CS, CDNR, HSN, ECO, DOCS)
             </p>
           </div>
 
@@ -183,8 +184,8 @@ export function Step9Generate({ state, onNext, onBack }: Props) {
                   Your Free Trial / Subscription has Expired
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Upgrade your plan to unlock unlimited GSTR-1 generations. Your client data, GSTINs,
-                  and historical reports remain safe and accessible.
+                  Upgrade your plan to unlock unlimited GSTR-1 generations. Your client data,
+                  GSTINs, and historical reports remain safe and accessible.
                 </p>
                 <div className="mt-3">
                   <Link
@@ -235,7 +236,7 @@ export function Step9Generate({ state, onNext, onBack }: Props) {
           onClick={onBack}
           className="flex w-full items-center justify-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold transition hover:bg-accent sm:w-auto"
         >
-          <ArrowLeft className="size-4" /> Back to Error Resolution
+          <ArrowLeft className="size-4" /> Back to upload
         </button>
 
         <button
@@ -245,7 +246,7 @@ export function Step9Generate({ state, onNext, onBack }: Props) {
           className="flex w-full items-center justify-center gap-2 rounded-xl brand-gradient px-6 py-2.5 font-bold text-primary-foreground shadow-accent transition hover:brightness-110 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 sm:w-auto"
         >
           {pending ? <Loader2 className="size-4 animate-spin" /> : null}
-          <span>Generate Return &amp; Proceed to Download</span>
+          <span>Generate GSTR-1</span>
           <ArrowRight className="size-4" />
         </button>
       </div>

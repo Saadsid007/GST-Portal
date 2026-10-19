@@ -69,7 +69,7 @@ export default function FeaturesPage() {
     {
       title: "Official GSTR-1 JSON & Excel Exports",
       description:
-        "Download GSTN v3.0 compliant JSON payloads for direct portal upload, plus multi-sheet Excel workbooks for audit records.",
+        "Download JSON in the GST Offline Tool v3.2.4 format for direct portal upload, plus multi-sheet Excel workbooks for audit records.",
       icon: FileJson,
     },
   ];

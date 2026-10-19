@@ -43,7 +43,7 @@ export const metadata: Metadata = {
     ...baseMetadata.openGraph,
     title: "GSTPilot — Marketplace reports to GSTR-1 in seconds",
     description:
-      "Automatic net sales, multi-marketplace merge and GSTN v3.0 JSON. Try the interactive demo — no signup.",
+      "Automatic net sales, multi-marketplace merge and portal-ready GSTR-1 JSON. Try the interactive demo — no signup.",
   },
 };
 
@@ -88,7 +88,7 @@ const HERO_STATS = [
 ];
 
 const HERO_PROOF = [
-  "GSTN v3.0 compliant output",
+  "Offline Tool v3.2.4 JSON format",
   "Net sales after returns",
   "TCS section 52 reconciliation",
 ];
@@ -246,7 +246,7 @@ export default function LandingPage() {
             against the filing-ready output.
           </p>
           <ul className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 pt-0.5 text-xs font-medium text-muted-foreground">
-            {["No signup", "No upload", "GSTN v3.0 output"].map((item) => (
+            {["No signup", "No upload", "Portal-ready JSON"].map((item) => (
               <li key={item} className="flex items-center gap-1.5">
                 <Check className="size-3.5 text-success" aria-hidden />
                 {item}

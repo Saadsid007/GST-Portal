@@ -15,6 +15,11 @@ export interface PlatformConfig {
   badge: string;
   accentColor: string;
   files: PlatformFileConfig[];
+  /**
+   * Groups of slots of which any one is enough. Amazon sellers file B2B, B2C
+   * or both, by their own choice; neither report is required on its own.
+   */
+  requireOneOf?: { label: string; slots: string[] }[];
 }
 
 export const PLATFORMS_CONFIG: PlatformConfig[] = [
@@ -25,12 +30,15 @@ export const PLATFORMS_CONFIG: PlatformConfig[] = [
     iconName: "ShoppingBag",
     badge: "Amazon MTR",
     accentColor: "from-amber-500 to-orange-600",
+    // B2B, B2C or both — whichever the seller has. Neither is required alone,
+    // and uploading one without the other is not a warning.
+    requireOneOf: [{ label: "B2B or B2C report", slots: ["b2b", "b2c"] }],
     files: [
       {
         id: "b2b",
-        name: "B2B Report / Tax Report",
-        description: "Amazon Merchant Tax Report (B2B Tax Report)",
-        required: true,
+        name: "B2B Report",
+        description: "Amazon Merchant Tax Report (B2B) — sales to GST-registered buyers",
+        required: false,
         fileTypes: [".xlsx", ".xls", ".csv"],
         headerKeywords: [
           "mtr",
@@ -43,8 +51,8 @@ export const PLATFORMS_CONFIG: PlatformConfig[] = [
       },
       {
         id: "b2c",
-        name: "B2C Report (Optional if B2B includes all)",
-        description: "Amazon B2C Tax Report or Order Report",
+        name: "B2C Report",
+        description: "Amazon Merchant Tax Report (B2C) — sales to consumers",
         required: false,
         fileTypes: [".xlsx", ".xls", ".csv"],
         headerKeywords: [

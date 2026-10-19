@@ -73,22 +73,22 @@ export function ExtractedInvoicesTable({ data }: ExtractedInvoicesTableProps) {
       case "CDNUR":
         return "bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border-rose-200 dark:border-rose-800";
       default:
-        return "bg-slate-50 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700";
+        return "bg-muted/40 text-foreground border-border";
     }
   };
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
       {/* Table Header & Controls */}
-      <div className="flex flex-col gap-4 border-b border-slate-200 p-5 md:flex-row md:items-center md:justify-between dark:border-slate-800">
+      <div className="flex flex-col gap-4 border-b border-border p-5 md:flex-row md:items-center md:justify-between">
         {/* Navigation Tabs */}
-        <div className="flex w-fit flex-wrap items-center gap-1.5 rounded-xl bg-slate-100 p-1 dark:bg-slate-800/80">
+        <div className="flex w-fit flex-wrap items-center gap-1.5 rounded-xl bg-muted p-1">
           <button
             onClick={() => setActiveTab("all")}
             className={`cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
               activeTab === "all"
-                ? "bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-slate-100"
-                : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             All Invoices ({data.invoices.length})
@@ -97,8 +97,8 @@ export function ExtractedInvoicesTable({ data }: ExtractedInvoicesTableProps) {
             onClick={() => setActiveTab("b2b")}
             className={`cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
               activeTab === "b2b"
-                ? "bg-white text-emerald-600 shadow-sm dark:bg-slate-900 dark:text-emerald-400"
-                : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+                ? "bg-card text-emerald-600 shadow-sm dark:text-emerald-400"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             B2B Table 4 ({data.b2bCount})
@@ -107,8 +107,8 @@ export function ExtractedInvoicesTable({ data }: ExtractedInvoicesTableProps) {
             onClick={() => setActiveTab("b2c")}
             className={`cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
               activeTab === "b2c"
-                ? "bg-white text-blue-600 shadow-sm dark:bg-slate-900 dark:text-blue-400"
-                : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+                ? "bg-card text-blue-600 shadow-sm dark:text-blue-400"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             B2C Table 7 ({data.b2cCount})
@@ -117,8 +117,8 @@ export function ExtractedInvoicesTable({ data }: ExtractedInvoicesTableProps) {
             onClick={() => setActiveTab("lines")}
             className={`cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
               activeTab === "lines"
-                ? "bg-white text-amber-600 shadow-sm dark:bg-slate-900 dark:text-amber-400"
-                : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+                ? "bg-card text-amber-600 shadow-sm dark:text-amber-400"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             Invoice Line Items ({data.allLineItems.length})
@@ -127,8 +127,8 @@ export function ExtractedInvoicesTable({ data }: ExtractedInvoicesTableProps) {
             onClick={() => setActiveTab("hsn")}
             className={`cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
               activeTab === "hsn"
-                ? "bg-white text-purple-600 shadow-sm dark:bg-slate-900 dark:text-purple-400"
-                : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+                ? "bg-card text-purple-600 shadow-sm dark:text-purple-400"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             HSN Summary (Table 12)
@@ -137,13 +137,13 @@ export function ExtractedInvoicesTable({ data }: ExtractedInvoicesTableProps) {
 
         {/* Search input */}
         <div className="relative w-full md:w-64">
-          <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search invoice, HSN, buyer..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 py-1.5 pr-4 pl-9 text-xs text-slate-900 placeholder-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+            className="w-full rounded-xl border border-border bg-muted/40 py-1.5 pr-4 pl-9 text-xs text-foreground placeholder:text-muted-foreground focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
           />
         </div>
       </div>
@@ -153,8 +153,8 @@ export function ExtractedInvoicesTable({ data }: ExtractedInvoicesTableProps) {
         /* HSN Table View */
         <div>
           {/* Sub-filter toggle: B2B HSN vs All Invoices HSN */}
-          <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/50 px-5 py-3 dark:border-slate-800 dark:bg-slate-800/30">
-            <span className="text-xs font-medium text-slate-500">
+          <div className="flex items-center justify-between border-b border-border bg-muted/30 px-5 py-3">
+            <span className="text-xs font-medium text-muted-foreground">
               Showing:{" "}
               {hsnFilterMode === "b2b"
                 ? "B2B Invoices HSN Only (Matches Table 12 B2B)"
@@ -166,7 +166,7 @@ export function ExtractedInvoicesTable({ data }: ExtractedInvoicesTableProps) {
                 className={`cursor-pointer rounded-md border px-2.5 py-1 text-xs font-semibold transition-all ${
                   hsnFilterMode === "b2b"
                     ? "border-indigo-600 bg-indigo-600 text-white shadow-xs"
-                    : "border-slate-300 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                    : "border-border-strong bg-card text-muted-foreground"
                 }`}
               >
                 B2B HSN Only ({data.b2bHsnSummary.length})
@@ -176,7 +176,7 @@ export function ExtractedInvoicesTable({ data }: ExtractedInvoicesTableProps) {
                 className={`cursor-pointer rounded-md border px-2.5 py-1 text-xs font-semibold transition-all ${
                   hsnFilterMode === "all"
                     ? "border-indigo-600 bg-indigo-600 text-white shadow-xs"
-                    : "border-slate-300 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                    : "border-border-strong bg-card text-muted-foreground"
                 }`}
               >
                 All Invoices HSN ({data.hsnSummary.length})
@@ -187,7 +187,7 @@ export function ExtractedInvoicesTable({ data }: ExtractedInvoicesTableProps) {
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-left text-xs">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/75 font-semibold text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
+                <tr className="border-b border-border bg-muted/50 font-semibold text-muted-foreground">
                   <th className="px-4 py-3">HSN/SAC</th>
                   <th className="px-4 py-3">Description</th>
                   <th className="px-4 py-3">UQC</th>
@@ -200,10 +200,10 @@ export function ExtractedInvoicesTable({ data }: ExtractedInvoicesTableProps) {
                   <th className="px-4 py-3 text-right">Total Value</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-700 dark:divide-slate-800 dark:text-slate-300">
+              <tbody className="divide-y divide-border text-foreground">
                 {currentHsnData.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="py-8 text-center text-slate-400">
+                    <td colSpan={10} className="py-8 text-center text-muted-foreground">
                       No HSN records found.
                     </td>
                   </tr>
@@ -211,29 +211,29 @@ export function ExtractedInvoicesTable({ data }: ExtractedInvoicesTableProps) {
                   currentHsnData.map((h, i) => (
                     <tr
                       key={`${h.hsnCode}-${h.rate}-${i}`}
-                      className="transition-colors hover:bg-slate-50/50 dark:hover:bg-slate-800/40"
+                      className="transition-colors hover:bg-muted/40"
                     >
                       <td className="px-4 py-3 font-mono font-bold text-indigo-600 dark:text-indigo-400">
                         {h.hsnCode}
                       </td>
                       <td
-                        className="max-w-[220px] truncate px-4 py-3 font-medium text-slate-900 dark:text-slate-100"
+                        className="max-w-[220px] truncate px-4 py-3 font-medium text-foreground"
                         title={h.description}
                       >
                         {h.description}
                       </td>
                       <td className="px-4 py-3 font-mono">{h.uqc}</td>
-                      <td className="px-4 py-3 text-right font-bold text-slate-900 dark:text-slate-100">
+                      <td className="px-4 py-3 text-right font-bold text-foreground">
                         {h.totalQuantity}
                       </td>
                       <td className="px-4 py-3 text-right font-semibold">{h.rate}%</td>
-                      <td className="px-4 py-3 text-right font-bold text-slate-900 dark:text-slate-100">
+                      <td className="px-4 py-3 text-right font-bold text-foreground">
                         {formatINR(h.taxableValue)}
                       </td>
                       <td className="px-4 py-3 text-right">{formatINR(h.igstAmount)}</td>
                       <td className="px-4 py-3 text-right">{formatINR(h.cgstAmount)}</td>
                       <td className="px-4 py-3 text-right">{formatINR(h.sgstAmount)}</td>
-                      <td className="px-4 py-3 text-right font-bold text-slate-900 dark:text-slate-100">
+                      <td className="px-4 py-3 text-right font-bold text-foreground">
                         {formatINR(h.totalValue)}
                       </td>
                     </tr>
@@ -248,7 +248,7 @@ export function ExtractedInvoicesTable({ data }: ExtractedInvoicesTableProps) {
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left text-xs">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50/75 font-semibold text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
+              <tr className="border-b border-border bg-muted/50 font-semibold text-muted-foreground">
                 <th className="px-4 py-3">Invoice No</th>
                 <th className="px-4 py-3">Type</th>
                 <th className="px-4 py-3">HSN/SAC</th>
@@ -261,20 +261,17 @@ export function ExtractedInvoicesTable({ data }: ExtractedInvoicesTableProps) {
                 <th className="px-4 py-3">Buyer / Customer</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-slate-700 dark:divide-slate-800 dark:text-slate-300">
+            <tbody className="divide-y divide-border text-foreground">
               {filteredLineItems.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-8 text-center text-slate-400">
+                  <td colSpan={10} className="py-8 text-center text-muted-foreground">
                     No line items found.
                   </td>
                 </tr>
               ) : (
                 filteredLineItems.map((it) => (
-                  <tr
-                    key={it.id}
-                    className="transition-colors hover:bg-slate-50/50 dark:hover:bg-slate-800/40"
-                  >
-                    <td className="px-4 py-3 font-mono font-medium text-slate-900 dark:text-slate-100">
+                  <tr key={it.id} className="transition-colors hover:bg-muted/40">
+                    <td className="px-4 py-3 font-mono font-medium text-foreground">
                       {it.invoiceNumber}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
@@ -290,21 +287,21 @@ export function ExtractedInvoicesTable({ data }: ExtractedInvoicesTableProps) {
                     <td className="max-w-[240px] truncate px-4 py-3" title={it.itemDescription}>
                       {it.itemDescription}
                     </td>
-                    <td className="px-4 py-3 text-right font-bold text-slate-900 dark:text-slate-100">
+                    <td className="px-4 py-3 text-right font-bold text-foreground">
                       {it.quantity}
                     </td>
                     <td className="px-4 py-3 text-right font-medium">{it.rate}%</td>
-                    <td className="px-4 py-3 text-right font-medium text-slate-900 dark:text-slate-100">
+                    <td className="px-4 py-3 text-right font-medium text-foreground">
                       {formatINR(it.taxableValue)}
                     </td>
-                    <td className="px-4 py-3 text-right text-slate-600 dark:text-slate-300">
+                    <td className="px-4 py-3 text-right text-muted-foreground">
                       {formatINR(it.igstAmount + it.cgstAmount + it.sgstAmount)}
                     </td>
-                    <td className="px-4 py-3 text-right font-semibold text-slate-900 dark:text-slate-100">
+                    <td className="px-4 py-3 text-right font-semibold text-foreground">
                       {formatINR(it.totalAmount)}
                     </td>
                     <td
-                      className="max-w-[160px] truncate px-4 py-3 text-slate-600 dark:text-slate-400"
+                      className="max-w-[160px] truncate px-4 py-3 text-muted-foreground"
                       title={it.buyerName}
                     >
                       {it.buyerName}
@@ -320,7 +317,7 @@ export function ExtractedInvoicesTable({ data }: ExtractedInvoicesTableProps) {
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left text-xs">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50/75 font-semibold text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 dark:text-slate-400">
+              <tr className="border-b border-border bg-muted/50 font-semibold text-muted-foreground">
                 <th className="px-4 py-3">Invoice No</th>
                 <th className="px-4 py-3">Date</th>
                 <th className="px-4 py-3">Type</th>
@@ -334,31 +331,28 @@ export function ExtractedInvoicesTable({ data }: ExtractedInvoicesTableProps) {
                 <th className="px-4 py-3 text-center">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-slate-700 dark:divide-slate-800 dark:text-slate-300">
+            <tbody className="divide-y divide-border text-foreground">
               {filteredInvoices.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="py-10 text-center text-slate-400">
+                  <td colSpan={11} className="py-10 text-center text-muted-foreground">
                     No matching invoices found.
                   </td>
                 </tr>
               ) : (
                 filteredInvoices.map((inv) => (
-                  <tr
-                    key={inv.id}
-                    className="transition-colors hover:bg-slate-50/50 dark:hover:bg-slate-800/40"
-                  >
-                    <td className="px-4 py-3 font-mono font-medium text-slate-900 dark:text-slate-100">
+                  <tr key={inv.id} className="transition-colors hover:bg-muted/40">
+                    <td className="px-4 py-3 font-mono font-medium text-foreground">
                       <div className="flex flex-col">
                         <span>{inv.invoiceNumber}</span>
                         <span
-                          className="max-w-[140px] truncate text-[10px] text-slate-400"
+                          className="max-w-[140px] truncate text-[10px] text-muted-foreground"
                           title={inv.fileName}
                         >
                           {inv.fileName}
                         </span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-slate-600 dark:text-slate-300">
+                    <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
                       {inv.invoiceDate || "—"}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
@@ -373,7 +367,7 @@ export function ExtractedInvoicesTable({ data }: ExtractedInvoicesTableProps) {
                     <td className="max-w-[200px] px-4 py-3">
                       <div className="flex flex-col">
                         <span
-                          className="truncate font-medium text-slate-900 dark:text-slate-100"
+                          className="truncate font-medium text-foreground"
                           title={inv.buyerName}
                         >
                           {inv.buyerName}
@@ -386,27 +380,27 @@ export function ExtractedInvoicesTable({ data }: ExtractedInvoicesTableProps) {
                       </div>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                      <span className="inline-flex items-center gap-1 rounded bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground">
                         {inv.placeOfSupplyStateName}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right font-medium text-slate-600 dark:text-slate-400">
+                    <td className="px-4 py-3 text-right font-medium text-muted-foreground">
                       {inv.lineItems.length}
                     </td>
-                    <td className="px-4 py-3 text-right font-medium text-slate-900 dark:text-slate-100">
+                    <td className="px-4 py-3 text-right font-medium text-foreground">
                       {formatINR(inv.taxableValue)}
                     </td>
                     <td className="px-4 py-3 text-right font-medium">{inv.gstRate}%</td>
-                    <td className="px-4 py-3 text-right font-medium text-slate-600 dark:text-slate-300">
+                    <td className="px-4 py-3 text-right font-medium text-muted-foreground">
                       {formatINR(inv.totalTaxAmount)}
                     </td>
-                    <td className="px-4 py-3 text-right font-semibold text-slate-900 dark:text-slate-100">
+                    <td className="px-4 py-3 text-right font-semibold text-foreground">
                       {formatINR(inv.totalInvoiceValue)}
                     </td>
                     <td className="px-4 py-3 text-center">
                       <button
                         onClick={() => setSelectedInvoice(inv)}
-                        className="inline-flex cursor-pointer items-center gap-1 rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400"
+                        className="inline-flex cursor-pointer items-center gap-1 rounded-lg p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-indigo-600 dark:hover:text-indigo-400"
                         title="View Extracted Details"
                       >
                         <Eye className="h-4 w-4" />
@@ -423,44 +417,44 @@ export function ExtractedInvoicesTable({ data }: ExtractedInvoicesTableProps) {
       {/* Invoice Detail Modal */}
       {selectedInvoice && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-900">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-border bg-card p-6 shadow-xl">
+            <div className="flex items-center justify-between border-b border-border pb-4">
               <div>
-                <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+                <h3 className="text-base font-semibold text-foreground">
                   Invoice: {selectedInvoice.invoiceNumber}
                 </h3>
-                <p className="text-xs text-slate-500">File: {selectedInvoice.fileName}</p>
+                <p className="text-xs text-muted-foreground">File: {selectedInvoice.fileName}</p>
               </div>
               <button
                 onClick={() => setSelectedInvoice(null)}
-                className="cursor-pointer rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
+                className="cursor-pointer rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
               >
                 ✕
               </button>
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-4 text-xs">
-              <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/50">
-                <span className="font-semibold text-slate-500">Classification</span>
-                <p className="mt-1 font-bold text-slate-900 dark:text-slate-100">
+              <div className="rounded-xl bg-muted/40 p-3">
+                <span className="font-semibold text-muted-foreground">Classification</span>
+                <p className="mt-1 font-bold text-foreground">
                   {selectedInvoice.classification} ({selectedInvoice.documentType})
                 </p>
               </div>
-              <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/50">
-                <span className="font-semibold text-slate-500">Invoice Date</span>
-                <p className="mt-1 font-bold text-slate-900 dark:text-slate-100">
+              <div className="rounded-xl bg-muted/40 p-3">
+                <span className="font-semibold text-muted-foreground">Invoice Date</span>
+                <p className="mt-1 font-bold text-foreground">
                   {selectedInvoice.invoiceDate || "Not Detected"}
                 </p>
               </div>
-              <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/50">
-                <span className="font-semibold text-slate-500">Buyer GSTIN</span>
+              <div className="rounded-xl bg-muted/40 p-3">
+                <span className="font-semibold text-muted-foreground">Buyer GSTIN</span>
                 <p className="mt-1 font-mono font-bold text-indigo-600 dark:text-indigo-400">
                   {selectedInvoice.buyerGstin || "Unregistered (B2C)"}
                 </p>
               </div>
-              <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/50">
-                <span className="font-semibold text-slate-500">Place of Supply</span>
-                <p className="mt-1 font-bold text-slate-900 dark:text-slate-100">
+              <div className="rounded-xl bg-muted/40 p-3">
+                <span className="font-semibold text-muted-foreground">Place of Supply</span>
+                <p className="mt-1 font-bold text-foreground">
                   {selectedInvoice.placeOfSupplyStateName}
                 </p>
               </div>
@@ -468,13 +462,13 @@ export function ExtractedInvoicesTable({ data }: ExtractedInvoicesTableProps) {
 
             {/* Line items in modal */}
             <div className="mt-4">
-              <h4 className="mb-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
+              <h4 className="mb-2 text-xs font-semibold text-foreground">
                 Line Items ({selectedInvoice.lineItems.length})
               </h4>
-              <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+              <div className="overflow-x-auto rounded-xl border border-border">
                 <table className="w-full text-left text-[11px]">
                   <thead>
-                    <tr className="bg-slate-50 font-medium text-slate-500 dark:bg-slate-800/50">
+                    <tr className="bg-muted/40 font-medium text-muted-foreground">
                       <th className="px-3 py-2">HSN</th>
                       <th className="px-3 py-2">Description</th>
                       <th className="px-3 py-2 text-right">Qty</th>
@@ -482,7 +476,7 @@ export function ExtractedInvoicesTable({ data }: ExtractedInvoicesTableProps) {
                       <th className="px-3 py-2 text-right">Total</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  <tbody className="divide-y divide-border">
                     {selectedInvoice.lineItems.map((li, idx) => (
                       <tr key={idx}>
                         <td className="px-3 py-2 font-mono font-bold text-indigo-600">
@@ -504,7 +498,7 @@ export function ExtractedInvoicesTable({ data }: ExtractedInvoicesTableProps) {
             <div className="mt-5 flex justify-end">
               <button
                 onClick={() => setSelectedInvoice(null)}
-                className="cursor-pointer rounded-xl bg-slate-100 px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                className="cursor-pointer rounded-xl bg-muted px-4 py-2 text-xs font-medium text-foreground hover:bg-accent"
               >
                 Close
               </button>

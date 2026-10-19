@@ -5,7 +5,11 @@ import { PLATFORMS_CONFIG } from "@/features/convert/config/platform.config";
 import { PlatformLogo } from "@/features/convert/presentation/platform-logo";
 import type { MultiConvertState } from "@/features/convert/presentation/convert-workbench";
 import type { MultiUploadFileInput } from "@/features/convert/types/convert.types";
-import { CompletenessChecker } from "@/features/convert/engine/rules/completeness.checker";
+import {
+  CompletenessChecker,
+  isUnitMet,
+  requirementUnits,
+} from "@/features/convert/engine/rules/completeness.checker";
 import {
   expandArchive,
   isArchive,
@@ -52,13 +56,11 @@ export function Step5Upload({ state, onChange, onNext, onBack }: Props) {
     state.uploadedFiles
   );
 
-  const requiredSlots = selectedConfigs.flatMap((p) =>
-    p.files.filter((f) => f.required).map((f) => ({ platformId: p.id, fileTypeId: f.id }))
-  );
-  const filledRequired = requiredSlots.filter((slot) =>
-    state.uploadedFiles.some(
-      (f) => f.platformId === slot.platformId && f.fileTypeId === slot.fileTypeId
-    )
+  // A requirement is a required slot or a group of which any one will do
+  // (Amazon's B2B or B2C), so the meter counts what is still needed.
+  const requiredSlots = selectedConfigs.flatMap((p) => requirementUnits(p.id));
+  const filledRequired = requiredSlots.filter((unit) =>
+    isUnitMet(unit, state.uploadedFiles)
   ).length;
   const requiredPercent =
     requiredSlots.length === 0 ? 100 : Math.round((filledRequired / requiredSlots.length) * 100);
@@ -90,7 +92,7 @@ export function Step5Upload({ state, onChange, onNext, onBack }: Props) {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold tracking-wider text-primary-ink uppercase">
-            Step 5 of 10
+            Step 2 of 4
           </span>
           <h2 className="mt-2 text-xl font-bold">Upload Marketplace Report Files</h2>
           <p className="mt-0.5 text-sm text-muted-foreground">
@@ -201,7 +203,7 @@ export function Step5Upload({ state, onChange, onNext, onBack }: Props) {
           onClick={onBack}
           className="flex w-full items-center justify-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold transition hover:bg-accent sm:w-auto"
         >
-          <ArrowLeft className="size-4" /> Back to Rules Check
+          <ArrowLeft className="size-4" /> Back to setup
         </button>
 
         <button
@@ -210,7 +212,7 @@ export function Step5Upload({ state, onChange, onNext, onBack }: Props) {
           disabled={state.uploadedFiles.length === 0}
           className="flex w-full items-center justify-center gap-2 rounded-xl brand-gradient px-6 py-2.5 font-bold text-primary-foreground shadow-accent transition hover:brightness-110 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 sm:w-auto"
         >
-          <span>Next: Column Mapping &amp; Preview</span>
+          <span>Check my files</span>
           <ArrowRight className="size-4" />
         </button>
       </div>

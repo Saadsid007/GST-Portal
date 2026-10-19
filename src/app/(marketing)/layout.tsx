@@ -46,15 +46,16 @@ const FOOTER_COLUMNS = [
 /**
  * Server component. Only the header nav and theme toggle are client islands,
  * so marketing pages stream their content instead of blocking on hydration.
+ *
+ * No session read here. It used to look the visitor's session up to choose
+ * between "Sign in" and "Dashboard" — which read the request headers and so
+ * made every marketing page dynamic: rendered per visit, with a database
+ * round trip, instead of served as a prebuilt page. The nav asks the browser's
+ * session itself.
  */
-import { getServerSession } from "@/features/auth/infrastructure/session.service";
-
 export default async function MarketingLayout({ children }: { children: React.ReactNode }) {
   // Cached and tagged, so this costs no query until an admin edits the strip.
-  const [announcements, session] = await Promise.all([
-    getActiveAnnouncements(),
-    getServerSession(),
-  ]);
+  const announcements = await getActiveAnnouncements();
 
   return (
     <div className="flex min-h-screen flex-col bg-background font-sans text-foreground">
@@ -69,14 +70,14 @@ export default async function MarketingLayout({ children }: { children: React.Re
             <AppLogo size="lg" priority />
           </Link>
 
-          <MarketingNav initialSession={session ? { user: session.user } : null} />
+          <MarketingNav />
         </div>
       </header>
 
-      <main className="flex-1 w-full">{children}</main>
+      <main className="w-full flex-1">{children}</main>
 
       <footer className="border-t border-border bg-subtle">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
+        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 gap-10 md:grid-cols-6">
             <div className="col-span-2 space-y-4">
               <div className="flex items-center">
@@ -91,7 +92,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
                   <Lock className="size-3" aria-hidden /> TLS 1.3 encrypted
                 </span>
                 <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2 py-1 text-2xs font-medium text-muted-foreground">
-                  <ShieldCheck className="size-3" aria-hidden /> GSTN v3.0 compliant
+                  <ShieldCheck className="size-3" aria-hidden /> Offline Tool v3.2.4 format
                 </span>
               </div>
             </div>
