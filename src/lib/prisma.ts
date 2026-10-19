@@ -12,7 +12,16 @@ const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 function createPrismaClient() {
   const connectionString = env.DATABASE_URL;
   if (!connectionString) throw new Error("DATABASE_URL is not set");
-  const pool = new Pool({ connectionString });
+  // Small, because on Vercel every warm function instance holds its own pool
+  // and the database's connection limit is shared by all of them. The
+  // pooler in front of the database (Supabase's, on port 6543) multiplexes
+  // these onto real connections.
+  const pool = new Pool({
+    connectionString,
+    max: 5,
+    idleTimeoutMillis: 10_000,
+    connectionTimeoutMillis: 10_000,
+  });
   const adapter = new PrismaPg(pool);
   return new PrismaClient({ adapter });
 }
