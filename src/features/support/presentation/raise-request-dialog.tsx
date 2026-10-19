@@ -11,7 +11,8 @@ import {
   type SupportInput,
 } from "@/features/support/actions/support.actions";
 
-const BLANK: SupportInput = { category: "PAYMENT", subject: "", message: "", referenceId: "" };
+// A neutral default: "Payment" pre-selected filed every request as HIGH priority.
+const BLANK: SupportInput = { category: "CONVERSION", subject: "", message: "", referenceId: "" };
 
 export function RaiseRequestDialog({ onClose }: { onClose: () => void }) {
   const router = useRouter();
@@ -80,7 +81,7 @@ export function RaiseRequestDialog({ onClose }: { onClose: () => void }) {
             id="sup-subject"
             value={form.subject}
             onChange={(e) => set("subject", e.target.value)}
-            placeholder="Paid ₹199 by UPI but credits never arrived"
+            placeholder="Paid ₹199 by UPI but my plan is not active yet"
           />
         </Field>
 

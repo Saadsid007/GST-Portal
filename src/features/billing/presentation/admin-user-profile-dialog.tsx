@@ -531,7 +531,7 @@ export function AdminUserProfileDialog({ userId, onClose, onChanged }: Props) {
                   disabled={pending}
                   className={ghostButton}
                   onClick={() =>
-                    run(() => adminRestoreUserAction(profile.userId), "Account restored")
+                    run(() => adminRestoreUserAction(profile.userId), "Account restored", onClose)
                   }
                 >
                   <RotateCcw className="size-3.5" /> Restore this account
@@ -557,11 +557,7 @@ export function AdminUserProfileDialog({ userId, onClose, onChanged }: Props) {
                       disabled={pending || confirmDelete !== "DELETE"}
                       className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-destructive px-3 py-2 text-xs font-semibold text-destructive-foreground transition hover:bg-destructive/90 disabled:opacity-50"
                       onClick={() =>
-                        run(
-                          () => adminDeleteUserAction(profile.userId),
-                          "Account deleted",
-                          () => load(profile.userId)
-                        )
+                        run(() => adminDeleteUserAction(profile.userId), "Account deleted", onClose)
                       }
                     >
                       <Trash2 className="size-3.5" /> Delete account
