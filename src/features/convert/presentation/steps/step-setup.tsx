@@ -7,6 +7,7 @@ import type { MultiConvertState } from "@/features/convert/presentation/convert-
 import { PLATFORMS_CONFIG } from "@/features/convert/config/platform.config";
 import { PlatformLogo } from "@/features/convert/presentation/platform-logo";
 import { EcoGstinFields } from "@/features/convert/presentation/steps/eco-gstin-fields";
+import { GstinPicker } from "@/features/convert/presentation/steps/gstin-picker";
 import { cn, formatPeriod } from "@/lib/utils";
 
 interface Props {
@@ -26,9 +27,9 @@ export function periodMonthsAgo(monthsAgo: number, now = new Date()): string {
  * Who, which month, which marketplaces — on one screen.
  *
  * These were three steps of their own, plus a fourth that only listed the
- * files each marketplace wants (the upload screen shows the same slots). A
- * seller filing the same GSTIN every month clicked through four screens before
- * reaching the upload; most of the time all three answers are already right.
+ * files each marketplace wants (the upload screen shows the same slots). Each
+ * section keeps what its step had: search and filters for GSTINs, presets and
+ * a picker for the month, full marketplace cards with operator GSTINs.
  */
 export function StepSetup({ state, profiles, onChange, onNext }: Props) {
   const monthValue =
@@ -45,61 +46,38 @@ export function StepSetup({ state, profiles, onChange, onNext }: Props) {
     });
   }
 
+  const allSelected = state.selectedPlatformIds.length === PLATFORMS_CONFIG.length;
   const ready =
     Boolean(state.gstinNumber) &&
     state.returnPeriod.length === 6 &&
     state.selectedPlatformIds.length > 0;
+  const selected = profiles.find((p) => p.gstinNumber === state.gstinNumber);
 
   return (
-    <div className="space-y-7 p-5 sm:p-7">
+    <div className="space-y-8 p-4 sm:p-7">
       {/* GSTIN */}
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="flex items-center gap-2 text-sm font-semibold">
+          <h2 className="flex items-center gap-2 text-base font-semibold">
             <Building2 className="size-4 text-primary-ink" /> GSTIN you are filing for
           </h2>
           <Link
             href="/profile"
-            className="inline-flex items-center gap-1 text-xs font-medium text-primary-ink hover:underline"
+            className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary-ink hover:underline"
           >
             <Plus className="size-3.5" /> Add GSTIN
           </Link>
         </div>
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {profiles.map((p) => {
-            const selected = p.gstinNumber === state.gstinNumber;
-            return (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => onChange({ gstinNumber: p.gstinNumber })}
-                aria-pressed={selected}
-                className={cn(
-                  "flex items-start justify-between gap-2 rounded-xl border p-3 text-left transition",
-                  selected
-                    ? "border-primary bg-primary/10"
-                    : "border-border hover:border-border-strong hover:bg-accent/50"
-                )}
-              >
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-semibold">
-                    {p.tradeName || p.legalName}
-                  </span>
-                  <span className="block font-mono text-xs text-muted-foreground">
-                    {p.gstinNumber}
-                  </span>
-                  <span className="block text-2xs text-muted-foreground">{p.stateName}</span>
-                </span>
-                {selected && <Check className="size-4 shrink-0 text-primary-ink" />}
-              </button>
-            );
-          })}
-        </div>
+        <GstinPicker
+          profiles={profiles}
+          value={state.gstinNumber}
+          onChange={(gstinNumber) => onChange({ gstinNumber })}
+        />
       </section>
 
       {/* Period */}
       <section className="space-y-3">
-        <h2 className="flex items-center gap-2 text-sm font-semibold">
+        <h2 className="flex items-center gap-2 text-base font-semibold">
           <Calendar className="size-4 text-primary-ink" /> Return month
         </h2>
         <div className="flex flex-wrap items-center gap-2">
@@ -138,59 +116,101 @@ export function StepSetup({ state, profiles, onChange, onNext }: Props) {
 
       {/* Marketplaces */}
       <section className="space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="flex items-center gap-2 text-sm font-semibold">
-            <Store className="size-4 text-primary-ink" /> Where did you sell this month?
-          </h2>
-          <span className="text-xs text-muted-foreground">Pick all that apply</span>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="flex items-center gap-2 text-base font-semibold">
+              <Store className="size-4 text-primary-ink" /> Where did you sell this month?
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              {state.selectedPlatformIds.length} selected — reports from all of them are combined
+              into one GSTR-1.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() =>
+              onChange({
+                selectedPlatformIds: allSelected ? [] : PLATFORMS_CONFIG.map((p) => p.id),
+              })
+            }
+            className="rounded-lg border border-dashed border-primary/40 px-3 py-1.5 text-xs font-semibold text-primary-ink hover:bg-primary/5"
+          >
+            {allSelected ? "Clear all" : "Select all"}
+          </button>
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-          {PLATFORMS_CONFIG.map((p) => {
-            const selected = state.selectedPlatformIds.includes(p.id);
+        <div className="grid grid-cols-2 gap-2 sm:gap-2.5 lg:grid-cols-3">
+          {PLATFORMS_CONFIG.map((plat) => {
+            const isSelected = state.selectedPlatformIds.includes(plat.id);
             return (
               <button
-                key={p.id}
+                key={plat.id}
                 type="button"
-                onClick={() => togglePlatform(p.id)}
-                aria-pressed={selected}
+                onClick={() => togglePlatform(plat.id)}
+                aria-pressed={isSelected}
                 className={cn(
-                  "flex items-center gap-2.5 rounded-xl border p-2.5 text-left transition",
-                  selected
-                    ? "border-primary bg-primary/10"
-                    : "border-border hover:border-border-strong hover:bg-accent/50"
+                  "group relative flex items-center gap-2.5 overflow-hidden rounded-xl border p-2.5 text-left transition sm:items-start sm:gap-3 sm:p-3.5",
+                  isSelected
+                    ? "border-primary bg-primary/[0.07] ring-1 ring-primary/25"
+                    : "border-border bg-card hover:border-border-strong hover:bg-accent/40"
                 )}
               >
-                <PlatformLogo id={p.id} name={p.name} accentColor={p.accentColor} size="sm" />
-                <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                  {p.name.replace(
-                    / (Seller|Partner|Supplier Panel|Seller Hub|Partner Portal)( MTR)?$/,
-                    ""
-                  )}
+                <PlatformLogo
+                  id={plat.id}
+                  name={plat.name}
+                  accentColor={plat.accentColor}
+                  size="md"
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-2">
+                    <span className="line-clamp-2 text-xs font-semibold sm:truncate sm:text-sm">
+                      {plat.name}
+                    </span>
+                    {isSelected && (
+                      <span className="flex size-4 flex-shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                        <Check className="size-2.5" />
+                      </span>
+                    )}
+                  </span>
+                  {/* The description and slot count need room a phone does not have. */}
+                  <span className="mt-0.5 line-clamp-2 hidden text-xs text-muted-foreground sm:block">
+                    {plat.description}
+                  </span>
+                  <span className="mt-1.5 hidden rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground sm:inline-block">
+                    {plat.files.length} report slot{plat.files.length !== 1 ? "s" : ""}
+                  </span>
                 </span>
-                {selected && <Check className="size-4 shrink-0 text-primary-ink" />}
               </button>
             );
           })}
         </div>
+
         {state.gstinNumber && state.selectedPlatformIds.length > 0 && (
-          <details className="group rounded-xl border border-border bg-subtle px-3 py-2">
-            <summary className="cursor-pointer text-xs font-medium text-muted-foreground select-none group-open:mb-2">
-              Advanced: marketplace GSTINs for Table 14 (filled in for you)
-            </summary>
-            <EcoGstinFields
-              gstinNumber={state.gstinNumber}
-              selectedPlatformIds={state.selectedPlatformIds}
-            />
-          </details>
+          <EcoGstinFields
+            gstinNumber={state.gstinNumber}
+            selectedPlatformIds={state.selectedPlatformIds}
+          />
         )}
       </section>
 
-      <div className="flex justify-end border-t border-border pt-5">
+      <div className="flex flex-col-reverse gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs text-muted-foreground">
+          {selected ? (
+            <>
+              Filing for{" "}
+              <span className="font-semibold text-foreground">
+                {selected.tradeName || selected.legalName}
+              </span>{" "}
+              · {formatPeriod(state.returnPeriod)}
+            </>
+          ) : (
+            "Choose a GSTIN to continue"
+          )}
+        </p>
         <button
           type="button"
           disabled={!ready}
           onClick={onNext}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-50 sm:w-auto"
         >
           Continue to upload <ArrowRight className="size-4" />
         </button>

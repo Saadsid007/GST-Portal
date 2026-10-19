@@ -25,13 +25,10 @@ import { cn, formatPeriod } from "@/lib/utils";
 import { Check, Building2, UploadCloud, AlertTriangle, Download } from "lucide-react";
 
 /**
- * Four stages a person sees, over the screens that do the work.
- *
- * The wizard showed all ten — profile, period, marketplaces, a rules check,
- * upload, the engine's reading, the pipeline, errors, approval, download — as
- * ten stops. Most are automatic: the reading only needs the user when it has
- * a question, the pipeline runs by itself, and the error centre only matters
- * when there are errors. Those now pass without a click.
+ * Four stages over the screens that do the work. Setup folds the GSTIN,
+ * period and marketplace choices into one screen; Review keeps all three of
+ * its screens — the engine's column mapping, the pipeline, and the error
+ * centre with its corrections, row editing and GSTR-1 comparison.
  */
 const STAGES = [
   {
@@ -52,7 +49,7 @@ const STAGES = [
     id: "review",
     label: "Review",
     icon: AlertTriangle,
-    hint: "We read, check and net your files",
+    hint: "Mapping, corrections and GSTR-1 comparison",
     steps: [6, 7, 8],
   },
   {
@@ -154,15 +151,10 @@ export function ConvertWorkbench({ profiles, platforms }: Props) {
     setState((prev) => ({ ...prev, ...updates }));
   }, []);
 
-  // The error centre is a stop only when the pipeline left something to fix
-  // or confirm; a clean run goes straight to approval.
-  const afterProcessing = useCallback(
-    (rows: NormalizedInvoiceRow[]) => {
-      const needsAttention = rows.some((r) => r.errors.length > 0 || (r.reviews?.length ?? 0) > 0);
-      goTo(needsAttention ? 8 : 9);
-    },
-    [goTo]
-  );
+  // Always the error centre after processing: it is where the return is
+  // compared with a filed GSTR-1, corrections are suggested and rows are
+  // edited — worth seeing even when nothing failed validation.
+  const afterProcessing = useCallback(() => goTo(8), [goTo]);
 
   function reset() {
     const defaultProfile = profiles.find((p) => p.isDefault) ?? profiles[0];
@@ -261,11 +253,11 @@ export function ConvertWorkbench({ profiles, platforms }: Props) {
               <button
                 type="button"
                 onClick={() => {
-                  // Back to setup or upload only; review and download are
-                  // reached by running the files, not by jumping.
-                  if (isDone && idx <= 1) goTo(s.steps[0]);
+                  // Any finished stage can be revisited; Review reopens on the
+                  // error centre, where the corrections and comparison are.
+                  if (isDone) goTo(s.id === "review" ? 8 : s.steps[0]);
                 }}
-                disabled={isLocked || (isDone && idx > 1)}
+                disabled={isLocked}
                 aria-current={isActive ? "step" : undefined}
                 title={s.hint}
                 className={cn(
@@ -338,7 +330,7 @@ export function ConvertWorkbench({ profiles, platforms }: Props) {
                 state={state}
                 onChange={updateState}
                 onNext={afterProcessing}
-                onBack={() => goTo(5)}
+                onBack={() => goTo(6)}
               />
             )}
             {step === 8 && (
@@ -346,7 +338,7 @@ export function ConvertWorkbench({ profiles, platforms }: Props) {
                 state={state}
                 onChange={updateState}
                 onNext={() => goTo(9)}
-                onBack={() => goTo(5)}
+                onBack={() => goTo(6)}
               />
             )}
             {step === 9 && (
@@ -356,7 +348,7 @@ export function ConvertWorkbench({ profiles, platforms }: Props) {
                   updateState({ watermark });
                   goTo(10);
                 }}
-                onBack={() => goTo(5)}
+                onBack={() => goTo(8)}
               />
             )}
             {step === 10 && <Step10Download state={state} onReset={reset} />}

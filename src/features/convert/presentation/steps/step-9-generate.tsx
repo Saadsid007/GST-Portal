@@ -236,7 +236,7 @@ export function Step9Generate({ state, onNext, onBack }: Props) {
           onClick={onBack}
           className="flex w-full items-center justify-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold transition hover:bg-accent sm:w-auto"
         >
-          <ArrowLeft className="size-4" /> Back to upload
+          <ArrowLeft className="size-4" /> Back to corrections
         </button>
 
         <button

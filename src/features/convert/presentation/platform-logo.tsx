@@ -5,8 +5,8 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 const SIZES = {
-  sm: { box: "size-9 rounded-lg p-1", text: "text-2xs", px: 36 },
-  md: { box: "size-11 rounded-xl p-1.5", text: "text-xs", px: 44 },
+  sm: { box: "size-9 rounded-lg p-1.5", text: "text-2xs", px: 36 },
+  md: { box: "size-11 rounded-xl p-2", text: "text-xs", px: 44 },
   lg: { box: "size-16 rounded-2xl p-2", text: "text-base", px: 64 },
 } as const;
 
@@ -74,7 +74,9 @@ export function PlatformLogo({ id, name, accentColor, size = "md", className }: 
   return (
     <span
       className={cn(
-        "flex flex-shrink-0 items-center justify-center overflow-hidden border border-border/80 bg-card shadow-xs ring-1 ring-black/5 transition-transform duration-300 group-hover:scale-105 dark:ring-white/10",
+        // Always white: marketplace marks are drawn for a white ground, and on a
+        // dark card their own white boxes and dark lettering looked broken.
+        "flex flex-shrink-0 items-center justify-center overflow-hidden border border-black/5 bg-white shadow-xs transition-transform duration-300 group-hover:scale-105 dark:border-white/10",
         s.box,
         className
       )}
