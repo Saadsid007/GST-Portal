@@ -258,7 +258,6 @@ export async function adminAdjustValidityAction(
       { adminId: admin.user.id, targetUserId: userId, days },
       "Admin changed plan validity"
     );
-    revalidatePath("/admin/subscriptions");
     revalidatePath("/billing");
     revalidatePath("/dashboard");
     return { success: true, data: outcome };

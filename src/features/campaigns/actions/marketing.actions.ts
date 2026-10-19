@@ -1,5 +1,7 @@
 "use server";
 
+import { after } from "next/server";
+
 import { requireAdmin } from "@/features/auth";
 import prisma from "@/lib/prisma";
 import type { Prisma } from "@/generated/prisma/client";
@@ -201,6 +203,7 @@ export async function adminSyncAllUsersToMarketingAction(): Promise<{
     await requireAdmin();
 
     const users = await prisma.user.findMany({
+      where: { deletedAt: null },
       include: {
         subscription: true,
       },
@@ -267,13 +270,25 @@ export async function adminSendBroadcastCampaignAction(input: {
       return { success: false, error: "Subject, headline and body text are required." };
     }
 
-    // Determine target subscriber list
-    const where: Prisma.MarketingSubscriberWhereInput = { status: "SUBSCRIBED" };
+    // The audience is read from each person's live subscription. The
+    // subscriber row's own planSlug was set once at signup and never moved, so
+    // "Paid" reached nobody who had paid, and "Expired" was not filtered at all
+    // — it went to the whole list.
+    const where: Prisma.MarketingSubscriberWhereInput = {
+      status: "SUBSCRIBED",
+      OR: [{ userId: null }, { user: { deletedAt: null } }],
+    };
     if (targetAudience === "TRIAL") {
-      where.planSlug = "free_trial";
+      where.user = { deletedAt: null, subscription: { status: "TRIALING" } };
     } else if (targetAudience === "PAID") {
-      where.planSlug = { notIn: ["free_trial", "free"] };
+      where.user = {
+        deletedAt: null,
+        subscription: { status: "ACTIVE", planSlug: { notIn: ["free_trial", "free"] } },
+      };
+    } else if (targetAudience === "EXPIRED") {
+      where.user = { deletedAt: null, subscription: { status: { in: ["EXPIRED", "CANCELLED"] } } };
     }
+    if (targetAudience !== "ALL") delete where.OR;
 
     const recipients = await prisma.marketingSubscriber.findMany({
       where,
@@ -284,7 +299,6 @@ export async function adminSendBroadcastCampaignAction(input: {
       return { success: false, error: "No active subscribers found for the selected audience." };
     }
 
-    // Create broadcast record
     const broadcast = await prisma.campaignBroadcast.create({
       data: {
         subject,
@@ -298,48 +312,48 @@ export async function adminSendBroadcastCampaignAction(input: {
       },
     });
 
-    // Send emails
-    let sentCount = 0;
-    let failedCount = 0;
-
-    for (const recipient of recipients) {
-      try {
-        const res = await EmailService.sendCampaignBroadcastEmail({
-          to: recipient.email,
-          name: recipient.name || undefined,
-          subject,
-          headline,
-          bodyText,
-          ctaText: ctaText?.trim() ? ctaText.trim() : undefined,
-          ctaUrl: ctaUrl?.trim() ? ctaUrl.trim() : undefined,
-        });
-
-        if (res.success) sentCount++;
-        else failedCount++;
-      } catch {
-        failedCount++;
+    // Sent after the response. One SMTP message takes a second or two, so a
+    // list of a few hundred held the admin's browser for minutes and could
+    // time out half-way. The record moves from SENDING to SENT with counts;
+    // the campaigns page shows it.
+    after(async () => {
+      let sentCount = 0;
+      let failedCount = 0;
+      for (const recipient of recipients) {
+        try {
+          const res = await EmailService.sendCampaignBroadcastEmail({
+            to: recipient.email,
+            name: recipient.name || undefined,
+            subject,
+            headline,
+            bodyText,
+            ctaText: ctaText?.trim() ? ctaText.trim() : undefined,
+            ctaUrl: ctaUrl?.trim() ? ctaUrl.trim() : undefined,
+          });
+          if (res.success) sentCount++;
+          else failedCount++;
+        } catch {
+          failedCount++;
+        }
       }
-    }
-
-    await prisma.campaignBroadcast.update({
-      where: { id: broadcast.id },
-      data: {
-        status: "SENT",
-        sentCount,
-        failedCount,
-        sentAt: new Date(),
-      },
+      await prisma.campaignBroadcast.update({
+        where: { id: broadcast.id },
+        data: {
+          status: failedCount === recipients.length ? "FAILED" : "SENT",
+          sentCount,
+          failedCount,
+          sentAt: new Date(),
+        },
+      });
+      logger.info(
+        { broadcastId: broadcast.id, sentCount, failedCount },
+        "Campaign broadcast dispatched"
+      );
     });
 
-    logger.info(
-      { broadcastId: broadcast.id, sentCount, failedCount },
-      "Campaign broadcast dispatched"
-    );
-
-    revalidatePath("/admin/campaigns");
     return {
       success: true,
-      recipientCount: sentCount,
+      recipientCount: recipients.length,
       broadcastId: broadcast.id,
     };
   } catch (err) {

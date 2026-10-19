@@ -35,17 +35,18 @@ export default async function AdminOverviewPage() {
     recentUsers,
     recentPayments,
   ] = await Promise.all([
-    prisma.user.count(),
-    prisma.user.count({ where: { role: "ADMIN" } }),
+    prisma.user.count({ where: { deletedAt: null } }),
+    prisma.user.count({ where: { role: "ADMIN", deletedAt: null } }),
     prisma.conversionHistory.count(),
-    prisma.subscription.count({ where: { status: "ACTIVE" } }),
-    prisma.subscription.count({ where: { status: "TRIALING" } }),
+    prisma.subscription.count({ where: { status: "ACTIVE", user: { deletedAt: null } } }),
+    prisma.subscription.count({ where: { status: "TRIALING", user: { deletedAt: null } } }),
     prisma.gSTINCapacity.aggregate({ _sum: { effectiveCapacity: true } }),
     prisma.payment.aggregate({
       where: { status: { in: ["SUCCESS", "PAID"] } },
       _sum: { amount: true },
     }),
     prisma.user.findMany({
+      where: { deletedAt: null },
       orderBy: { createdAt: "desc" },
       take: 5,
       select: { id: true, name: true, email: true, role: true, createdAt: true },
@@ -74,7 +75,7 @@ export default async function AdminOverviewPage() {
       value: userCount.toLocaleString("en-IN"),
       hint: `${adminCount} administrator${adminCount === 1 ? "" : "s"}`,
       icon: Users,
-      href: "/admin/users",
+      href: "/admin/subscriptions",
     },
     {
       label: "Active Subscriptions",

@@ -174,7 +174,6 @@ export async function getQrRechargeStatusAction(qrCodeId: string): Promise<Actio
         razorpayPaymentId: captured.id,
         eventId: `qr:${captured.id}`,
       });
-      revalidatePath("/billing");
       revalidatePath("/dashboard");
       return {
         success: true,

@@ -24,6 +24,11 @@ import {
   renderCampaignBroadcastEmailHtml,
 } from "@/features/email/templates/transaction-emails.template";
 
+import {
+  unsubscribeOneClickUrl,
+  unsubscribePageUrl,
+} from "@/features/campaigns/domain/unsubscribe-token";
+
 const emailLogger = createLogger({ module: "email-service" });
 
 export interface SendMailOptions {
@@ -33,7 +38,10 @@ export interface SendMailOptions {
   text?: string;
   /** Overrides the default reply address for this message. */
   replyTo?: string;
-  /** Set on bulk mail so Gmail/Yahoo one-click unsubscribe headers are emitted. */
+  /**
+   * Set on bulk mail: the RFC 8058 one-click endpoint mail clients POST to.
+   * Gmail and Yahoo require it of bulk senders, or the mail goes to spam.
+   */
   unsubscribeUrl?: string;
 }
 
@@ -88,7 +96,9 @@ export class EmailService {
     const headers: Record<string, string> = {};
     if (options.unsubscribeUrl) {
       headers["List-Unsubscribe"] = `<${options.unsubscribeUrl}>`;
-      headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Visible-Click";
+      // The exact value RFC 8058 defines. "One-Visible-Click" is not one, and
+      // a receiver that does not recognise it ignores the header.
+      headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click";
       headers["List-Id"] = "GSTPilot Announcements <announcements.gstpilot>";
     }
 
@@ -415,17 +425,23 @@ export class EmailService {
   }): Promise<{ success: boolean; error?: string }> {
     const { to, name, subject, headline, bodyText, ctaText, ctaUrl } = params;
     const baseUrl = env.NEXT_PUBLIC_APP_URL.replace(/\/+$/, "");
-    const unsubscribeUrl = `${baseUrl}/unsubscribe?email=${encodeURIComponent(to)}`;
-
+    // Signed links. The footer linked to /unsubscribe?email=…, a page that did
+    // not exist, and the address alone would have let anyone unsubscribe anyone.
     const { html, text } = renderCampaignBroadcastEmailHtml({
       name,
       headline,
       bodyText,
       ctaText,
       ctaUrl,
-      unsubscribeUrl,
+      unsubscribeUrl: unsubscribePageUrl(baseUrl, to),
     });
 
-    return this.sendMail({ to, subject, html, text, unsubscribeUrl });
+    return this.sendMail({
+      to,
+      subject,
+      html,
+      text,
+      unsubscribeUrl: unsubscribeOneClickUrl(baseUrl, to),
+    });
   }
 }

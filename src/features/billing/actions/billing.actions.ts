@@ -392,7 +392,6 @@ export async function scheduleDowngradeAction(targetPlanSlug: PlanSlug): Promise
       return { success: false, error: "That plan is not available yet." };
     }
     const res = await scheduleDowngrade(session.user.id, targetPlanSlug);
-    revalidatePath("/billing");
     return { success: res.success, message: res.message };
   } catch (error) {
     return {
@@ -413,7 +412,6 @@ export async function cancelAutoRenewalAction(): Promise<{
   try {
     const session = await requireSession();
     const res = await cancelAutoRenewal(session.user.id);
-    revalidatePath("/billing");
     return { success: res.success, message: res.message };
   } catch (error) {
     return {
@@ -517,7 +515,6 @@ export async function getPurchaseQrStatusAction(qrCodeId: string): Promise<{
     const state = await settlePurchaseQr(session.user.id, qrCodeId);
 
     if (state.state === "paid") {
-      revalidatePath("/billing");
       revalidatePath("/profile");
       revalidatePath("/dashboard");
     }

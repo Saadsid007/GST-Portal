@@ -27,7 +27,6 @@ export async function redeemCreditCodeAction(
 
   try {
     const result = await redeemCreditCode(session.user.id, parsed.data.code);
-    revalidatePath("/billing");
     revalidatePath("/dashboard");
     return { success: true, data: result };
   } catch (error) {

@@ -309,7 +309,9 @@ export async function adminChangeUserPlanAction(input: {
       // Update capacity
       const existingCap = await tx.gSTINCapacity.findUnique({ where: { userId } });
       const addOn = existingCap?.additionalGSTINs ?? 0;
-      const profileCount = await tx.gstinProfile.count({ where: { userId } });
+      const profileCount = await tx.gstinProfile.count({
+        where: { userId, status: GstinStatus.ACTIVE },
+      });
 
       await tx.gSTINCapacity.upsert({
         where: { userId },
@@ -360,8 +362,6 @@ export async function adminChangeUserPlanAction(input: {
       "Admin overridden user plan successfully"
     );
 
-    revalidatePath("/admin/subscriptions");
-    revalidatePath("/admin/users");
     revalidatePath("/billing");
     return { success: true };
   } catch (err) {
@@ -389,7 +389,9 @@ export async function adminAdjustGstinCapacityAction(input: {
       const currentAdditional = cap?.additionalGSTINs ?? 0;
       const included = cap?.includedGSTINs ?? 7;
       const newAdditional = Math.max(0, currentAdditional + additionalGstins);
-      const profileCount = await tx.gstinProfile.count({ where: { userId } });
+      const profileCount = await tx.gstinProfile.count({
+        where: { userId, status: GstinStatus.ACTIVE },
+      });
 
       await tx.gSTINCapacity.upsert({
         where: { userId },
@@ -422,77 +424,12 @@ export async function adminAdjustGstinCapacityAction(input: {
       });
     });
 
-    revalidatePath("/admin/subscriptions");
-    revalidatePath("/admin/users");
     revalidatePath("/billing");
     return { success: true };
   } catch (err) {
     return {
       success: false,
       error: err instanceof Error ? err.message : "Failed to adjust GSTIN capacity.",
-    };
-  }
-}
-
-/**
- * Admin action: Extend a user's subscription by X days.
- */
-export async function adminExtendSubscriptionAction(input: {
-  userId: string;
-  extendDays: number;
-  note?: string;
-}): Promise<{ success: boolean; error?: string }> {
-  try {
-    const admin = await requireAdmin();
-    const { userId, extendDays, note } = input;
-
-    await prisma.$transaction(async (tx) => {
-      const sub = await tx.subscription.findUnique({ where: { userId } });
-      if (!sub) throw new Error("Subscription not found for this user.");
-
-      const now = new Date();
-      const currentEnd = sub.endDate > now ? sub.endDate : now;
-      const newEndDate = new Date(currentEnd.getTime() + extendDays * 24 * 60 * 60 * 1000);
-
-      await tx.subscription.update({
-        where: { userId },
-        data: {
-          status: "ACTIVE",
-          endDate: newEndDate,
-        },
-      });
-
-      await tx.subscriptionEvent.create({
-        data: {
-          subscriptionId: sub.id,
-          eventType: "ADMIN_DURATION_EXTENDED",
-          metadata: {
-            adminId: admin.user.id,
-            extendDays,
-            newEndDate: newEndDate.toISOString(),
-            note: note || "Admin extended subscription duration",
-          },
-        },
-      });
-
-      await tx.billingAuditLog.create({
-        data: {
-          userId,
-          actorId: admin.user.id,
-          action: "ADMIN_EXTEND_SUBSCRIPTION",
-          metadata: { extendDays, newEndDate: newEndDate.toISOString(), note },
-        },
-      });
-    });
-
-    revalidatePath("/admin/subscriptions");
-    revalidatePath("/admin/users");
-    revalidatePath("/billing");
-    return { success: true };
-  } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : "Failed to extend subscription.",
     };
   }
 }
@@ -530,7 +467,9 @@ export async function adminResetTrialAction(input: {
         },
       });
 
-      const profileCount = await tx.gstinProfile.count({ where: { userId } });
+      const profileCount = await tx.gstinProfile.count({
+        where: { userId, status: GstinStatus.ACTIVE },
+      });
       await tx.gSTINCapacity.upsert({
         where: { userId },
         create: {
@@ -557,59 +496,12 @@ export async function adminResetTrialAction(input: {
       });
     });
 
-    revalidatePath("/admin/subscriptions");
-    revalidatePath("/admin/users");
     revalidatePath("/billing");
     return { success: true };
   } catch (err) {
     return {
       success: false,
       error: err instanceof Error ? err.message : "Failed to reset trial.",
-    };
-  }
-}
-
-/**
- * Admin action: Manually expire or pause a subscription immediately.
- */
-export async function adminExpireSubscriptionAction(input: {
-  userId: string;
-  note?: string;
-}): Promise<{ success: boolean; error?: string }> {
-  try {
-    const admin = await requireAdmin();
-    const { userId, note } = input;
-
-    await prisma.$transaction(async (tx) => {
-      const sub = await tx.subscription.findUnique({ where: { userId } });
-      if (!sub) return;
-
-      await tx.subscription.update({
-        where: { userId },
-        data: {
-          status: "EXPIRED",
-          endDate: new Date(),
-        },
-      });
-
-      await tx.billingAuditLog.create({
-        data: {
-          userId,
-          actorId: admin.user.id,
-          action: "ADMIN_EXPIRE_SUBSCRIPTION",
-          metadata: { note: note || "Admin expired subscription manually" },
-        },
-      });
-    });
-
-    revalidatePath("/admin/subscriptions");
-    revalidatePath("/admin/users");
-    revalidatePath("/billing");
-    return { success: true };
-  } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : "Failed to expire subscription.",
     };
   }
 }

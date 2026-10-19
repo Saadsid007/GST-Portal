@@ -133,7 +133,6 @@ export async function adminDeleteUserAction(userId: string): Promise<ActionResul
   await audit(session.user.id, "USER_DELETED", user.id, { email: user.email });
 
   revalidatePath("/admin");
-  revalidatePath("/admin/subscriptions");
   return { success: true, data: null };
 }
 
@@ -165,7 +164,6 @@ export async function adminRestoreUserAction(userId: string): Promise<ActionResu
   await audit(session.user.id, "USER_RESTORED", user.id, { email: user.originalEmail });
 
   revalidatePath("/admin");
-  revalidatePath("/admin/subscriptions");
   return { success: true, data: null };
 }
 

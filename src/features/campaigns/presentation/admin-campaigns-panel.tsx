@@ -155,7 +155,9 @@ export function AdminCampaignsMarketingPanel() {
       });
 
       if (res.success) {
-        toast.success(`Broadcast dispatched successfully to ${res.recipientCount} recipients!`);
+        toast.success(
+          `Sending to ${res.recipientCount} recipients in the background — it is safe to leave this page.`
+        );
         setIsBroadcastOpen(false);
         setSubject("");
         setHeadline("");

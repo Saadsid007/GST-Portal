@@ -20,6 +20,7 @@
     0 4px 8px hsl(var(--shadow-color) / 0.06), 0 20px 40px -12px hsl(var(--shadow-color) / 0.16);
   --shadow-xl: 0 32px 64px -16px hsl(var(--shadow-color) / 0.22);
   --shadow-accent: 0 6px 24px -6px hsl(var(--brand) / 0.45);
+  --glow-strength: 0.18;
 }
 
 .dark {
@@ -31,7 +32,10 @@
   --shadow-lg:
     0 4px 8px hsl(var(--shadow-color) / 0.5), 0 20px 40px -12px hsl(var(--shadow-color) / 0.7);
   --shadow-xl: 0 32px 64px -16px hsl(var(--shadow-color) / 0.8);
-  --shadow-accent: 0 6px 24px -6px hsl(var(--brand) / 0.5);
+  /* On a near-black canvas a coloured bloom is the loudest thing on the
+     page; it is kept to a hint, and cards rely on borders, not shadows. */
+  --shadow-accent: 0 1px 0 hsl(0 0% 100% / 0.04) inset;
+  --glow-strength: 0.06;
 }
 
 @theme inline {
@@ -357,7 +361,7 @@ table th {
 @utility brand-glow {
   background-image: radial-gradient(
     50% 50% at 50% 0%,
-    hsl(var(--brand) / 0.18) 0%,
+    hsl(var(--brand) / var(--glow-strength)) 0%,
     transparent 72%
   );
 }
@@ -397,6 +401,11 @@ table th {
   &:hover {
     box-shadow: var(--shadow-lg);
     transform: translateY(-3px);
+  }
+  &:is(.dark *):hover {
+    box-shadow: none;
+    border-color: hsl(var(--border-strong));
+    transform: translateY(-1px);
   }
 }
 

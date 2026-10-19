@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { requireSession } from "@/features/auth";
 import { billingLogger } from "@/features/billing/services/billing.logger";
 import {
@@ -23,7 +22,6 @@ export async function generateShareTokenAction(): Promise<
   const session = await requireSession();
   try {
     const token = await issueShareToken(session.user.id);
-    revalidatePath("/billing");
     return {
       success: true,
       data: { token: token.token, expiresAt: token.expiresAt.toISOString() },
@@ -48,7 +46,6 @@ export async function applyReferralAction(code: string): Promise<ActionResult<nu
 
   try {
     await applyReferral(session.user.id, parsed.data.code);
-    revalidatePath("/billing");
     return { success: true, data: null };
   } catch (error) {
     if (error instanceof ReferralError) return { success: false, error: error.message };

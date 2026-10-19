@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { createLogger } from "@/lib/logger";
+import { notifyTicketCreated } from "@/features/support/services/support-notifications";
 import {
   generateTicketReference,
   OPEN_STATUSES,
@@ -53,6 +54,7 @@ export async function createTicket(input: CreateTicketInput) {
         { reference: ticket.reference, source: input.source, category: input.category },
         "Support ticket created"
       );
+      notifyTicketCreated(ticket, input.message);
       return ticket;
     } catch (error) {
       const isCollision =

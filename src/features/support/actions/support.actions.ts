@@ -11,6 +11,23 @@ import {
   TICKET_STATUSES,
 } from "@/features/support/domain/support.constants";
 import { createTicket } from "@/features/support/services/support.service";
+import {
+  notifyTeamReplied,
+  notifyTicketResolved,
+  notifyUserReplied,
+  type TicketForMail,
+} from "@/features/support/services/support-notifications";
+
+const MAIL_FIELDS = {
+  id: true,
+  reference: true,
+  subject: true,
+  name: true,
+  email: true,
+  userId: true,
+  category: true,
+  priority: true,
+} as const;
 
 const log = createLogger({ module: "support" });
 
@@ -129,7 +146,7 @@ export async function replyToTicketAction(
   // Ownership is part of the query, so someone else's ticket id finds nothing.
   const ticket = await prisma.supportTicket.findFirst({
     where: { id: parsed.data.ticketId, userId: session.user.id },
-    select: { id: true, status: true },
+    select: { ...MAIL_FIELDS, status: true },
   });
   if (!ticket) return { success: false, error: "Ticket not found" };
   if (ticket.status === "CLOSED") {
@@ -153,6 +170,7 @@ export async function replyToTicketAction(
     }),
   ]);
 
+  notifyUserReplied(ticket, parsed.data.body);
   revalidatePath(`/support/${ticket.id}`);
   return { success: true };
 }
@@ -169,6 +187,11 @@ export async function adminReplyAction(
   if (!parsed.success) {
     return { success: false, error: parsed.error.issues[0]?.message ?? "Invalid reply" };
   }
+  const ticket: TicketForMail | null = await prisma.supportTicket.findUnique({
+    where: { id: parsed.data.ticketId },
+    select: MAIL_FIELDS,
+  });
+  if (!ticket) return { success: false, error: "Ticket not found" };
 
   await prisma.$transaction([
     prisma.supportTicketReply.create({
@@ -192,7 +215,9 @@ export async function adminReplyAction(
         ]),
   ]);
 
-  revalidatePath("/admin/support");
+  // An internal note stays internal; an answer is mailed to the customer.
+  if (!parsed.data.isInternal) notifyTeamReplied(ticket, parsed.data.body, session.user.name);
+  revalidatePath(`/admin/support/${ticket.id}`);
   return { success: true };
 }
 
@@ -210,6 +235,11 @@ export async function updateTicketAction(
   if (!parsed.success) return { success: false, error: "Invalid update" };
 
   const { ticketId, status, priority } = parsed.data;
+  const before = await prisma.supportTicket.findUnique({
+    where: { id: ticketId },
+    select: { ...MAIL_FIELDS, status: true },
+  });
+  if (!before) return { success: false, error: "Ticket not found" };
   await prisma.supportTicket.update({
     where: { id: ticketId },
     data: {
@@ -221,6 +251,9 @@ export async function updateTicketAction(
   });
 
   log.info({ ticketId, status, priority, by: session.user.id }, "Ticket updated");
-  revalidatePath("/admin/support");
+  if ((status === "RESOLVED" || status === "CLOSED") && before.status !== status) {
+    notifyTicketResolved(before, status === "CLOSED");
+  }
+  revalidatePath(`/admin/support/${ticketId}`);
   return { success: true };
 }

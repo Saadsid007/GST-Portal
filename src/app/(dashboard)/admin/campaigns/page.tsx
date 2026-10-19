@@ -5,6 +5,7 @@ import { getAdminBillingConfigAction } from "@/features/billing/actions/admin.ac
 import { PageHeader } from "@/components/ui";
 import { AdminCampaignsMarketingPanel } from "@/features/campaigns/presentation/admin-campaigns-panel";
 import { AdminBillingSections } from "@/features/billing/presentation/admin-billing-panel";
+import { BroadcastHistory } from "@/features/campaigns/presentation/broadcast-history";
 
 export const metadata: Metadata = { title: "Campaigns & Marketing · Admin" };
 
@@ -24,7 +25,9 @@ export default async function AdminCampaignsPage() {
 
       <AdminCampaignsMarketingPanel />
 
-      <div className="pt-6 border-t border-border">
+      <BroadcastHistory />
+
+      <div className="border-t border-border pt-6">
         <div className="mb-4">
           <h2 className="text-base font-bold">Promotional Rules & Trial Defaults</h2>
           <p className="text-xs text-muted-foreground">

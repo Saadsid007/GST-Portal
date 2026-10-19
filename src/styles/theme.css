@@ -104,71 +104,75 @@
   --shadow-color: 215 40% 30%;
 }
 
-/* Dark is designed, not inverted: hue and chroma shift, and surfaces step up in
-   lightness as they come forward. Fills lighten and take dark ink, which is the
-   only way a saturated button clears AA against near-white text. */
+/* Dark is designed, not inverted — and kept neutral. The first dark theme
+   was navy: blue-tinted surfaces, a pastel button with dark ink and glows on
+   everything, which read as a template rather than a tool. This one follows
+   the products people trust with money and data (Linear, Vercel, Stripe):
+   graphite surfaces with only a trace of cool, hairline borders doing the
+   work shadows cannot on black, and the same solid blue button as the light
+   theme with a white label (5.2:1). Every pair below clears WCAG AA. */
 .dark {
-  --brand: 199 89% 58%;
-  --brand-deep: 201 90% 44%;
-  --teal: 173 70% 50%;
+  --brand: 205 90% 56%;
+  --brand-deep: 207 88% 44%;
+  --teal: 168 64% 46%;
 
-  --primary: 213 94% 68%;
-  --primary-foreground: 222 47% 11%;
-  --primary-ink: 213 94% 76%;
+  --primary: 221 83% 53%; /* #2463EB — white label 5.2:1 */
+  --primary-foreground: 0 0% 100%;
+  --primary-ink: 213 94% 72%; /* #74B1FB — links, 8.2:1 on cards */
 
-  --gradient-from: 213 94% 62%;
-  --gradient-via: 205 90% 50%;
-  --gradient-to: 199 89% 44%;
+  --gradient-from: 221 83% 53%;
+  --gradient-via: 216 85% 49%;
+  --gradient-to: 209 88% 44%;
 
-  --background: 222 47% 7%;
-  --foreground: 210 40% 98%;
-  --card: 222 44% 11%;
-  --card-foreground: 210 40% 98%;
-  --popover: 222 44% 13%;
-  --popover-foreground: 210 40% 98%;
-  --subtle: 222 40% 14%;
-  --elevated: 222 38% 16%;
+  --background: 228 9% 5.5%; /* #0D0D0F */
+  --foreground: 220 14% 95%; /* #F0F2F4 — 17:1 */
+  --card: 228 8% 8.5%; /* #141517 */
+  --card-foreground: 220 14% 95%;
+  --popover: 228 8% 10%;
+  --popover-foreground: 220 14% 95%;
+  --subtle: 228 8% 7.5%;
+  --elevated: 228 7% 11.5%;
 
-  --secondary: 222 40% 18%;
-  --secondary-foreground: 210 40% 96%;
-  --muted: 222 40% 16%;
-  --muted-foreground: 215 20% 68%;
-  --accent: 222 38% 20%;
-  --accent-foreground: 210 40% 96%;
+  --secondary: 228 7% 14%;
+  --secondary-foreground: 220 14% 92%;
+  --muted: 228 7% 13%;
+  --muted-foreground: 225 7% 64%; /* #9DA0AA — 7:1 */
+  --accent: 228 7% 14.5%;
+  --accent-foreground: 220 14% 95%;
 
-  --destructive: 0 84% 66%;
-  --destructive-foreground: 222 47% 11%;
-  --destructive-ink: 0 90% 74%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --destructive-ink: 0 84% 70%;
 
-  --success: 172 70% 48%;
-  --success-foreground: 222 47% 11%;
-  --success-ink: 172 72% 58%;
+  --success: 160 64% 40%;
+  --success-foreground: 0 0% 100%;
+  --success-ink: 160 64% 56%;
 
-  --warning: 36 92% 58%;
-  --warning-foreground: 222 47% 11%;
-  --warning-ink: 38 94% 64%;
+  --warning: 38 92% 50%;
+  --warning-foreground: 228 9% 6%;
+  --warning-ink: 38 92% 62%;
 
-  --info: 199 89% 62%;
-  --info-foreground: 222 47% 11%;
-  --info-ink: 199 92% 70%;
+  --info: 205 90% 52%;
+  --info-foreground: 0 0% 100%;
+  --info-ink: 205 92% 70%;
 
-  --border: 217 33% 20%;
-  --border-strong: 216 30% 30%;
-  --input: 217 33% 22%;
-  --ring: 199 89% 58%;
+  --border: 228 7% 16%; /* #27282C */
+  --border-strong: 228 6% 24%;
+  --input: 228 7% 18%;
+  --ring: 213 94% 62%;
 
-  --sidebar-background: 222 47% 9%;
-  --sidebar-foreground: 215 20% 68%;
-  --sidebar-accent: 222 38% 17%;
-  --sidebar-accent-foreground: 210 40% 96%;
-  --sidebar-border: 217 33% 17%;
+  --sidebar-background: 228 9% 6.5%;
+  --sidebar-foreground: 225 7% 66%;
+  --sidebar-accent: 228 7% 12.5%;
+  --sidebar-accent-foreground: 220 14% 95%;
+  --sidebar-border: 228 7% 13%;
 
-  --chart-1: 199 89% 60%;
-  --chart-2: 213 94% 68%;
-  --chart-3: 173 70% 52%;
-  --chart-4: 262 87% 74%;
-  --chart-5: 36 92% 60%;
-  --chart-6: 291 70% 68%;
+  --chart-1: 213 94% 66%;
+  --chart-2: 205 90% 56%;
+  --chart-3: 160 64% 50%;
+  --chart-4: 262 80% 72%;
+  --chart-5: 38 92% 58%;
+  --chart-6: 330 70% 66%;
 
-  --shadow-color: 222 60% 2%;
+  --shadow-color: 0 0% 0%;
 }

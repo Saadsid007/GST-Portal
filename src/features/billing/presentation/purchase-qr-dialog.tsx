@@ -120,8 +120,10 @@ export function PurchaseQrDialog({
         clearInterval(id);
         setPhase({ state: "paid", summary: result.data.summary });
         toast.success(result.data.summary);
-        router.refresh();
-        onSuccess?.();
+        // One refresh, not two: the caller's onSuccess already refreshes the
+        // page, and doing both re-rendered it twice before "Paid" settled.
+        if (onSuccess) onSuccess();
+        else router.refresh();
       }
     }, POLL_MS);
     return () => clearInterval(id);

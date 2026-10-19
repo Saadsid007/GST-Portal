@@ -37,9 +37,14 @@ async function seedAdmin(): Promise<void> {
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (!existing) {
-    await auth.api.signUpEmail({ body: { email, password, name: "Admin" } });
+    // Signup requires a mobile number; the admin's can be changed later.
+    await auth.api.signUpEmail({
+      body: { email, password, name: "Admin", phone: "9999999999" },
+    });
   }
-  await prisma.user.update({ where: { email }, data: { role: "ADMIN" } });
+  // Seeded by the operator, not signed up: verified, or the email-code gate
+  // would lock the first admin out of the panel.
+  await prisma.user.update({ where: { email }, data: { role: "ADMIN", emailVerified: true } });
 }
 
 async function main(): Promise<void> {

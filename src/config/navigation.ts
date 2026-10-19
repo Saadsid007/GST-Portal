@@ -18,7 +18,7 @@ import {
   Inbox,
   BookOpen,
   Megaphone as MegaphoneIcon,
-  CreditCard,
+  KeyRound,
 } from "lucide-react";
 
 export interface NavItem {
@@ -113,16 +113,16 @@ export const NAV_GROUPS: NavGroup[] = [
         description: "Platform health and key numbers",
       },
       {
-        label: "Subscriptions",
+        label: "Users & plans",
         href: "/admin/subscriptions",
-        icon: CreditCard,
-        description: "Manage plans, user status and GSTIN capacity",
+        icon: Users,
+        description: "Every account: contact, plan, validity, last active",
       },
       {
-        label: "Users",
+        label: "Admin access",
         href: "/admin/users",
-        icon: Users,
-        description: "Accounts, roles and access",
+        icon: KeyRound,
+        description: "Who can open this admin panel",
       },
       {
         label: "Pricing",
