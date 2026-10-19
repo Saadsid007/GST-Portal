@@ -285,6 +285,13 @@ export async function verifyAndResetPasswordAction(input: {
       });
     }
 
+    // The code reached the inbox, which is all email verification proves.
+    // Without this an unverified user who reset their password was asked for
+    // a second code at the very next sign-in.
+    if (!user.emailVerified) {
+      await prisma.user.update({ where: { id: user.id }, data: { emailVerified: true } });
+    }
+
     // Sessions are not revoked here — Better Auth owns that — but the user is
     // told, so a reset they did not perform is visible immediately.
     void EmailService.sendPasswordChangedNotification({

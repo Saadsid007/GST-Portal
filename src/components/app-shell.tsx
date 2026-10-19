@@ -60,7 +60,7 @@ export function AppShell({ children, user, isAdmin = false }: AppShellProps) {
           // overflow-hidden, not auto: SidebarContent's <nav> is the scroller,
           // which keeps the logo pinned and avoids a nested scrollbar.
           "sticky top-0 hidden h-dvh flex-shrink-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar-background transition-[width] duration-300 ease-[var(--ease-standard)] lg:flex",
-          collapsed ? "w-[60px]" : "w-56"
+          collapsed ? "w-[64px]" : "w-60"
         )}
       >
         <SidebarContent groups={groups} pathname={pathname} collapsed={collapsed} />
@@ -146,11 +146,11 @@ function SidebarContent({
         </Link>
       </div>
 
-      <nav className="flex-1 space-y-3.5 overflow-y-auto px-2 py-3">
+      <nav className="flex-1 space-y-4 overflow-y-auto px-2.5 py-3.5">
         {groups.map((group) => (
           <div key={group.id}>
             {!collapsed && (
-              <p className="px-2 pb-1 text-[9px] font-bold tracking-wider text-muted-foreground/70 uppercase">
+              <p className="px-2.5 pb-1.5 text-[11px] font-semibold tracking-wider text-muted-foreground/80 uppercase">
                 {group.label}
               </p>
             )}
@@ -167,8 +167,8 @@ function SidebarContent({
                       aria-current={active ? "page" : undefined}
                       title={collapsed ? item.label : undefined}
                       className={cn(
-                        "group relative flex items-center gap-2 rounded-lg text-xs font-medium transition-colors duration-150",
-                        collapsed ? "justify-center px-2 py-2" : "px-2.5 py-1.5",
+                        "group relative flex items-center gap-2.5 rounded-lg text-[13.5px] font-medium transition-colors duration-150",
+                        collapsed ? "justify-center px-2 py-2.5" : "px-2.5 py-2",
                         active
                           ? "bg-primary/12 font-semibold text-primary-ink"
                           : item.accent
@@ -185,7 +185,7 @@ function SidebarContent({
                       />
                       <item.icon
                         className={cn(
-                          "size-4 flex-shrink-0 transition-transform",
+                          "size-[18px] flex-shrink-0 transition-transform",
                           !active && "group-hover:scale-105"
                         )}
                         aria-hidden

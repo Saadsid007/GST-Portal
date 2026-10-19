@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 
@@ -15,6 +16,32 @@ export const getServerSession = cache(async () => {
     headers: await headers(),
   });
 });
+
+/** Coarse enough that browsing costs one write per stretch of use, not one per click. */
+const ACTIVITY_WINDOW_MS = 5 * 60 * 1000;
+
+/**
+ * Records that the user is using the product, after the response is sent.
+ *
+ * One conditional write that matches nothing while the stored time is fresh,
+ * so the page never waits on it and a busy session does not rewrite the row
+ * on every navigation. Admins read this as "last active".
+ */
+export function recordActivity(userId: string): void {
+  after(async () => {
+    const now = new Date();
+    await prisma.user.updateMany({
+      where: {
+        id: userId,
+        OR: [
+          { lastActiveAt: null },
+          { lastActiveAt: { lt: new Date(now.getTime() - ACTIVITY_WINDOW_MS) } },
+        ],
+      },
+      data: { lastActiveAt: now },
+    });
+  });
+}
 
 export async function requireSession() {
   const session = await getServerSession();

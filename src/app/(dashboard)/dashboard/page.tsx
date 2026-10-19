@@ -5,6 +5,9 @@ import prisma from "@/lib/prisma";
 import { formatCurrency, formatPeriod } from "@/lib/utils";
 import { Zap, History, Building2, FileSpreadsheet, ArrowRight, Plus } from "lucide-react";
 import { Button } from "@/components/ui";
+import { getGstinCapacity } from "@/features/billing/services/capacity.service";
+import { getOrCreateSubscription } from "@/features/billing/services/subscription.service";
+import { GstinStatus } from "@/features/billing/domain/gstin-capacity";
 
 export const metadata: Metadata = { title: "Dashboard — Multi-Marketplace GSTR-1" };
 
@@ -67,15 +70,30 @@ export default async function DashboardPage() {
   const session = await requireSession();
   const userId = session.user.id;
 
-  const [recent, total, profiles] = await Promise.all([
+  // GSTIN numbers come from the capacity service, the one reading every gate
+  // uses. This page counted every profile ever saved — archived ones too —
+  // against a hardcoded "/ 7", whatever the plan, and showed whichever row
+  // the database returned first as "the" GSTIN.
+  const [recent, total, capacity, subscription, primary] = await Promise.all([
     prisma.conversionHistory.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
       take: 5,
     }),
     prisma.conversionHistory.count({ where: { userId } }),
-    prisma.gstinProfile.findMany({ where: { userId } }),
+    getGstinCapacity(userId),
+    getOrCreateSubscription(userId),
+    prisma.gstinProfile.findFirst({
+      where: { userId, status: GstinStatus.ACTIVE },
+      orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
+      select: { gstinNumber: true, tradeName: true, legalName: true },
+    }),
   ]);
+  const planBadge = subscription.isExpired
+    ? "Plan expired"
+    : subscription.isTrial
+      ? `Free trial · ${subscription.daysRemaining} day${subscription.daysRemaining === 1 ? "" : "s"} left`
+      : `${subscription.planName} · ${subscription.daysRemaining} days left`;
 
   return (
     <div className="space-y-4">
@@ -86,9 +104,16 @@ export default async function DashboardPage() {
             <h1 className="text-base font-bold tracking-tight text-foreground sm:text-lg">
               Overview
             </h1>
-            <span className="py-0.2 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-1.5 font-mono text-3xs font-semibold text-emerald-600 dark:text-emerald-400">
-              30-Day Free Trial (7 GSTINs)
-            </span>
+            <Link
+              href="/billing"
+              className={`rounded-md border px-1.5 py-0.5 font-mono text-3xs font-semibold ${
+                subscription.isExpired
+                  ? "border-destructive/30 bg-destructive/10 text-destructive-ink"
+                  : "border-success/30 bg-success/10 text-success-ink"
+              }`}
+            >
+              {planBadge}
+            </Link>
           </div>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Multi-marketplace GSTR-1 automation, reconciliation & returns pipeline.
@@ -120,9 +145,13 @@ export default async function DashboardPage() {
           label="GST Profiles"
           icon={Building2}
           tone="bg-primary/10 text-primary-ink"
-          value={profiles.length}
-          unit="/ 7 active"
-          footnote={profiles[0]?.gstinNumber ?? "No profiles added yet"}
+          value={capacity.activeProfiles}
+          unit={`/ ${capacity.totalCapacity} active`}
+          footnote={
+            primary
+              ? `${primary.gstinNumber} · ${primary.tradeName || primary.legalName}`
+              : "No GSTIN added yet"
+          }
           linkHref="/profile"
           linkLabel="Manage"
         />

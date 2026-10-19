@@ -4,43 +4,53 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Eye, EyeOff, ArrowRight, Gift } from "lucide-react";
-import { AppLogo } from "@/components/app-logo";
+import { Loader2, Eye, EyeOff, Gift } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { applyReferralAction } from "@/features/billing/actions/referral.actions";
+import { PASSWORD_MIN_LENGTH } from "@/config/constants";
+import { normalizeIndianMobile, PHONE_ERROR } from "@/features/auth/domain/phone";
+import {
+  AuthField,
+  AuthShell,
+  authButtonClass,
+  authInputClass,
+} from "@/features/auth/presentation/auth-shell";
+import { EmailCodeStep } from "@/features/auth/presentation/email-code-step";
 
 export default function RegisterPage() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [referralCode, setReferralCode] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showReferral, setShowReferral] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState<"details" | "code">("details");
+  const [phoneError, setPhoneError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const normalPhone = normalizeIndianMobile(phone);
+    if (!normalPhone) {
+      setPhoneError(PHONE_ERROR);
+      return;
+    }
     setLoading(true);
     try {
-      const res = await authClient.signUp.email({ name, email, password });
+      const res = await authClient.signUp.email({
+        name: name.trim(),
+        email: email.trim(),
+        password,
+        phone: normalPhone,
+      });
       if (res.error) {
-        toast.error(res.error.message || "Registration failed");
-      } else {
-        toast.success("Account created! Welcome to GSTPilot.");
-        // A bad code must never cost the user their account, so this runs after
-        // signup has already succeeded and only ever produces a toast.
-        const code = referralCode.trim();
-        if (code) {
-          const applied = await applyReferralAction(code);
-          if (applied.success) {
-            toast.success("Referral code applied. Your reward unlocks on your first recharge.");
-          } else {
-            toast.warning(`${applied.error} You can add a code later from Billing.`);
-          }
-        }
-        router.push("/dashboard");
-        router.refresh();
+        toast.error(res.error.message || "Could not create the account");
+        return;
       }
+      // No session yet: the account opens once the emailed code is entered.
+      setStep("code");
     } catch {
       toast.error("Something went wrong. Please try again.");
     } finally {
@@ -48,105 +58,144 @@ export default function RegisterPage() {
     }
   }
 
+  async function finishSignup() {
+    const res = await authClient.signIn.email({ email: email.trim(), password });
+    if (res.error) {
+      toast.error("Email verified. Please sign in to continue.");
+      router.push(`/login?email=${encodeURIComponent(email.trim())}`);
+      return;
+    }
+    // A bad code must never cost the user their account, so this runs after
+    // signup has already succeeded and only ever produces a toast.
+    const code = referralCode.trim();
+    if (code) {
+      const applied = await applyReferralAction(code);
+      if (applied.success) {
+        toast.success("Referral code applied. Your reward unlocks on your first recharge.");
+      } else {
+        toast.warning(`${applied.error} You can add a code later from Billing.`);
+      }
+    }
+    toast.success("Welcome to GSTPilot");
+    router.push("/dashboard");
+    router.refresh();
+  }
+
+  if (step === "code") {
+    return (
+      <AuthShell>
+        <EmailCodeStep
+          email={email.trim()}
+          onVerified={finishSignup}
+          onBack={() => setStep("details")}
+        />
+      </AuthShell>
+    );
+  }
+
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12">
-      <div className="w-full max-w-md space-y-6">
-        <div className="space-y-2 text-center">
-          <Link
-            href="/"
-            className="group inline-flex items-center justify-center transition-transform hover:scale-105"
-          >
-            <AppLogo size="xl" priority />
-          </Link>
-          <p className="text-xs text-muted-foreground">
-            Start Converting Marketplace Reports to GSTR-1
-          </p>
+    <AuthShell>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight">Create your account</h1>
+          <p className="mt-1 text-sm text-muted-foreground">30-day free trial. No card required.</p>
         </div>
 
-        <div className="space-y-6 rounded-3xl border border-border/80 bg-card p-8 shadow-2xl shadow-primary/5">
-          <div>
-            <h1 className="text-xl font-bold">Create your free account</h1>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Start filing error-free e-commerce GSTR-1 returns today
-            </p>
-          </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <AuthField id="name" label="Full name">
+            <input
+              id="name"
+              type="text"
+              autoComplete="name"
+              required
+              minLength={2}
+              maxLength={80}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Your name"
+              className={authInputClass}
+            />
+          </AuthField>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <label
-                className="text-xs font-bold tracking-wide text-muted-foreground uppercase"
-                htmlFor="name"
-              >
-                Full Name
-              </label>
+          <AuthField id="email" label="Email address">
+            <input
+              id="email"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@business.com"
+              className={authInputClass}
+            />
+          </AuthField>
+
+          <AuthField
+            id="phone"
+            label="Mobile number"
+            hint={
+              phoneError ? (
+                <span className="text-destructive-ink">{phoneError}</span>
+              ) : (
+                "For account and filing alerts. We never share it."
+              )
+            }
+          >
+            <div className="flex">
+              <span className="inline-flex items-center rounded-l-lg border border-r-0 border-input bg-muted px-3 text-sm text-muted-foreground">
+                +91
+              </span>
               <input
-                id="name"
-                type="text"
-                autoComplete="name"
+                id="phone"
+                type="tel"
+                inputMode="numeric"
+                autoComplete="tel-national"
                 required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Saad Khan"
-                className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm transition focus:ring-2 focus:ring-primary/50 focus:outline-none"
+                value={phone}
+                aria-invalid={phoneError ? true : undefined}
+                onChange={(e) => {
+                  setPhone(e.target.value.replace(/[^\d\s+-]/g, "").slice(0, 16));
+                  if (phoneError) setPhoneError(null);
+                }}
+                onBlur={() => {
+                  if (phone && !normalizeIndianMobile(phone)) setPhoneError(PHONE_ERROR);
+                }}
+                placeholder="98765 43210"
+                className={`${authInputClass} rounded-l-none ${phoneError ? "border-destructive" : ""}`}
               />
             </div>
+          </AuthField>
 
-            <div className="space-y-1.5">
-              <label
-                className="text-xs font-bold tracking-wide text-muted-foreground uppercase"
-                htmlFor="email"
-              >
-                Email Address
-              </label>
+          <AuthField id="password" label="Password">
+            <div className="relative">
               <input
-                id="email"
-                type="email"
-                autoComplete="email"
+                id="password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="new-password"
                 required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm transition focus:ring-2 focus:ring-primary/50 focus:outline-none"
+                minLength={PASSWORD_MIN_LENGTH}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder={`At least ${PASSWORD_MIN_LENGTH} characters`}
+                className={`${authInputClass} pr-10`}
               />
-            </div>
-
-            <div className="space-y-1.5">
-              <label
-                className="text-xs font-bold tracking-wide text-muted-foreground uppercase"
-                htmlFor="password"
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
               >
-                Password
-              </label>
-              <div className="relative">
-                <input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="new-password"
-                  required
-                  minLength={8}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Min. 8 characters"
-                  className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 pr-10 text-sm transition focus:ring-2 focus:ring-primary/50 focus:outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute top-1/2 right-3.5 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
-                >
-                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                </button>
-              </div>
+                {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
             </div>
+          </AuthField>
 
-            <div className="space-y-1.5">
-              <label
-                className="flex items-center gap-1.5 text-xs font-bold tracking-wide text-muted-foreground uppercase"
-                htmlFor="referralCode"
-              >
-                <Gift className="size-3.5" /> Referral Code{" "}
-                <span className="font-medium tracking-normal normal-case">(optional)</span>
-              </label>
+          {showReferral ? (
+            <AuthField
+              id="referralCode"
+              label="Referral code"
+              hint="You and your friend both earn wallet credits after your first recharge."
+            >
               <input
                 id="referralCode"
                 type="text"
@@ -154,39 +203,44 @@ export default function RegisterPage() {
                 value={referralCode}
                 onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
                 placeholder="GSTP-XXXXXX"
-                className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 font-mono text-sm tracking-wide transition focus:ring-2 focus:ring-primary/50 focus:outline-none"
+                className={`${authInputClass} font-mono tracking-wide`}
               />
-              <p className="text-[11px] text-muted-foreground">
-                Have a code from a friend? Both of you earn wallet credits after your first
-                recharge.
-              </p>
-            </div>
-
+            </AuthField>
+          ) : (
             <button
-              type="submit"
-              disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground shadow-md shadow-primary/20 transition hover:bg-primary/90 disabled:opacity-50"
+              type="button"
+              onClick={() => setShowReferral(true)}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-primary-ink hover:underline"
             >
-              {loading ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" /> Creating account...
-                </>
-              ) : (
-                <>
-                  <ArrowRight className="size-4" /> Create Account
-                </>
-              )}
+              <Gift className="size-3.5" /> Have a referral code?
             </button>
-          </form>
+          )}
 
-          <div className="border-t border-border pt-2 text-center text-xs text-muted-foreground">
-            Already have an account?{" "}
-            <Link href="/login" className="font-bold text-primary-ink hover:underline">
-              Sign in
+          <button type="submit" disabled={loading} className={authButtonClass}>
+            {loading ? <Loader2 className="size-4 animate-spin" /> : null}
+            {loading ? "Creating account…" : "Create account"}
+          </button>
+
+          <p className="text-center text-[11px] leading-relaxed text-muted-foreground">
+            By continuing you agree to the{" "}
+            <Link href="/terms" className="underline hover:text-foreground">
+              Terms
+            </Link>{" "}
+            and{" "}
+            <Link href="/privacy-policy" className="underline hover:text-foreground">
+              Privacy Policy
             </Link>
-          </div>
-        </div>
+            .
+          </p>
+        </form>
+
+        <p className="border-t border-border pt-4 text-center text-sm text-muted-foreground">
+          Already have an account?{" "}
+          <Link href="/login" className="font-semibold text-primary-ink hover:underline">
+            Sign in
+          </Link>
+        </p>
       </div>
-    </div>
+    </AuthShell>
   );
 }

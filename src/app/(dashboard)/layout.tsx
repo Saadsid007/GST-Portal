@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { getServerSession, isAdmin } from "@/features/auth";
+import { getServerSession, isAdmin, recordActivity } from "@/features/auth";
 import { AppShell } from "@/components/app-shell";
 import { NOINDEX_METADATA } from "@/lib/seo/metadata";
 
@@ -12,6 +12,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const session = await getServerSession();
   if (!session) redirect("/login");
 
+  // Sign-in now refuses an unverified address, but sessions opened before
+  // verification was enforced are still live. They finish the code step
+  // first, and stay signed in while they do.
+  if (!session.user.emailVerified) {
+    redirect(`/verify-email?email=${encodeURIComponent(session.user.email)}`);
+  }
+
+  recordActivity(session.user.id);
   const admin = await isAdmin();
 
   return (

@@ -9,13 +9,23 @@ import {
   type PlanSlug,
 } from "@/features/billing/config/pricing.config";
 import { billingLogger } from "@/features/billing/services/billing.logger";
+import { GstinStatus } from "@/features/billing/domain/gstin-capacity";
 import { revalidatePath } from "next/cache";
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function daysUntil(end: Date, now: Date): number {
+  return Math.max(0, Math.ceil((end.getTime() - now.getTime()) / DAY_MS));
+}
 
 export interface AdminSubscriberItem {
   userId: string;
   userName: string;
   userEmail: string;
+  phone: string | null;
+  emailVerified: boolean;
   role: string;
+  deleted: boolean;
   planSlug: PlanSlug;
   planName: string;
   status: string;
@@ -30,7 +40,9 @@ export interface AdminSubscriberItem {
   totalCapacity: number;
   usagePercent: number;
   totalPaid: number;
-  lastActive: Date;
+  /** Last authenticated request; null for an account not seen since tracking began. */
+  lastActive: Date | null;
+  createdAt: Date;
 }
 
 export interface AdminBillingStats {
@@ -65,20 +77,22 @@ export async function adminGetBillingStatsAction(): Promise<{
       paymentsAgg,
       activePaidSubs,
     ] = await Promise.all([
-      prisma.user.count(),
-      prisma.subscription.count({ where: { status: "ACTIVE" } }),
-      prisma.subscription.count({ where: { status: "TRIALING" } }),
-      prisma.subscription.count({ where: { status: "EXPIRED" } }),
+      prisma.user.count({ where: { deletedAt: null } }),
+      prisma.subscription.count({ where: { status: "ACTIVE", user: { deletedAt: null } } }),
+      prisma.subscription.count({ where: { status: "TRIALING", user: { deletedAt: null } } }),
+      prisma.subscription.count({ where: { status: "EXPIRED", user: { deletedAt: null } } }),
       prisma.gSTINCapacity.aggregate({
         _sum: { effectiveCapacity: true },
       }),
-      prisma.gstinProfile.count(),
+      prisma.gstinProfile.count({
+        where: { status: GstinStatus.ACTIVE, user: { deletedAt: null } },
+      }),
       prisma.payment.aggregate({
         where: { status: { in: ["SUCCESS", "PAID"] } },
         _sum: { amount: true },
       }),
       prisma.subscription.findMany({
-        where: { status: "ACTIVE" },
+        where: { status: "ACTIVE", user: { deletedAt: null } },
         select: { planSlug: true },
       }),
     ]);
@@ -138,12 +152,20 @@ export async function adminGetSubscribersListAction(params: {
     const limit = Math.max(5, Math.min(100, params.limit ?? 20));
     const skip = (page - 1) * limit;
 
-    const whereUser: Prisma.UserWhereInput = {};
+    // Deleted accounts are kept for the record but left out of the working
+    // list; the "Deleted" filter is the one place they show.
+    const showDeleted = params.status === "DELETED";
+    const whereUser: Prisma.UserWhereInput = {
+      deletedAt: showDeleted ? { not: null } : null,
+    };
     if (params.search && params.search.trim()) {
       const q = params.search.trim();
+      const digits = q.replace(/\D/g, "");
       whereUser.OR = [
         { email: { contains: q, mode: "insensitive" } },
+        { originalEmail: { contains: q, mode: "insensitive" } },
         { name: { contains: q, mode: "insensitive" } },
+        ...(digits.length >= 4 ? [{ phone: { contains: digits } }] : []),
       ];
     }
 
@@ -151,7 +173,7 @@ export async function adminGetSubscribersListAction(params: {
     if (params.planSlug && params.planSlug !== "ALL") {
       whereSub.planSlug = params.planSlug;
     }
-    if (params.status && params.status !== "ALL") {
+    if (params.status && params.status !== "ALL" && !showDeleted) {
       whereSub.status = params.status;
     }
 
@@ -164,7 +186,7 @@ export async function adminGetSubscribersListAction(params: {
         include: {
           subscription: true,
           gstinCapacity: true,
-          profiles: { select: { id: true } },
+          profiles: { where: { status: GstinStatus.ACTIVE }, select: { id: true } },
           payments: {
             where: { status: { in: ["SUCCESS", "PAID"] } },
             select: { amount: true },
@@ -195,16 +217,18 @@ export async function adminGetSubscribersListAction(params: {
       const usagePercent = totalCap > 0 ? Math.min(100, Math.round((used / totalCap) * 100)) : 0;
 
       const endDate = sub?.endDate ?? now;
-      const msRemaining = Math.max(0, endDate.getTime() - now.getTime());
-      const daysRemaining = Math.ceil(msRemaining / (1000 * 60 * 60 * 24));
+      const daysRemaining = daysUntil(endDate, now);
 
       const totalPaid = u.payments.reduce((sum, p) => sum + p.amount, 0);
 
       return {
         userId: u.id,
         userName: u.name || "Unnamed User",
-        userEmail: u.email,
+        userEmail: u.originalEmail ?? u.email,
+        phone: u.phone,
+        emailVerified: u.emailVerified,
         role: u.role,
+        deleted: u.deletedAt !== null,
         planSlug: planDef.slug,
         planName: planDef.name,
         status: sub?.status ?? "TRIALING",
@@ -219,7 +243,10 @@ export async function adminGetSubscribersListAction(params: {
         totalCapacity: totalCap,
         usagePercent,
         totalPaid,
-        lastActive: u.updatedAt,
+        // This read updatedAt, which moves when a profile is edited, not when
+        // the person uses the product.
+        lastActive: u.lastActiveAt,
+        createdAt: u.createdAt,
       };
     });
 

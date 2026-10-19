@@ -1,149 +1,156 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Eye, EyeOff, ArrowRight } from "lucide-react";
-import { AppLogo } from "@/components/app-logo";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
+import {
+  AuthField,
+  AuthShell,
+  authButtonClass,
+  authInputClass,
+} from "@/features/auth/presentation/auth-shell";
+import { EmailCodeStep } from "@/features/auth/presentation/email-code-step";
 
-export default function LoginPage() {
+/** Where a signed-in user may be sent back to: this site's own paths only. */
+function safeNext(next: string | null): string {
+  return next && next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
+}
+
+function LoginForm() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const params = useSearchParams();
+  const [email, setEmail] = useState(params.get("email") ?? "");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState<"password" | "code">("password");
+
+  async function signIn(): Promise<boolean> {
+    const res = await authClient.signIn.email({ email: email.trim(), password });
+    if (!res.error) {
+      toast.success("Welcome back");
+      router.push(safeNext(params.get("next")));
+      router.refresh();
+      return true;
+    }
+    // The password was right but the address was never confirmed. Better
+    // Auth has just emailed a fresh code; take it here rather than sending
+    // the person away to another page.
+    if (res.error.code === "EMAIL_NOT_VERIFIED") {
+      setStep("code");
+      return false;
+    }
+    toast.error(res.error.message ?? "Invalid email or password");
+    return false;
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!email || !password) return;
-
     setLoading(true);
     try {
-      const res = await authClient.signIn.email({
-        email,
-        password,
-      });
-
-      if (res.error) {
-        toast.error(res.error.message ?? "Invalid email or password");
-      } else {
-        toast.success("Welcome back!");
-        router.push("/dashboard");
-        router.refresh();
-      }
+      await signIn();
     } catch {
-      toast.error("An unexpected error occurred");
+      toast.error("Could not reach the server. Check your connection and try again.");
     } finally {
       setLoading(false);
     }
   }
 
+  if (step === "code") {
+    return (
+      <EmailCodeStep
+        email={email.trim()}
+        onVerified={async () => {
+          await signIn();
+        }}
+        onBack={() => setStep("password")}
+      />
+    );
+  }
+
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12">
-      <div className="w-full max-w-md space-y-6">
-        {/* Logo Header */}
-        <div className="space-y-2 text-center">
-          <Link
-            href="/"
-            className="group inline-flex items-center justify-center transition-transform hover:scale-105"
-          >
-            <AppLogo size="xl" priority />
-          </Link>
-          <p className="text-xs text-muted-foreground">Marketplace to GSTR-1 Excel & JSON Engine</p>
-        </div>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-xl font-bold tracking-tight">Sign in</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Welcome back. Your GST profiles and returns are waiting.
+        </p>
+      </div>
 
-        {/* Card */}
-        <div className="space-y-6 rounded-3xl border border-border/80 bg-card p-8 shadow-2xl shadow-primary/5">
-          <div>
-            <h1 className="text-xl font-bold">Sign in to your account</h1>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Access your saved GST profiles and conversion history
-            </p>
-          </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <AuthField id="email" label="Email address">
+          <input
+            id="email"
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@business.com"
+            className={authInputClass}
+          />
+        </AuthField>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <label
-                className="text-xs font-bold tracking-wide text-muted-foreground uppercase"
-                htmlFor="email"
-              >
-                Email Address
-              </label>
-              <input
-                id="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm transition focus:ring-2 focus:ring-primary/50 focus:outline-none"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label
-                  className="text-xs font-bold tracking-wide text-muted-foreground uppercase"
-                  htmlFor="password"
-                >
-                  Password
-                </label>
-                <Link
-                  href="/forgot-password"
-                  className="text-xs font-semibold text-primary hover:underline"
-                >
-                  Forgot password?
-                </Link>
-              </div>
-              <div className="relative">
-                <input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="current-password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 pr-10 text-sm transition focus:ring-2 focus:ring-primary/50 focus:outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute top-1/2 right-3.5 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
-                >
-                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                </button>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground shadow-md shadow-primary/20 transition hover:bg-primary/90 disabled:opacity-50"
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <label htmlFor="password" className="text-xs font-semibold text-foreground">
+              Password
+            </label>
+            <Link
+              href="/forgot-password"
+              className="text-xs font-medium text-primary-ink hover:underline"
             >
-              {loading ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" /> Signing in...
-                </>
-              ) : (
-                <>
-                  <ArrowRight className="size-4" /> Sign In
-                </>
-              )}
-            </button>
-          </form>
-
-          <div className="border-t border-border pt-2 text-center text-xs text-muted-foreground">
-            Don't have an account?{" "}
-            <Link href="/register" className="font-bold text-primary-ink hover:underline">
-              Create a free account
+              Forgot password?
             </Link>
           </div>
+          <div className="relative">
+            <input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Your password"
+              className={`${authInputClass} pr-10`}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground transition hover:text-foreground"
+            >
+              {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          </div>
         </div>
-      </div>
+
+        <button type="submit" disabled={loading} className={authButtonClass}>
+          {loading ? <Loader2 className="size-4 animate-spin" /> : null}
+          {loading ? "Signing in…" : "Sign in"}
+        </button>
+      </form>
+
+      <p className="border-t border-border pt-4 text-center text-sm text-muted-foreground">
+        New to GSTPilot?{" "}
+        <Link href="/register" className="font-semibold text-primary-ink hover:underline">
+          Create a free account
+        </Link>
+      </p>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <AuthShell>
+      <Suspense fallback={<div className="h-72" aria-hidden />}>
+        <LoginForm />
+      </Suspense>
+    </AuthShell>
   );
 }

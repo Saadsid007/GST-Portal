@@ -22,6 +22,15 @@ model User {
   emailVerified Boolean  @default(false)
   image         String?
   role          String   @default("USER") // "USER", "ADMIN"
+  /// Mobile number given at signup. Not verified yet; kept as typed, +91 form.
+  phone         String?
+  /// Last authenticated request, at most one write per few minutes.
+  lastActiveAt  DateTime? @map("last_active_at") @db.Timestamptz
+  /// Set when an admin deletes the account. The row and its data stay; the
+  /// email is released (see originalEmail) so the person can sign up afresh.
+  deletedAt     DateTime? @map("deleted_at") @db.Timestamptz
+  /// The address the account had before deletion freed it.
+  originalEmail String?   @map("original_email")
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
   updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz
 

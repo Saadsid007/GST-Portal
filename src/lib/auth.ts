@@ -1,12 +1,14 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
+import { APIError } from "better-auth/api";
 
 import { PASSWORD_MIN_LENGTH } from "@/config/constants";
 import { env } from "@/lib/env";
 import { createLogger } from "@/lib/logger";
 import prisma from "@/lib/prisma";
 import { EmailService } from "@/features/email/services/email.service";
+import { normalizeIndianMobile, PHONE_ERROR } from "@/features/auth/domain/phone";
 
 const authLogger = createLogger({ module: "auth" });
 
@@ -19,31 +21,68 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     minPasswordLength: PASSWORD_MIN_LENGTH,
-    requireEmailVerification: false,
+    // No session until the emailed code is entered. This was off, so signup
+    // logged the person straight in and the code was never asked for — 29 of
+    // the first 30 accounts never verified. Sign-in now refuses an unverified
+    // address with EMAIL_NOT_VERIFIED, which the login page turns into the
+    // code step.
+    requireEmailVerification: true,
     sendResetPassword: async ({ user }) => {
       authLogger.info({ userId: user.id, email: user.email }, "Password reset email triggered");
-      await EmailService.sendPasswordResetEmail({
-        to: user.email,
-        name: user.name,
-      });
+      void EmailService.sendPasswordResetEmail({ to: user.email, name: user.name });
+    },
+  },
+  user: {
+    additionalFields: {
+      phone: { type: "string", required: true, input: true },
     },
   },
   emailVerification: {
     sendOnSignUp: true,
+    // A returning unverified user gets a fresh code at the password step.
+    sendOnSignIn: true,
     autoSignInAfterVerification: true,
+    // Not awaited: Better Auth holds the signup response until this returns,
+    // and SMTP can take several seconds — the "Create account" button sat
+    // spinning for all of it.
     sendVerificationEmail: async ({ user }) => {
       authLogger.info({ userId: user.id, email: user.email }, "Verification email triggered");
-      await EmailService.sendVerificationEmail({
-        to: user.email,
-        name: user.name,
-      });
+      void EmailService.sendVerificationEmail({ to: user.email, name: user.name }).then(
+        (result) => {
+          if (!result.success) {
+            authLogger.error({ userId: user.id, error: result.error }, "Verification email failed");
+          }
+        }
+      );
     },
   },
   databaseHooks: {
+    session: {
+      create: {
+        // An account an admin deleted has no way back in, even with a cookie
+        // or a password reset in flight. It is told nothing: to the person
+        // the account simply no longer exists.
+        before: async (session) => {
+          const owner = await prisma.user.findUnique({
+            where: { id: session.userId },
+            select: { deletedAt: true },
+          });
+          return owner?.deletedAt ? false : undefined;
+        },
+      },
+    },
     user: {
       create: {
+        before: async (user) => {
+          const phone = normalizeIndianMobile((user as { phone?: string }).phone);
+          if (!phone) throw new APIError("BAD_REQUEST", { message: PHONE_ERROR });
+          return { data: { ...user, phone } };
+        },
         after: async (user) => {
-          authLogger.info({ userId: user.id, email: user.email }, "New user registered: syncing marketing & welcome flow");
+          authLogger.info(
+            { userId: user.id, email: user.email },
+            "New user registered: syncing marketing & welcome flow"
+          );
 
           // 1. Send Welcome & 30-Day Free Trial Email
           void EmailService.sendWelcomeTrialEmail({
@@ -64,10 +103,13 @@ export const auth = betterAuth({
                 planSlug: "free_trial",
                 tags: ["trial_active", "new_user"],
               },
+              // A person signing up again after their account was deleted
+              // starts subscribed, like any new signup.
               update: {
                 name: user.name,
                 userId: user.id,
                 planSlug: "free_trial",
+                status: "SUBSCRIBED",
               },
             });
           } catch (err) {
