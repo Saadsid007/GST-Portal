@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-10-20
+
+- Database moved to Supabase Mumbai, the same city as the Vercel functions (bom1).
+- The sign-in gate (`proxy.ts`) moved into `src/`. Next.js only loads it from there when the
+  app lives in `src/app`, so it had never run. Opening a protected page while signed out now
+  returns you to that page after sign-in (`/login?next=…`).
+- No mail is sent to reserved test domains (`example.com`, `.invalid`, `.test`), so QA
+  sign-ups and soft-deleted accounts no longer produce bounces or copies in the sending mailbox.
+
 ## 2026-10-19 — Launch release
 
 ### Accounts

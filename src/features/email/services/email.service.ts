@@ -23,7 +23,7 @@ import {
   renderPaymentReceiptEmailHtml,
   renderCampaignBroadcastEmailHtml,
 } from "@/features/email/templates/transaction-emails.template";
-
+import { isUndeliverableAddress } from "@/features/email/domain/reserved-address";
 import {
   unsubscribeOneClickUrl,
   unsubscribePageUrl,
@@ -100,6 +100,11 @@ export class EmailService {
       // a receiver that does not recognise it ignores the header.
       headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click";
       headers["List-Id"] = "GSTPilot Announcements <announcements.gstpilot>";
+    }
+
+    if (isUndeliverableAddress(to)) {
+      emailLogger.info({ to, subject }, "Email skipped: reserved test domain");
+      return { success: true, messageId: `skipped-${Date.now()}` };
     }
 
     try {
