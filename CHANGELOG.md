@@ -5,7 +5,12 @@
 - Database moved to Supabase Mumbai, the same city as the Vercel functions (bom1).
 - The sign-in gate (`proxy.ts`) moved into `src/`. Next.js only loads it from there when the
   app lives in `src/app`, so it had never run. Opening a protected page while signed out now
-  returns you to that page after sign-in (`/login?next=…`).
+  returns you to that page after sign-in (`/login?next=…`), also when the session has expired
+  but its cookie is still in the browser. Sign-in no longer refreshes `/login` before leaving
+  it, which had sent everyone to the dashboard instead.
+- The return path only accepts local paths: `//host`, `/\host` and control characters are
+  refused, so the sign-in page cannot be used to redirect to another site.
+- Email logs mask the code in verification and reset subjects.
 - No mail is sent to reserved test domains (`example.com`, `.invalid`, `.test`), so QA
   sign-ups and soft-deleted accounts no longer produce bounces or copies in the sending mailbox.
 

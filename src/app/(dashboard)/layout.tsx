@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { getServerSession, isAdmin, recordActivity } from "@/features/auth";
+import { getServerSession, isAdmin, recordActivity, redirectToLogin } from "@/features/auth";
 import { AppShell } from "@/components/app-shell";
 import { NOINDEX_METADATA } from "@/lib/seo/metadata";
 
@@ -10,7 +10,7 @@ export const metadata: Metadata = NOINDEX_METADATA;
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession();
-  if (!session) redirect("/login");
+  if (!session) return redirectToLogin();
 
   // Sign-in now refuses an unverified address, but sessions opened before
   // verification was enforced are still live. They finish the code step

@@ -13,11 +13,7 @@ import {
   authInputClass,
 } from "@/features/auth/presentation/auth-shell";
 import { EmailCodeStep } from "@/features/auth/presentation/email-code-step";
-
-/** Where a signed-in user may be sent back to: this site's own paths only. */
-function safeNext(next: string | null): string {
-  return next && next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
-}
+import { safeNextPath } from "@/features/auth/domain/safe-next";
 
 function LoginForm() {
   const router = useRouter();
@@ -32,8 +28,10 @@ function LoginForm() {
     const res = await authClient.signIn.email({ email: email.trim(), password });
     if (!res.error) {
       toast.success("Welcome back");
-      router.push(safeNext(params.get("next")));
-      router.refresh();
+      // replace, not push + refresh: a refresh re-rendered /login with the new
+      // session, and the auth layout then sent everyone to /dashboard instead
+      // of the page they came for.
+      router.replace(safeNextPath(params.get("next")));
       return true;
     }
     // The password was right but the address was never confirmed. Better

@@ -24,6 +24,7 @@ import {
   renderCampaignBroadcastEmailHtml,
 } from "@/features/email/templates/transaction-emails.template";
 import { isUndeliverableAddress } from "@/features/email/domain/reserved-address";
+import { redactSubjectForLog } from "@/features/email/domain/log-redaction";
 import {
   unsubscribeOneClickUrl,
   unsubscribePageUrl,
@@ -91,6 +92,7 @@ export class EmailService {
     options: SendMailOptions
   ): Promise<{ success: boolean; messageId?: string; error?: string }> {
     const { to, subject, html, text } = options;
+    const logSubject = redactSubjectForLog(subject);
     const from = env.EMAIL_FROM || "GSTPilot <gstpilot.official@gmail.com>";
 
     const headers: Record<string, string> = {};
@@ -103,7 +105,7 @@ export class EmailService {
     }
 
     if (isUndeliverableAddress(to)) {
-      emailLogger.info({ to, subject }, "Email skipped: reserved test domain");
+      emailLogger.info({ to, subject: logSubject }, "Email skipped: reserved test domain");
       return { success: true, messageId: `skipped-${Date.now()}` };
     }
 
@@ -136,12 +138,12 @@ export class EmailService {
         } | null;
         if (!res.ok || !data?.id) {
           const errorMsg = data?.message || `Resend responded ${res.status}`;
-          emailLogger.error({ to, subject, error: errorMsg }, "Resend dispatch failed");
+          emailLogger.error({ to, subject: logSubject, error: errorMsg }, "Resend dispatch failed");
           return { success: false, error: errorMsg };
         }
 
         emailLogger.info(
-          { to, subject, messageId: data.id },
+          { to, subject: logSubject, messageId: data.id },
           "Email dispatched successfully via Resend"
         );
         return { success: true, messageId: data.id };
@@ -161,7 +163,7 @@ export class EmailService {
         });
 
         emailLogger.info(
-          { to, subject, messageId: info.messageId },
+          { to, subject: logSubject, messageId: info.messageId },
           "Email dispatched successfully via SMTP"
         );
         return { success: true, messageId: info.messageId };
@@ -180,7 +182,7 @@ export class EmailService {
       return { success: true, messageId: `dev-${Date.now()}` };
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "Failed to send email";
-      emailLogger.error({ to, subject, error: errorMsg }, "Failed to send email");
+      emailLogger.error({ to, subject: logSubject, error: errorMsg }, "Failed to send email");
       return { success: false, error: errorMsg };
     }
   }

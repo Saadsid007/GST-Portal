@@ -1,5 +1,6 @@
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
+import { REQUESTED_PATH_HEADER } from "@/features/auth/domain/safe-next";
 
 /**
  * A cheap first gate in front of the signed-in areas: no session cookie, no
@@ -44,13 +45,24 @@ export function proxy(request: NextRequest) {
   // account is deleted — and then /login sent them to /dashboard, which sent
   // them back to /login: a redirect loop, and a sign-in page that never
   // opened. Only the absence of a cookie is decided here.
-  if (PROTECTED_PREFIXES.some((route) => matches(pathname, route)) && !getSessionCookie(request)) {
+  if (!PROTECTED_PREFIXES.some((route) => matches(pathname, route))) {
+    return NextResponse.next();
+  }
+
+  const requested = pathname + request.nextUrl.search;
+  if (!getSessionCookie(request)) {
     const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("next", pathname + request.nextUrl.search);
+    loginUrl.searchParams.set("next", requested);
     return NextResponse.redirect(loginUrl);
   }
 
-  return NextResponse.next();
+  // A cookie whose session has expired gets this far, and the layout then
+  // sends it to /login. Layouts cannot see the URL, so pass it along: the
+  // person returns to the page they asked for. Always overwritten, never
+  // taken from the client; the login page sanitises it again anyway.
+  const headers = new Headers(request.headers);
+  headers.set(REQUESTED_PATH_HEADER, requested);
+  return NextResponse.next({ request: { headers } });
 }
 
 export const config = {

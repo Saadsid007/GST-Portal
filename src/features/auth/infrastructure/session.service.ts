@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { loginPathFor, REQUESTED_PATH_HEADER } from "@/features/auth/domain/safe-next";
 
 /**
  * Request-memoised. A single dashboard navigation used to validate the session
@@ -43,10 +44,19 @@ export function recordActivity(userId: string): void {
   });
 }
 
+/**
+ * Sends a visitor without a live session to /login, remembering the page they
+ * asked for so sign-in brings them back to it.
+ */
+export async function redirectToLogin(): Promise<never> {
+  const requested = (await headers()).get(REQUESTED_PATH_HEADER);
+  redirect(loginPathFor(requested));
+}
+
 export async function requireSession() {
   const session = await getServerSession();
   if (!session) {
-    redirect("/login");
+    return redirectToLogin();
   }
   return session;
 }
