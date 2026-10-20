@@ -60,6 +60,7 @@ model User {
   supportTickets     SupportTicket[]
   marketingSubscriber MarketingSubscriber?
 
+  @@index([deletedAt])
   @@map("user")
 }
 

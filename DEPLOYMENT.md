@@ -36,25 +36,32 @@ Codebase mein `@aws-sdk`, `S3Client`, ya koi bhi R2 call **nahi hai**. `.env.exa
 
 ### Konsa provider chuno
 
-**Neon (recommended)** — serverless Postgres, Vercel ke saath sabse achha chalta hai, free tier 0.5 GB. Connection pooling built-in hai jo serverless ke liye zaroori hai.
+**Supabase, region South Asia (Mumbai)** — Vercel ka function region bhi Mumbai (bom1) hai, isliye
+server aur database ek hi shehar mein: har query ~1–3 ms. Neon ka koi Mumbai region nahi hai (sabse
+paas Singapore, ~60–110 ms per query), isliye GSTPilot Oct 2026 mein Neon se Supabase pe shift hua.
 
-Alternatives: Supabase (free 500 MB, extra features), Vercel Postgres (Neon hi hai andar se, bas Vercel dashboard se manage hota hai).
+### Supabase steps
 
-### Neon steps
-
-1. https://neon.tech pe jao → "Sign up" → GitHub se login
-2. "Create a project" → naam `gstpilot` → region **AWS ap-south-1 (Mumbai)** chuno (Indian users ke liye latency kam)
-3. Project banne ke baad **Connection string** dikhega. Do versions milenge:
-   - **Pooled connection** (usme `-pooler` hoga hostname mein) — yeh app ke liye
-   - **Direct connection** — yeh migrations ke liye
-
-   Copy dono.
+1. supabase.com → New project → region **South Asia (Mumbai)**, password sirf letters aur digits.
+2. **Project Settings → Data API → disable.** App seedha Prisma se judta hai; REST API on rehne se
+   `public` tables public key se padhi ja sakti hain. (Saari tables pe RLS bhi on hai — dono parat.)
+3. **Connect** se do strings copy karo:
+   - **Transaction pooler** (port **6543**) → Vercel mein `DATABASE_URL` — app isse chalti hai
+   - **Session pooler** (port **5432**) → Vercel mein `DIRECT_URL` — build ke `prisma migrate deploy`
+     ke liye (transaction pooler migration ka advisory lock nahi pakad sakta). `prisma.config.ts`
+     `DIRECT_URL` ho to wahi use karta hai, warna `DATABASE_URL`.
 
    ```
-   postgresql://user:pass@ep-xyz-pooler.ap-south-1.aws.neon.tech/neondb?sslmode=require
+   DATABASE_URL="postgresql://postgres.<ref>:PASSWORD@aws-0-ap-south-1.pooler.supabase.com:6543/postgres"
+   DIRECT_URL="postgresql://postgres.<ref>:PASSWORD@aws-0-ap-south-1.pooler.supabase.com:5432/postgres"
    ```
 
-**Important:** `sslmode=require` zaroor hona chahiye, warna connection fail hoga.
+   Password mein special character ho to URL-encode karo (`@` → `%40`, `#` → `%23`), aur
+   `[YOUR-PASSWORD]` ke brackets hata do.
+
+**Note:** purani migrations khaali database se poora schema nahi banati (`payment` table pehle
+`db push` se bani thi). Naya database banana ho to schema purane database se lo
+(`prisma migrate diff --from-empty --to-config-datasource --script`), migrations se nahi.
 
 ### Migration file
 
@@ -197,7 +204,7 @@ Agar users 4.5 MB se badi files daalein, toh unhe pehle browser se seedha R2 pe 
 
 ### Region
 
-Vercel Settings → Functions → Region → **Mumbai (bom1)** set karo, taaki function aur database (Mumbai wala Neon) paas paas rahein. Default US hai jisse har DB query pe ~200ms extra lagega.
+Vercel Settings → Functions → Region → **Mumbai (bom1)** set karo, taaki function aur database (Supabase Mumbai) ek hi shehar mein rahein. Default US hai jisse har DB query pe ~200ms extra lagega.
 
 ### Migrations ka dhyan
 
