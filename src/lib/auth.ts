@@ -8,6 +8,7 @@ import { env } from "@/lib/env";
 import { createLogger } from "@/lib/logger";
 import prisma from "@/lib/prisma";
 import { EmailService } from "@/features/email/services/email.service";
+import { sendInBackground } from "@/features/email/services/send-in-background";
 import { normalizeIndianMobile, PHONE_ERROR } from "@/features/auth/domain/phone";
 
 const authLogger = createLogger({ module: "auth" });
@@ -29,7 +30,9 @@ export const auth = betterAuth({
     requireEmailVerification: true,
     sendResetPassword: async ({ user }) => {
       authLogger.info({ userId: user.id, email: user.email }, "Password reset email triggered");
-      void EmailService.sendPasswordResetEmail({ to: user.email, name: user.name });
+      sendInBackground("password-reset", () =>
+        EmailService.sendPasswordResetEmail({ to: user.email, name: user.name })
+      );
     },
   },
   user: {
@@ -42,17 +45,13 @@ export const auth = betterAuth({
     // A returning unverified user gets a fresh code at the password step.
     sendOnSignIn: true,
     autoSignInAfterVerification: true,
-    // Not awaited: Better Auth holds the signup response until this returns,
-    // and SMTP can take several seconds — the "Create account" button sat
-    // spinning for all of it.
+    // After the response: Better Auth holds the signup response until this
+    // returns, and SMTP can take several seconds. Never a bare `void` — on
+    // Vercel that send is killed when the response goes out.
     sendVerificationEmail: async ({ user }) => {
       authLogger.info({ userId: user.id, email: user.email }, "Verification email triggered");
-      void EmailService.sendVerificationEmail({ to: user.email, name: user.name }).then(
-        (result) => {
-          if (!result.success) {
-            authLogger.error({ userId: user.id, error: result.error }, "Verification email failed");
-          }
-        }
+      sendInBackground("verification", () =>
+        EmailService.sendVerificationEmail({ to: user.email, name: user.name })
       );
     },
   },
@@ -85,10 +84,9 @@ export const auth = betterAuth({
           );
 
           // 1. Send Welcome & 30-Day Free Trial Email
-          void EmailService.sendWelcomeTrialEmail({
-            to: user.email,
-            name: user.name,
-          });
+          sendInBackground("welcome", () =>
+            EmailService.sendWelcomeTrialEmail({ to: user.email, name: user.name })
+          );
 
           // 2. Auto-sync user into Marketing Audience
           try {

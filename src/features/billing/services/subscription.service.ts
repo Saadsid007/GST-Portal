@@ -15,6 +15,7 @@ import {
 import { billingLogger } from "@/features/billing/services/billing.logger";
 import { GstinStatus } from "@/features/billing/domain/gstin-capacity";
 import { EmailService } from "@/features/email/services/email.service";
+import { sendInBackground } from "@/features/email/services/send-in-background";
 
 export interface SubscriptionStatusSummary {
   id: string;
@@ -383,7 +384,7 @@ export async function activatePaidPlan(input: {
     });
 
     if (user?.email) {
-      void EmailService.sendPaymentReceiptEmail({
+      const receipt = {
         to: user.email,
         name: user.name,
         orderId: providerOrderId || `order_${Date.now().toString(36)}`,
@@ -391,7 +392,8 @@ export async function activatePaidPlan(input: {
         amountRupees,
         planName: plan.name,
         gstinSlots: plan.includedGSTINs,
-      });
+      };
+      sendInBackground("receipt-plan", () => EmailService.sendPaymentReceiptEmail(receipt));
 
       await prisma.marketingSubscriber.upsert({
         where: { email: user.email },

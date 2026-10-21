@@ -33,6 +33,7 @@ import {
   recordCapacityAudit,
   CAPACITY_AUDIT_ACTIONS,
 } from "@/features/billing/services/gstin-activity.service";
+import { sendInBackground } from "@/features/email/services/send-in-background";
 
 export interface GSTINCapacityStatus {
   userId: string;
@@ -656,15 +657,18 @@ export async function addGstinCapacity(input: {
 
     if (user?.email) {
       const { EmailService } = await import("@/features/email/services/email.service");
-      void EmailService.sendPaymentReceiptEmail({
-        to: user.email,
-        name: user.name,
-        orderId: providerOrderId || `addon_${Date.now().toString(36)}`,
-        paymentId,
-        amountRupees,
-        planName: `Extra GSTIN Capacity (+${quantity} slots)`,
-        gstinSlots: quantity,
-      });
+      const orderId = providerOrderId || `addon_${Date.now().toString(36)}`;
+      sendInBackground("receipt-addon", () =>
+        EmailService.sendPaymentReceiptEmail({
+          to: user.email,
+          name: user.name,
+          orderId,
+          paymentId,
+          amountRupees,
+          planName: `Extra GSTIN Capacity (+${quantity} slots)`,
+          gstinSlots: quantity,
+        })
+      );
     }
   } catch (err) {
     billingLogger.error({ error: err }, "Failed to send additional GSTIN receipt email");

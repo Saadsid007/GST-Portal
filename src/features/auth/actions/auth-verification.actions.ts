@@ -14,6 +14,7 @@ import {
 import { consumeRateLimit, resetRateLimit, retryAfterMessage } from "@/lib/rate-limit";
 import { z } from "zod";
 import crypto from "crypto";
+import { sendInBackground } from "@/features/email/services/send-in-background";
 
 const logger = createLogger({ module: "auth-verification-actions" });
 
@@ -69,19 +70,11 @@ export async function requestEmailVerificationAction(input: {
       return { success: true };
     }
 
-    // Dispatched in the background: SMTP can take tens of seconds and the
-    // response must not block on it.
-    void EmailService.sendVerificationEmail({
-      to: normalizedEmail,
-      name: user.name,
-    }).then((result) => {
-      if (!result.success) {
-        logger.error(
-          { email: normalizedEmail, error: result.error },
-          "Verification OTP failed to dispatch"
-        );
-      }
-    });
+    // After the response: SMTP can take tens of seconds and the response
+    // must not block on it.
+    sendInBackground("verification", () =>
+      EmailService.sendVerificationEmail({ to: normalizedEmail, name: user.name })
+    );
 
     logger.info({ email: normalizedEmail }, "Email verification OTP dispatched");
     return { success: true };
@@ -179,21 +172,11 @@ export async function requestPasswordResetAction(input: {
       return { success: true };
     }
 
-    // Dispatch in the background: SMTP delivery can take tens of seconds on
+    // After the response: SMTP delivery can take tens of seconds on
     // constrained networks, and the response must never block on it.
-    void EmailService.sendPasswordResetEmail({
-      to: normalizedEmail,
-      name: user.name,
-    }).then((result) => {
-      if (result.success) {
-        logger.info({ email: normalizedEmail }, "Password reset OTP dispatched");
-      } else {
-        logger.error(
-          { email: normalizedEmail, error: result.error },
-          "Password reset OTP failed to dispatch"
-        );
-      }
-    });
+    sendInBackground("password-reset", () =>
+      EmailService.sendPasswordResetEmail({ to: normalizedEmail, name: user.name })
+    );
 
     return { success: true };
   } catch (err) {
@@ -294,10 +277,9 @@ export async function verifyAndResetPasswordAction(input: {
 
     // Sessions are not revoked here — Better Auth owns that — but the user is
     // told, so a reset they did not perform is visible immediately.
-    void EmailService.sendPasswordChangedNotification({
-      to: normalizedEmail,
-      name: user.name,
-    });
+    sendInBackground("password-changed", () =>
+      EmailService.sendPasswordChangedNotification({ to: normalizedEmail, name: user.name })
+    );
 
     // The flow completed legitimately, so the throttle should not follow the
     // user into their next genuine reset.
