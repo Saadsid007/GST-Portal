@@ -9,15 +9,34 @@ interface AppLogoProps {
   className?: string;
   size?: "sm" | "md" | "lg" | "xl";
   priority?: boolean;
+  forceDark?: boolean;
 }
 
-export function AppLogo({ className, size = "md", priority = false }: AppLogoProps) {
+export function AppLogo({
+  className,
+  size = "md",
+  priority = false,
+  forceDark = false,
+}: AppLogoProps) {
   const sizeClasses = {
     sm: "h-6 sm:h-7 w-auto",
     md: "h-8 sm:h-9 w-auto",
     lg: "h-9 sm:h-10 w-auto",
     xl: "h-10 sm:h-12 w-auto",
   };
+
+  if (forceDark) {
+    return (
+      <div className={cn("relative inline-flex flex-shrink-0 items-center select-none", className)}>
+        <Image
+          src={logoDark}
+          alt="GSTPilot Logo"
+          priority={priority}
+          className={cn(sizeClasses[size], "object-contain")}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className={cn("relative inline-flex flex-shrink-0 items-center select-none", className)}>

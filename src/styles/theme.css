@@ -84,12 +84,12 @@
   --input: 210 40% 88%;
   --ring: 198.6 88.7% 48.4%;
 
-  /* --- Sidebar ----------------------------------------------------------- */
-  --sidebar-background: 0 0% 100%;
-  --sidebar-foreground: 215 16% 42%;
-  --sidebar-accent: 204 94% 96%;
-  --sidebar-accent-foreground: 222 47% 18%;
-  --sidebar-border: 210 40% 91%;
+  /* --- Sidebar (Dedicated Dark Executive Finish) --------------------------- */
+  --sidebar-background: 224 35% 8.5%; /* #0D111A deep executive midnight */
+  --sidebar-foreground: 220 14% 78%; /* #BFC5D2 crisp silver text */
+  --sidebar-accent: 224 26% 15%; /* #1A212F sleek dark hover */
+  --sidebar-accent-foreground: 220 18% 98%; /* pure white */
+  --sidebar-border: 224 30% 11%; /* #111722 very dark subtle seam */
 
   /* --- Data visualisation ------------------------------------------------ */
   --chart-1: 198.6 88.7% 48.4%;
@@ -161,11 +161,11 @@
   --input: 228 7% 18%;
   --ring: 213 94% 62%;
 
-  --sidebar-background: 228 9% 6.5%;
-  --sidebar-foreground: 225 7% 66%;
-  --sidebar-accent: 228 7% 12.5%;
-  --sidebar-accent-foreground: 220 14% 95%;
-  --sidebar-border: 228 7% 13%;
+  --sidebar-background: 224 35% 7.5%; /* #0B0E16 deep obsidian-slate */
+  --sidebar-foreground: 220 14% 78%;
+  --sidebar-accent: 224 26% 14%;
+  --sidebar-accent-foreground: 220 18% 98%;
+  --sidebar-border: 224 28% 10.5%;
 
   --chart-1: 213 94% 66%;
   --chart-2: 205 90% 56%;

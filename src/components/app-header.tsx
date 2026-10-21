@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import {
   Bell,
   ChevronRight,
+  ChevronDown,
   LogOut,
   Menu,
   Moon,
@@ -44,12 +45,12 @@ export function AppHeader({ user, isAdmin, onOpenMobileNav, onToggleCollapse, co
   const group = NAV_GROUPS.find((g) => g.items.some((i) => i.href === current?.href));
 
   return (
-    <header className="sticky top-0 z-30 flex h-13 flex-shrink-0 items-center gap-2.5 border-b border-border bg-background/85 px-3.5 backdrop-blur-xl sm:h-14 sm:px-5">
+    <header className="sticky top-0 z-30 flex h-13 flex-shrink-0 items-center gap-2.5 border-b border-border/80 bg-background/90 px-3.5 shadow-xs backdrop-blur-xl transition-all sm:h-14 sm:px-5">
       {/* Mobile drawer trigger */}
       <Button
         variant="ghost"
         size="icon-sm"
-        className="lg:hidden"
+        className="rounded-lg hover:bg-muted lg:hidden"
         onClick={onOpenMobileNav}
         aria-label="Open navigation"
       >
@@ -60,7 +61,7 @@ export function AppHeader({ user, isAdmin, onOpenMobileNav, onToggleCollapse, co
       <Button
         variant="ghost"
         size="icon-sm"
-        className="hidden lg:inline-flex"
+        className="hidden rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground lg:inline-flex"
         onClick={onToggleCollapse}
         aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -68,21 +69,36 @@ export function AppHeader({ user, isAdmin, onOpenMobileNav, onToggleCollapse, co
         {collapsed ? <PanelLeft /> : <PanelLeftClose />}
       </Button>
 
-      {/* Breadcrumb + title. Truncates rather than pushing the actions off-screen. */}
-      <div className="min-w-0 flex-1">
-        <nav aria-label="Breadcrumb" className="hidden items-center gap-1 text-2xs sm:flex">
+      {/* Breadcrumb + title panel header. Truncates rather than pushing the actions off-screen. */}
+      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+        <nav aria-label="Breadcrumb" className="hidden items-center gap-1.5 text-2xs sm:flex">
           {group && (
-            <>
-              <span className="font-medium text-muted-foreground">{group.label}</span>
-              <ChevronRight className="size-3 text-muted-foreground/50" aria-hidden />
-            </>
+            <div className="flex items-center gap-1">
+              <span className="rounded-md bg-muted/70 px-2 py-0.5 font-medium text-muted-foreground ring-1 ring-border/50">
+                {group.label}
+              </span>
+              <ChevronRight className="size-3 text-muted-foreground/40" aria-hidden />
+            </div>
           )}
-          <span className="font-semibold text-foreground">{current?.label ?? "GSTPilot"}</span>
+          <span className="text-xs font-semibold tracking-tight text-foreground sm:text-sm">
+            {current?.label ?? "GSTPilot"}
+          </span>
         </nav>
         <p className="truncate text-sm font-semibold sm:hidden">{current?.label ?? "GSTPilot"}</p>
-        <p className="hidden truncate text-2xs text-muted-foreground sm:block">
+
+        {current?.description && (
+          <span className="hidden h-3.5 w-px bg-border/80 lg:block" aria-hidden />
+        )}
+        <p className="hidden truncate text-2xs text-muted-foreground lg:block">
           {current?.description}
         </p>
+
+        {current?.href === "/convert" && (
+          <span className="hidden items-center gap-1.5 rounded-full border border-primary/25 bg-gradient-to-r from-primary/15 to-transparent px-2.5 py-0.5 text-[10px] font-semibold text-primary-ink shadow-2xs sm:inline-flex">
+            <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
+            AI Converter Ready
+          </span>
+        )}
       </div>
 
       <div className="flex flex-shrink-0 items-center gap-1.5">
@@ -94,12 +110,12 @@ export function AppHeader({ user, isAdmin, onOpenMobileNav, onToggleCollapse, co
           asChild
           variant="outline"
           size="sm"
-          className="hidden lg:inline-flex"
+          className="hidden rounded-xl border-amber-500/25 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent text-amber-700 shadow-2xs transition-all hover:border-amber-500/40 hover:bg-amber-500/15 hover:text-amber-800 lg:inline-flex dark:text-amber-300 dark:hover:text-amber-200"
           title="Refer GSTPilot to a friend"
         >
-          <Link href="/refer">
-            <Gift />
-            Refer &amp; earn
+          <Link href="/refer" className="flex items-center gap-1.5 font-medium">
+            <Gift className="size-3.5 text-amber-500" />
+            <span>Refer &amp; earn</span>
           </Link>
         </Button>
 
@@ -251,11 +267,11 @@ function GlobalSearch({ isAdmin }: { isAdmin: boolean }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="hidden items-center gap-2.5 rounded-lg border border-border bg-card px-3 py-1.5 text-2xs text-muted-foreground transition-all hover:border-primary/40 hover:bg-accent/50 hover:text-foreground md:inline-flex"
+        className="hidden items-center gap-2.5 rounded-xl border border-border/80 bg-card px-3 py-1.5 text-2xs text-muted-foreground transition-all duration-150 hover:border-primary/40 hover:bg-accent hover:text-foreground hover:shadow-xs md:inline-flex"
       >
-        <Search className="size-3.5 text-muted-foreground" aria-hidden />
-        <span className="font-medium">Search navigation...</span>
-        <kbd className="ml-2 rounded border border-border bg-muted/80 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-muted-foreground shadow-xs">
+        <Search className="size-3.5 text-primary" aria-hidden />
+        <span className="font-medium">Quick search...</span>
+        <kbd className="ml-2 rounded-md border border-border bg-muted/80 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-muted-foreground shadow-2xs">
           {isMac ? "⌘K" : "Ctrl+K"}
         </kbd>
       </button>
@@ -478,12 +494,21 @@ function UserMenu({ user, isAdmin }: { user: { name: string; email: string }; is
       <DropdownMenu.Trigger asChild>
         <button
           type="button"
-          className="flex items-center gap-2 rounded-lg p-1 transition-colors hover:bg-accent"
+          className="flex items-center gap-2 rounded-xl border border-transparent p-1 transition-all duration-150 hover:border-border/60 hover:bg-accent sm:px-2 sm:py-1"
           aria-label="Account menu"
         >
-          <span className="flex size-7 items-center justify-center rounded-full bg-primary/15 text-2xs font-bold text-primary-ink ring-1 ring-primary/25">
+          <span className="flex size-7 items-center justify-center rounded-full bg-gradient-to-br from-primary/25 to-primary/10 text-2xs font-bold text-primary-ink shadow-2xs ring-1 ring-primary/30">
             {initial}
           </span>
+          <span className="hidden flex-col text-left leading-none sm:flex">
+            <span className="max-w-[110px] truncate text-[12px] font-semibold text-foreground">
+              {user.name || "User"}
+            </span>
+            <span className="mt-0.5 text-[9.5px] font-medium text-muted-foreground">
+              {isAdmin ? "Administrator" : "Active Plan"}
+            </span>
+          </span>
+          <ChevronDown className="hidden size-3 text-muted-foreground/60 sm:block" aria-hidden />
         </button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>

@@ -51,15 +51,10 @@ export function AppShell({ children, user, isAdmin = false }: AppShellProps) {
   return (
     <div className="flex min-h-screen bg-background">
       {/* Desktop sidebar */}
-      {/* Sticky, full-height, and its own scroll container: the page scrolls
-          under it rather than taking the nav with it. `h-dvh` keeps it exactly
-          one viewport tall so a long nav scrolls internally instead of pushing
-          the rail past the bottom of the screen. */}
+      {/* Sticky, full-height, and its own scroll container */}
       <aside
         className={cn(
-          // overflow-hidden, not auto: SidebarContent's <nav> is the scroller,
-          // which keeps the logo pinned and avoids a nested scrollbar.
-          "sticky top-0 hidden h-dvh flex-shrink-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar-background transition-[width] duration-300 ease-[var(--ease-standard)] lg:flex",
+          "sticky top-0 hidden h-dvh flex-shrink-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar-background/95 shadow-[1px_0_15px_-4px_rgba(0,0,0,0.03)] backdrop-blur-xl transition-[width] duration-300 ease-[var(--ease-standard)] lg:flex dark:shadow-[1px_0_25px_-4px_rgba(0,0,0,0.45)]",
           collapsed ? "w-[64px]" : "w-60"
         )}
       >
@@ -75,12 +70,12 @@ export function AppShell({ children, user, isAdmin = false }: AppShellProps) {
             onClick={() => setDrawerOpen(false)}
             className="absolute inset-0 bg-foreground/40 backdrop-blur-sm"
           />
-          <aside className="absolute inset-y-0 left-0 flex w-64 max-w-[85vw] animate-slide-in flex-col border-r border-sidebar-border bg-sidebar-background shadow-xl">
+          <aside className="absolute inset-y-0 left-0 flex w-64 max-w-[85vw] animate-slide-in flex-col border-r border-sidebar-border bg-sidebar-background shadow-2xl">
             <button
               type="button"
               onClick={closeDrawer}
               aria-label="Close navigation"
-              className="absolute top-3.5 right-3 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              className="absolute top-3.5 right-3 rounded-lg p-1.5 text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
             >
               <X className="size-4" />
             </button>
@@ -124,11 +119,18 @@ function SidebarContent({
   onNavigate?: () => void;
 }) {
   return (
-    <>
+    <div className="relative flex h-full flex-col overflow-hidden">
+      {/* Ambient top light glow */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-12 left-1/2 h-28 w-44 -translate-x-1/2 rounded-full bg-primary/20 blur-2xl"
+      />
+
+      {/* Header Logo area */}
       <div
         className={cn(
-          "flex h-13 flex-shrink-0 items-center gap-2 border-b border-sidebar-border sm:h-14",
-          collapsed ? "justify-center px-2" : "px-3.5"
+          "relative z-10 flex h-13 flex-shrink-0 items-center border-b border-white/[0.06] sm:h-14",
+          collapsed ? "justify-center px-2" : "justify-between px-3.5"
         )}
       >
         <Link
@@ -137,28 +139,96 @@ function SidebarContent({
           title={SITE.name}
         >
           {collapsed ? (
-            // The shield is the left 28% of the wordmark: at h-6 / h-7 that is
-            // 20px / 24px, so the clip shows the mark and none of the "G".
-            <AppLogo size="sm" className="max-w-[20px] overflow-hidden sm:max-w-[24px]" />
+            <AppLogo size="sm" forceDark className="max-w-[20px] overflow-hidden sm:max-w-[24px]" />
           ) : (
-            <AppLogo size="sm" priority />
+            <div className="flex items-center gap-2">
+              <AppLogo size="sm" forceDark priority />
+            </div>
           )}
         </Link>
+        {!collapsed && (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.07] px-2 py-0.5 text-[10px] font-semibold tracking-tight text-sidebar-foreground">
+            <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" />
+            Portal
+          </span>
+        )}
       </div>
 
-      <nav className="flex-1 space-y-4 overflow-y-auto px-2.5 py-3.5">
+      {/* Navigation Groups */}
+      <nav className="relative z-10 scrollbar-none flex-1 space-y-4 overflow-y-auto px-2.5 py-3.5">
         {groups.map((group) => (
           <div key={group.id}>
             {!collapsed && (
-              <p className="px-2.5 pb-1.5 text-[11px] font-semibold tracking-wider text-muted-foreground/80 uppercase">
+              <p className="px-2 pb-1.5 text-[10.5px] font-bold tracking-wider text-sidebar-foreground/60 uppercase">
                 {group.label}
               </p>
             )}
-            {collapsed && <div className="mx-2 mb-1.5 h-px bg-sidebar-border" aria-hidden />}
+            {collapsed && <div className="mx-2 mb-2 h-px bg-white/[0.06]" aria-hidden />}
 
-            <ul className="space-y-0.5">
+            <ul className="space-y-1">
               {group.items.map((item) => {
                 const active = isItemActive(pathname, item.href);
+                const isConvert = item.href === "/convert";
+
+                // SPECIAL HIGHLIGHT FOR CONVERT MODULE WITH LIGHT SPEED FLASH ANIMATION (BORDERLESS CLEAN FINISH)
+                if (isConvert) {
+                  return (
+                    <li key={item.href}>
+                      <Link
+                        href={item.href}
+                        onClick={onNavigate}
+                        aria-current={active ? "page" : undefined}
+                        title={collapsed ? item.label + " (Instant AI GSTR-1 Engine)" : undefined}
+                        className={cn(
+                          "group relative flex items-center overflow-hidden rounded-xl font-semibold transition-all duration-200 select-none",
+                          collapsed
+                            ? "mx-auto size-10 justify-center p-0"
+                            : "gap-2.5 px-3 py-2.5 text-[13.5px]",
+                          active
+                            ? "bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-600 text-white shadow-md shadow-blue-950/50"
+                            : "bg-gradient-to-r from-blue-600/25 via-indigo-600/20 to-sky-600/25 text-white hover:bg-gradient-to-r hover:from-blue-600 hover:via-indigo-600 hover:to-sky-600 hover:text-white hover:shadow-md hover:shadow-blue-950/40"
+                        )}
+                      >
+                        {/* LIGHT SPEED FLASH BEAM ANIMATION */}
+                        <div
+                          aria-hidden
+                          className="pointer-events-none absolute inset-0 -skew-x-20 overflow-hidden"
+                        >
+                          <div className="absolute inset-y-0 w-24 -translate-x-full animate-[lightspeed-flash_3.4s_cubic-bezier(0.2,0.8,0.2,1)_infinite] bg-gradient-to-r from-transparent via-white/30 to-transparent group-hover:via-white/50" />
+                        </div>
+
+                        {/* Icon with lightning charge effect */}
+                        <div
+                          className={cn(
+                            "relative flex flex-shrink-0 items-center justify-center rounded-lg transition-colors duration-200",
+                            collapsed
+                              ? "size-6"
+                              : "size-6 bg-black/20 text-white group-hover:bg-white/20"
+                          )}
+                        >
+                          <item.icon
+                            className="size-[17px] text-amber-400 drop-shadow-[0_0_6px_rgba(245,158,11,0.6)] transition-transform duration-200 group-hover:scale-110 group-hover:text-amber-300"
+                            aria-hidden
+                          />
+                        </div>
+
+                        {!collapsed && (
+                          <>
+                            <span className="truncate font-semibold tracking-tight text-white">
+                              {item.label}
+                            </span>
+                            <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-blue-500/25 px-1.5 py-0.5 text-[9px] font-bold tracking-wider text-sky-200 uppercase transition-colors group-hover:bg-white/20 group-hover:text-white">
+                              <span className="size-1 animate-ping rounded-full bg-emerald-400" />
+                              FAST
+                            </span>
+                          </>
+                        )}
+                      </Link>
+                    </li>
+                  );
+                }
+
+                // Standard Nav Items
                 return (
                   <li key={item.href}>
                     <Link
@@ -167,26 +237,26 @@ function SidebarContent({
                       aria-current={active ? "page" : undefined}
                       title={collapsed ? item.label : undefined}
                       className={cn(
-                        "group relative flex items-center gap-2.5 rounded-lg text-[13.5px] font-medium transition-colors duration-150",
-                        collapsed ? "justify-center px-2 py-2.5" : "px-2.5 py-2",
+                        "group relative flex items-center rounded-lg text-[13px] font-medium transition-all duration-150 select-none",
+                        collapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-2.5 py-2",
                         active
-                          ? "bg-primary/12 font-semibold text-primary-ink"
-                          : item.accent
-                            ? "text-primary-ink hover:bg-primary/10"
-                            : "text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                          ? "bg-primary/20 font-semibold text-white shadow-xs"
+                          : "text-sidebar-foreground hover:translate-x-0.5 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                       )}
                     >
                       <span
                         aria-hidden
                         className={cn(
-                          "absolute left-0 h-4 w-0.5 rounded-r-full bg-primary transition-opacity duration-150",
-                          active ? "opacity-100" : "opacity-0"
+                          "absolute left-0 h-4.5 w-1 rounded-r-full bg-primary shadow-[0_0_8px_hsl(var(--primary))] transition-all duration-150",
+                          active ? "scale-y-100 opacity-100" : "scale-y-50 opacity-0"
                         )}
                       />
                       <item.icon
                         className={cn(
-                          "size-[18px] flex-shrink-0 transition-transform",
-                          !active && "group-hover:scale-105"
+                          "size-[18px] flex-shrink-0 transition-transform duration-150",
+                          active
+                            ? "text-primary"
+                            : "text-sidebar-foreground/70 group-hover:scale-105 group-hover:text-sidebar-accent-foreground"
                         )}
                         aria-hidden
                       />
@@ -199,6 +269,31 @@ function SidebarContent({
           </div>
         ))}
       </nav>
-    </>
+
+      {/* Sidebar Footer Status Indicator */}
+      {!collapsed && (
+        <div className="relative z-10 mt-auto border-t border-white/[0.06] p-2.5">
+          <div className="relative overflow-hidden rounded-xl bg-white/[0.04] p-2.5 shadow-xs">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <span className="relative flex size-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex size-2 rounded-full bg-emerald-400" />
+                </span>
+                <span className="text-[11px] font-semibold text-sidebar-foreground">
+                  AI Pipeline Active
+                </span>
+              </div>
+              <span className="rounded bg-primary/20 px-1.5 py-0.5 font-mono text-[9px] font-bold text-sky-400">
+                V2.2
+              </span>
+            </div>
+            <p className="mt-1 text-[10px] leading-tight text-sidebar-foreground/65">
+              Marketplace returns verified &amp; ready
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
