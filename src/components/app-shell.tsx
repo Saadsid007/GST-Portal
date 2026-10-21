@@ -170,7 +170,7 @@ function SidebarContent({
                 const active = isItemActive(pathname, item.href);
                 const isConvert = item.href === "/convert";
 
-                // SPECIAL HIGHLIGHT FOR CONVERT MODULE WITH LIGHT SPEED FLASH ANIMATION (BORDERLESS CLEAN FINISH)
+                // SPECIAL HIGHLIGHT FOR CONVERT MODULE WITH LIGHT SPEED FLASH ANIMATION (VIBRANT DEFAULT LOOK)
                 if (isConvert) {
                   return (
                     <li key={item.href}>
@@ -184,9 +184,8 @@ function SidebarContent({
                           collapsed
                             ? "mx-auto size-10 justify-center p-0"
                             : "gap-2.5 px-3 py-2.5 text-[13.5px]",
-                          active
-                            ? "bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-600 text-white shadow-md shadow-blue-950/50"
-                            : "bg-gradient-to-r from-blue-600/25 via-indigo-600/20 to-sky-600/25 text-white hover:bg-gradient-to-r hover:from-blue-600 hover:via-indigo-600 hover:to-sky-600 hover:text-white hover:shadow-md hover:shadow-blue-950/40"
+                          "bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-600 text-white shadow-md shadow-blue-950/50 hover:shadow-lg hover:shadow-blue-900/50 hover:brightness-110",
+                          active && "shadow-lg shadow-blue-900/60 brightness-105"
                         )}
                       >
                         {/* LIGHT SPEED FLASH BEAM ANIMATION */}
@@ -194,20 +193,20 @@ function SidebarContent({
                           aria-hidden
                           className="pointer-events-none absolute inset-0 -skew-x-20 overflow-hidden"
                         >
-                          <div className="absolute inset-y-0 w-24 -translate-x-full animate-[lightspeed-flash_3.4s_cubic-bezier(0.2,0.8,0.2,1)_infinite] bg-gradient-to-r from-transparent via-white/30 to-transparent group-hover:via-white/50" />
+                          <div className="absolute inset-y-0 w-24 -translate-x-full animate-[lightspeed-flash_3.4s_cubic-bezier(0.2,0.8,0.2,1)_infinite] bg-gradient-to-r from-transparent via-white/40 to-transparent group-hover:via-white/60" />
                         </div>
 
                         {/* Icon with lightning charge effect */}
                         <div
                           className={cn(
-                            "relative flex flex-shrink-0 items-center justify-center rounded-lg transition-colors duration-200",
+                            "relative flex flex-shrink-0 items-center justify-center rounded-lg transition-all duration-200",
                             collapsed
                               ? "size-6"
-                              : "size-6 bg-black/20 text-white group-hover:bg-white/20"
+                              : "size-6 bg-white/20 text-white group-hover:bg-white/30"
                           )}
                         >
                           <item.icon
-                            className="size-[17px] text-amber-400 drop-shadow-[0_0_6px_rgba(245,158,11,0.6)] transition-transform duration-200 group-hover:scale-110 group-hover:text-amber-300"
+                            className="size-[17px] text-amber-300 drop-shadow-[0_0_8px_rgba(245,158,11,0.75)] transition-transform duration-200 group-hover:scale-110 group-hover:text-amber-200"
                             aria-hidden
                           />
                         </div>
@@ -217,7 +216,7 @@ function SidebarContent({
                             <span className="truncate font-semibold tracking-tight text-white">
                               {item.label}
                             </span>
-                            <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-blue-500/25 px-1.5 py-0.5 text-[9px] font-bold tracking-wider text-sky-200 uppercase transition-colors group-hover:bg-white/20 group-hover:text-white">
+                            <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-white/20 px-1.5 py-0.5 text-[9px] font-bold tracking-wider text-white uppercase shadow-xs transition-colors group-hover:bg-white/30">
                               <span className="size-1 animate-ping rounded-full bg-emerald-400" />
                               FAST
                             </span>
