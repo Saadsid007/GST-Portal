@@ -20,13 +20,13 @@ export function WalletCreditsSection({
 }) {
   return (
     <section className="space-y-4">
-      <div className="grid gap-4 rounded-2xl border border-border bg-card p-5 md:grid-cols-[1fr_auto] md:items-center">
+      <div className="grid gap-4 rounded-2xl border border-purple-500/30 bg-gradient-to-br from-purple-500/[0.12] via-indigo-500/[0.04] to-card p-5 shadow-xs transition-all hover:border-purple-500/50 hover:shadow-md hover:shadow-purple-500/5 md:grid-cols-[1fr_auto] md:items-center dark:from-purple-950/60 dark:via-indigo-950/30 dark:to-card/90">
         <div className="flex items-start gap-3">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary-ink">
-            <Wallet className="size-5" aria-hidden />
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-purple-500/15 text-purple-600 ring-1 ring-purple-500/30 dark:bg-purple-500/25 dark:text-purple-400">
+            <Wallet className="size-5.5" aria-hidden />
           </span>
           <div>
-            <p className="text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
+            <p className="text-xs font-bold tracking-wider text-purple-700 uppercase dark:text-purple-300">
               Wallet credits
             </p>
             <p className="mt-0.5 text-2xl font-bold tracking-tight tabular-nums">

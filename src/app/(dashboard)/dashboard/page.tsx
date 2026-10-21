@@ -56,34 +56,42 @@ function HighlightMetricCard({
 }: MetricCardProps) {
   const styles = {
     blue: {
-      borderHover: "hover:border-blue-500/50",
-      iconBg: "bg-blue-500/10 text-blue-500 dark:bg-blue-500/15 dark:text-blue-400",
-      topGlow: "from-blue-500/20 via-blue-500/5 to-transparent",
-      badge: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
+      bg: "bg-gradient-to-br from-blue-500/[0.12] via-indigo-500/[0.04] to-card border-blue-500/30 dark:from-blue-950/60 dark:via-indigo-950/30 dark:to-card/90",
+      borderHover: "hover:border-blue-500/60 hover:shadow-lg hover:shadow-blue-500/10",
+      iconBg:
+        "bg-blue-500/15 text-blue-600 dark:bg-blue-500/25 dark:text-blue-400 ring-1 ring-blue-500/30",
+      topGlow: "from-blue-500/35 via-indigo-500/20 to-transparent",
+      badge: "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30",
     },
     emerald: {
-      borderHover: "hover:border-emerald-500/50",
-      iconBg: "bg-emerald-500/10 text-emerald-500 dark:bg-emerald-500/15 dark:text-emerald-400",
-      topGlow: "from-emerald-500/20 via-emerald-500/5 to-transparent",
-      badge: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+      bg: "bg-gradient-to-br from-emerald-500/[0.12] via-teal-500/[0.04] to-card border-emerald-500/30 dark:from-emerald-950/60 dark:via-teal-950/30 dark:to-card/90",
+      borderHover: "hover:border-emerald-500/60 hover:shadow-lg hover:shadow-emerald-500/10",
+      iconBg:
+        "bg-emerald-500/15 text-emerald-600 dark:bg-emerald-500/25 dark:text-emerald-400 ring-1 ring-emerald-500/30",
+      topGlow: "from-emerald-500/35 via-teal-500/20 to-transparent",
+      badge: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
     },
     purple: {
-      borderHover: "hover:border-purple-500/50",
-      iconBg: "bg-purple-500/10 text-purple-500 dark:bg-purple-500/15 dark:text-purple-400",
-      topGlow: "from-purple-500/20 via-purple-500/5 to-transparent",
-      badge: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20",
+      bg: "bg-gradient-to-br from-purple-500/[0.12] via-violet-500/[0.04] to-card border-purple-500/30 dark:from-purple-950/60 dark:via-violet-950/30 dark:to-card/90",
+      borderHover: "hover:border-purple-500/60 hover:shadow-lg hover:shadow-purple-500/10",
+      iconBg:
+        "bg-purple-500/15 text-purple-600 dark:bg-purple-500/25 dark:text-purple-400 ring-1 ring-purple-500/30",
+      topGlow: "from-purple-500/35 via-violet-500/20 to-transparent",
+      badge: "bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30",
     },
     amber: {
-      borderHover: "hover:border-amber-500/50",
-      iconBg: "bg-amber-500/10 text-amber-500 dark:bg-amber-500/15 dark:text-amber-400",
-      topGlow: "from-amber-500/20 via-amber-500/5 to-transparent",
-      badge: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
+      bg: "bg-gradient-to-br from-amber-500/[0.12] via-orange-500/[0.04] to-card border-amber-500/30 dark:from-amber-950/60 dark:via-orange-950/30 dark:to-card/90",
+      borderHover: "hover:border-amber-500/60 hover:shadow-lg hover:shadow-amber-500/10",
+      iconBg:
+        "bg-amber-500/15 text-amber-600 dark:bg-amber-500/25 dark:text-amber-400 ring-1 ring-amber-500/30",
+      topGlow: "from-amber-500/35 via-orange-500/20 to-transparent",
+      badge: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
     },
   }[accentColor];
 
   return (
     <div
-      className={`group relative flex card-lift flex-col overflow-hidden rounded-2xl border border-border/80 bg-card p-4.5 transition-all sm:p-5 ${styles.borderHover} shadow-xs`}
+      className={`group relative flex card-lift flex-col overflow-hidden rounded-2xl border p-4.5 transition-all sm:p-5 ${styles.bg} ${styles.borderHover} shadow-xs`}
     >
       {/* Subtle top ambient light glow line */}
       <div
@@ -568,45 +576,48 @@ export default async function DashboardPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-left text-xs">
-              <thead className="border-b border-border bg-subtle/70 text-3xs font-bold tracking-wider text-muted-foreground uppercase">
+            <table className="w-full min-w-[640px] text-left">
+              <thead className="border-b border-blue-500/20 bg-gradient-to-r from-blue-900/[0.08] via-indigo-900/[0.05] to-blue-900/[0.08] text-xs font-bold tracking-wider text-blue-950 uppercase dark:from-blue-950/70 dark:via-slate-900/60 dark:to-indigo-950/70 dark:text-blue-100">
                 <tr>
-                  <th className="px-4 py-3">Channel</th>
-                  <th className="px-4 py-3">GSTIN</th>
-                  <th className="px-4 py-3">Return Period</th>
-                  <th className="px-4 py-3 text-right">Invoices</th>
-                  <th className="px-4 py-3 text-right">Taxable Sales</th>
-                  <th className="px-4 py-3 text-right">GST Tax</th>
-                  <th className="px-4 py-3 text-right">Status</th>
+                  <th className="px-4.5 py-3.5">Channel</th>
+                  <th className="px-4.5 py-3.5">GSTIN</th>
+                  <th className="px-4.5 py-3.5">Return Period</th>
+                  <th className="px-4.5 py-3.5 text-right">Invoices</th>
+                  <th className="px-4.5 py-3.5 text-right">Taxable Sales</th>
+                  <th className="px-4.5 py-3.5 text-right">GST Tax</th>
+                  <th className="px-4.5 py-3.5 text-right">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60 bg-card">
                 {recent.map((item) => (
-                  <tr key={item.id} className="transition-colors hover:bg-muted/40">
-                    <td className="px-4 py-3 font-semibold text-foreground">
-                      <span className="inline-flex items-center gap-1.5 rounded-lg bg-primary/[0.08] px-2 py-1 text-3xs font-bold text-primary-ink capitalize">
-                        <FileText className="size-3" />
+                  <tr
+                    key={item.id}
+                    className="transition-colors hover:bg-blue-500/[0.03] dark:hover:bg-blue-400/[0.05]"
+                  >
+                    <td className="px-4.5 py-3.5 font-semibold text-foreground">
+                      <span className="inline-flex items-center gap-1.5 rounded-lg border border-blue-500/20 bg-blue-500/[0.12] px-2.5 py-1 text-xs font-bold text-blue-700 capitalize dark:bg-blue-500/20 dark:text-blue-300">
+                        <FileText className="size-3.5" />
                         {item.platformId}
                       </span>
                     </td>
-                    <td className="px-4 py-3 font-mono text-3xs text-muted-foreground">
+                    <td className="px-4.5 py-3.5 font-mono text-[13px] text-muted-foreground">
                       {item.gstinNumber}
                     </td>
-                    <td className="px-4 py-3 text-3xs font-medium text-foreground">
+                    <td className="px-4.5 py-3.5 text-[13.5px] font-medium text-foreground">
                       {formatPeriod(item.returnPeriod)}
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-3xs font-semibold tabular-nums">
+                    <td className="px-4.5 py-3.5 text-right font-mono text-[13.5px] font-semibold tabular-nums">
                       {item.totalInvoices.toLocaleString("en-IN")}
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-xs font-black text-foreground tabular-nums">
+                    <td className="px-4.5 py-3.5 text-right font-mono text-[14.5px] font-black text-foreground tabular-nums">
                       {formatCurrency(Number(item.totalTaxable))}
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-3xs font-bold text-emerald-600 tabular-nums dark:text-emerald-400">
+                    <td className="px-4.5 py-3.5 text-right font-mono text-[13.5px] font-bold text-emerald-600 tabular-nums dark:text-emerald-400">
                       {formatCurrency(Number(item.totalTax))}
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-3xs font-bold text-emerald-600 dark:text-emerald-400">
-                        <span className="size-1 animate-pulse rounded-full bg-emerald-500" />
+                    <td className="px-4.5 py-3.5 text-right">
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                        <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
                         {item.status}
                       </span>
                     </td>

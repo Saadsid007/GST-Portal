@@ -314,19 +314,19 @@ export function AdminCampaignsMarketingPanel() {
       </div>
 
       {/* ── Audience Table ── */}
-      <div className="overflow-hidden rounded-2xl border border-border bg-card">
+      <div className="overflow-hidden rounded-2xl border border-blue-500/20 bg-card shadow-xs">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[700px] text-xs">
-            <thead className="border-b border-border bg-muted/40 font-bold text-muted-foreground uppercase">
+          <table className="w-full min-w-[700px] text-[14px]">
+            <thead className="border-b border-blue-500/20 bg-gradient-to-r from-blue-900/[0.08] via-indigo-900/[0.05] to-blue-900/[0.08] text-xs font-bold tracking-wider text-blue-950 uppercase dark:from-blue-950/70 dark:via-slate-900/60 dark:to-indigo-950/70 dark:text-blue-100">
               <tr>
-                <th className="px-4 py-3 text-left">Contact / User</th>
-                <th className="px-4 py-3 text-left">Plan Tier</th>
-                <th className="px-4 py-3 text-left">Audience Source</th>
-                <th className="px-4 py-3 text-left">Status</th>
-                <th className="px-4 py-3 text-left">Joined Date</th>
+                <th className="px-4.5 py-3.5 text-left">Contact / User</th>
+                <th className="px-4.5 py-3.5 text-left">Plan Tier</th>
+                <th className="px-4.5 py-3.5 text-left">Audience Source</th>
+                <th className="px-4.5 py-3.5 text-left">Status</th>
+                <th className="px-4.5 py-3.5 text-left">Joined Date</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-border/70">
               {isPending ? (
                 <tr>
                   <td colSpan={5} className="py-12 text-center text-muted-foreground">
@@ -346,8 +346,11 @@ export function AdminCampaignsMarketingPanel() {
                 </tr>
               ) : (
                 items.map((item) => (
-                  <tr key={item.id} className="transition-colors hover:bg-muted/20">
-                    <td className="px-4 py-3">
+                  <tr
+                    key={item.id}
+                    className="transition-colors hover:bg-blue-500/[0.03] dark:hover:bg-blue-400/[0.05]"
+                  >
+                    <td className="px-4.5 py-3.5">
                       <div className="font-semibold text-foreground">{item.name || "Unnamed"}</div>
                       <div className="font-mono text-muted-foreground">{item.email}</div>
                     </td>

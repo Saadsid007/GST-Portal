@@ -76,6 +76,9 @@ export default async function AdminOverviewPage() {
       hint: `${adminCount} administrator${adminCount === 1 ? "" : "s"}`,
       icon: Users,
       href: "/admin/subscriptions",
+      bg: "border-blue-500/30 bg-gradient-to-br from-blue-500/[0.12] via-indigo-500/[0.04] to-card hover:border-blue-500/50 hover:shadow-md hover:shadow-blue-500/5 dark:from-blue-950/60 dark:via-indigo-950/30 dark:to-card/90",
+      iconBg:
+        "bg-blue-500/15 text-blue-600 ring-1 ring-blue-500/30 dark:bg-blue-500/25 dark:text-blue-400",
     },
     {
       label: "Active Subscriptions",
@@ -83,6 +86,9 @@ export default async function AdminOverviewPage() {
       hint: `${trialSubsCount} on 30-day free trial`,
       icon: CreditCard,
       href: "/admin/subscriptions",
+      bg: "border-emerald-500/30 bg-gradient-to-br from-emerald-500/[0.12] via-teal-500/[0.04] to-card hover:border-emerald-500/50 hover:shadow-md hover:shadow-emerald-500/5 dark:from-emerald-950/60 dark:via-teal-950/30 dark:to-card/90",
+      iconBg:
+        "bg-emerald-500/15 text-emerald-600 ring-1 ring-emerald-500/30 dark:bg-emerald-500/25 dark:text-emerald-400",
     },
     {
       label: "GSTIN Slots Capacity",
@@ -90,6 +96,9 @@ export default async function AdminOverviewPage() {
       hint: "Platform-wide client capacity",
       icon: Sliders,
       href: "/admin/subscriptions",
+      bg: "border-purple-500/30 bg-gradient-to-br from-purple-500/[0.12] via-violet-500/[0.04] to-card hover:border-purple-500/50 hover:shadow-md hover:shadow-purple-500/5 dark:from-purple-950/60 dark:via-violet-950/30 dark:to-card/90",
+      iconBg:
+        "bg-purple-500/15 text-purple-600 ring-1 ring-purple-500/30 dark:bg-purple-500/25 dark:text-purple-400",
     },
     {
       label: "Total Revenue",
@@ -97,6 +106,9 @@ export default async function AdminOverviewPage() {
       hint: `${conversionCount.toLocaleString("en-IN")} returns generated`,
       icon: TrendingUp,
       href: "/admin/subscriptions",
+      bg: "border-amber-500/30 bg-gradient-to-br from-amber-500/[0.12] via-orange-500/[0.04] to-card hover:border-amber-500/50 hover:shadow-md hover:shadow-amber-500/5 dark:from-amber-950/60 dark:via-orange-950/30 dark:to-card/90",
+      iconBg:
+        "bg-amber-500/15 text-amber-600 ring-1 ring-amber-500/30 dark:bg-amber-500/25 dark:text-amber-400",
     },
   ];
 
@@ -119,13 +131,25 @@ export default async function AdminOverviewPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map((s) => (
           <Link key={s.label} href={s.href}>
-            <Card variant="solid" interactive className="h-full p-5">
-              <div className="flex items-center gap-2 text-2xs font-semibold tracking-wide text-muted-foreground uppercase">
-                <s.icon className="size-4 text-primary-ink" aria-hidden />
-                {s.label}
+            <Card
+              variant="solid"
+              interactive
+              className={`h-full rounded-2xl border p-5 shadow-sm transition-all ${s.bg}`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold tracking-wider text-muted-foreground uppercase">
+                  {s.label}
+                </span>
+                <span
+                  className={`flex size-8 shrink-0 items-center justify-center rounded-xl ${s.iconBg}`}
+                >
+                  <s.icon className="size-4" aria-hidden />
+                </span>
               </div>
-              <p className="mt-2 text-2xl font-bold tabular-nums">{s.value}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{s.hint}</p>
+              <p className="mt-2 text-2xl font-black tracking-tight text-foreground tabular-nums sm:text-3xl">
+                {s.value}
+              </p>
+              <p className="mt-1 text-xs font-medium text-muted-foreground">{s.hint}</p>
             </Card>
           </Link>
         ))}
@@ -185,13 +209,13 @@ export default async function AdminOverviewPage() {
                   recentUsers.map((u) => (
                     <TableRow key={u.id}>
                       <TableCell>
-                        <p className="text-xs font-semibold">{u.name}</p>
-                        <p className="text-2xs text-muted-foreground">{u.email}</p>
+                        <p className="text-[13.5px] font-semibold">{u.name}</p>
+                        <p className="text-xs text-muted-foreground">{u.email}</p>
                       </TableCell>
                       <TableCell>
                         <Badge variant={u.role === "ADMIN" ? "primary" : "neutral"}>{u.role}</Badge>
                       </TableCell>
-                      <TableCell align="right" className="text-2xs text-muted-foreground">
+                      <TableCell align="right" className="text-xs text-muted-foreground">
                         {u.createdAt.toLocaleDateString("en-IN")}
                       </TableCell>
                     </TableRow>
@@ -229,16 +253,16 @@ export default async function AdminOverviewPage() {
                 ) : (
                   recentPayments.map((p) => (
                     <TableRow key={p.id}>
-                      <TableCell className="text-xs font-medium capitalize">
+                      <TableCell className="text-[13.5px] font-medium capitalize">
                         {p.planSlug ? p.planSlug.replace("_", " ") : p.paymentType}
                       </TableCell>
                       <TableCell
                         align="right"
-                        className="text-xs font-bold text-emerald-600 tabular-nums dark:text-emerald-400"
+                        className="text-[14px] font-bold text-emerald-600 tabular-nums dark:text-emerald-400"
                       >
                         ₹{p.amount}
                       </TableCell>
-                      <TableCell align="right" className="text-2xs text-muted-foreground">
+                      <TableCell align="right" className="text-xs text-muted-foreground">
                         {p.createdAt.toLocaleDateString("en-IN")}
                       </TableCell>
                     </TableRow>

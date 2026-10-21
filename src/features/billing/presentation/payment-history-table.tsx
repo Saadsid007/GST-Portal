@@ -41,19 +41,19 @@ export function PaymentHistoryTable({ history }: Props) {
         </p>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-border">
-        <table className="w-full text-left text-xs">
-          <thead className="border-b border-border bg-secondary/30 font-bold text-muted-foreground">
+      <div className="overflow-x-auto rounded-xl border border-blue-500/20 bg-card shadow-xs">
+        <table className="w-full text-left text-[14px]">
+          <thead className="border-b border-blue-500/20 bg-gradient-to-r from-blue-900/[0.08] via-indigo-900/[0.05] to-blue-900/[0.08] text-xs font-bold tracking-wider text-blue-950 uppercase dark:from-blue-950/70 dark:via-slate-900/60 dark:to-indigo-950/70 dark:text-blue-100">
             <tr>
-              <th className="px-4 py-3">Date</th>
-              <th className="px-4 py-3">Type</th>
-              <th className="px-4 py-3">Plan / Item</th>
-              <th className="px-4 py-3">Amount</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3 font-mono">Payment ID</th>
+              <th className="px-4.5 py-3.5">Date</th>
+              <th className="px-4.5 py-3.5">Type</th>
+              <th className="px-4.5 py-3.5">Plan / Item</th>
+              <th className="px-4.5 py-3.5">Amount</th>
+              <th className="px-4.5 py-3.5">Status</th>
+              <th className="px-4.5 py-3.5 font-mono">Payment ID</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody className="divide-y divide-border/70">
             {history.map((tx) => {
               const dateStr = new Date(tx.createdAt).toLocaleDateString("en-IN", {
                 day: "2-digit",
@@ -65,11 +65,14 @@ export function PaymentHistoryTable({ history }: Props) {
               const isFailed = tx.status === "FAILED";
 
               return (
-                <tr key={tx.id} className="hover:bg-accent/40 transition">
-                  <td className="px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">
+                <tr
+                  key={tx.id}
+                  className="transition-colors hover:bg-blue-500/[0.03] dark:hover:bg-blue-400/[0.05]"
+                >
+                  <td className="px-4.5 py-3.5 text-[13.5px] font-medium whitespace-nowrap text-muted-foreground">
                     {dateStr}
                   </td>
-                  <td className="px-4 py-3 font-semibold text-foreground whitespace-nowrap">
+                  <td className="px-4.5 py-3.5 text-[13.5px] font-semibold whitespace-nowrap text-foreground">
                     {tx.paymentType === "SUBSCRIPTION"
                       ? "Plan Subscription"
                       : tx.paymentType === "ADDITIONAL_GSTIN"
@@ -78,10 +81,10 @@ export function PaymentHistoryTable({ history }: Props) {
                           ? "Plan Renewal"
                           : tx.paymentType}
                   </td>
-                  <td className="px-4 py-3 capitalize text-muted-foreground whitespace-nowrap">
+                  <td className="px-4 py-3 whitespace-nowrap text-muted-foreground capitalize">
                     {tx.planSlug ? tx.planSlug.replace("_", " ") : "GSTIN Slots"}
                   </td>
-                  <td className="px-4 py-3 font-bold text-foreground whitespace-nowrap">
+                  <td className="px-4 py-3 font-bold whitespace-nowrap text-foreground">
                     ₹{tx.amount}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
@@ -99,7 +102,7 @@ export function PaymentHistoryTable({ history }: Props) {
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3 font-mono text-[11px] text-muted-foreground whitespace-nowrap">
+                  <td className="px-4 py-3 font-mono text-[11px] whitespace-nowrap text-muted-foreground">
                     {tx.providerPaymentId || "—"}
                   </td>
                 </tr>

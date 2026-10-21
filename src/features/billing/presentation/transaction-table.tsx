@@ -111,28 +111,33 @@ export function TransactionTable() {
           here.
         </p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[680px] text-xs">
-            <thead className="bg-muted/50 text-muted-foreground uppercase">
+        <div className="overflow-x-auto rounded-xl border border-blue-500/20 bg-card shadow-xs">
+          <table className="w-full min-w-[680px] text-[14px]">
+            <thead className="border-b border-blue-500/20 bg-gradient-to-r from-blue-900/[0.08] via-indigo-900/[0.05] to-blue-900/[0.08] text-xs font-bold tracking-wider text-blue-950 uppercase dark:from-blue-950/70 dark:via-slate-900/60 dark:to-indigo-950/70 dark:text-blue-100">
               <tr>
-                <th className="px-5 py-2.5 text-left font-bold">Date</th>
-                <th className="px-5 py-2.5 text-left font-bold">Type</th>
-                <th className="px-5 py-2.5 text-left font-bold">Description</th>
-                <th className="px-5 py-2.5 text-right font-bold">Credits</th>
-                <th className="px-5 py-2.5 text-right font-bold">Before</th>
-                <th className="px-5 py-2.5 text-right font-bold">After</th>
+                <th className="px-4.5 py-3.5 text-left font-bold">Date</th>
+                <th className="px-4.5 py-3.5 text-left font-bold">Type</th>
+                <th className="px-4.5 py-3.5 text-left font-bold">Description</th>
+                <th className="px-4.5 py-3.5 text-right font-bold">Credits</th>
+                <th className="px-4.5 py-3.5 text-right font-bold">Before</th>
+                <th className="px-4.5 py-3.5 text-right font-bold">After</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-border/70">
               {rows.map((row) => (
-                <tr key={row.id} className="border-t border-border">
-                  <td className="px-5 py-2.5 whitespace-nowrap text-muted-foreground">
+                <tr
+                  key={row.id}
+                  className="transition-colors hover:bg-blue-500/[0.03] dark:hover:bg-blue-400/[0.05]"
+                >
+                  <td className="px-4.5 py-3.5 text-[13.5px] font-medium whitespace-nowrap text-muted-foreground">
                     {formatter.format(new Date(row.createdAt))}
                   </td>
-                  <td className="px-5 py-2.5 font-semibold">{LABELS[row.type]}</td>
-                  <td className="px-5 py-2.5 text-muted-foreground">{row.description}</td>
+                  <td className="px-4.5 py-3.5 text-[13.5px] font-semibold">{LABELS[row.type]}</td>
+                  <td className="px-4.5 py-3.5 text-[13.5px] text-muted-foreground">
+                    {row.description}
+                  </td>
                   <td
-                    className={`px-5 py-2.5 text-right font-bold tabular-nums ${
+                    className={`px-4.5 py-3.5 text-right font-mono text-[14px] font-bold tabular-nums ${
                       row.creditAmount > 0
                         ? "text-success"
                         : row.creditAmount < 0
@@ -142,10 +147,10 @@ export function TransactionTable() {
                   >
                     {row.creditAmount > 0 ? `+${row.creditAmount}` : row.creditAmount}
                   </td>
-                  <td className="px-5 py-2.5 text-right text-muted-foreground tabular-nums">
+                  <td className="px-4.5 py-3.5 text-right font-mono text-[13.5px] text-muted-foreground tabular-nums">
                     {row.balanceBefore}
                   </td>
-                  <td className="px-5 py-2.5 text-right font-semibold tabular-nums">
+                  <td className="px-4.5 py-3.5 text-right font-mono text-[13.5px] font-semibold tabular-nums">
                     {row.balanceAfter}
                   </td>
                 </tr>

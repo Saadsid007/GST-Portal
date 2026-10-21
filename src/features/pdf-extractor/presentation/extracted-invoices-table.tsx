@@ -185,22 +185,22 @@ export function ExtractedInvoicesTable({ data }: ExtractedInvoicesTableProps) {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left text-xs">
+            <table className="w-full border-collapse text-left text-[14px]">
               <thead>
-                <tr className="border-b border-border bg-muted/50 font-semibold text-muted-foreground">
-                  <th className="px-4 py-3">HSN/SAC</th>
-                  <th className="px-4 py-3">Description</th>
-                  <th className="px-4 py-3">UQC</th>
-                  <th className="px-4 py-3 text-right">Total Qty</th>
-                  <th className="px-4 py-3 text-right">Rate</th>
-                  <th className="px-4 py-3 text-right">Taxable Value</th>
-                  <th className="px-4 py-3 text-right">IGST</th>
-                  <th className="px-4 py-3 text-right">CGST</th>
-                  <th className="px-4 py-3 text-right">SGST</th>
-                  <th className="px-4 py-3 text-right">Total Value</th>
+                <tr className="border-b border-blue-500/20 bg-gradient-to-r from-blue-900/[0.08] via-indigo-900/[0.05] to-blue-900/[0.08] text-xs font-bold tracking-wider text-blue-950 uppercase dark:from-blue-950/70 dark:via-slate-900/60 dark:to-indigo-950/70 dark:text-blue-100">
+                  <th className="px-4.5 py-3.5">HSN/SAC</th>
+                  <th className="px-4.5 py-3.5">Description</th>
+                  <th className="px-4.5 py-3.5">UQC</th>
+                  <th className="px-4.5 py-3.5 text-right">Total Qty</th>
+                  <th className="px-4.5 py-3.5 text-right">Rate</th>
+                  <th className="px-4.5 py-3.5 text-right">Taxable Value</th>
+                  <th className="px-4.5 py-3.5 text-right">IGST</th>
+                  <th className="px-4.5 py-3.5 text-right">CGST</th>
+                  <th className="px-4.5 py-3.5 text-right">SGST</th>
+                  <th className="px-4.5 py-3.5 text-right">Total Value</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border text-foreground">
+              <tbody className="divide-y divide-border/70 text-foreground">
                 {currentHsnData.length === 0 ? (
                   <tr>
                     <td colSpan={10} className="py-8 text-center text-muted-foreground">
@@ -211,7 +211,7 @@ export function ExtractedInvoicesTable({ data }: ExtractedInvoicesTableProps) {
                   currentHsnData.map((h, i) => (
                     <tr
                       key={`${h.hsnCode}-${h.rate}-${i}`}
-                      className="transition-colors hover:bg-muted/40"
+                      className="transition-colors hover:bg-blue-500/[0.03] dark:hover:bg-blue-400/[0.05]"
                     >
                       <td className="px-4 py-3 font-mono font-bold text-indigo-600 dark:text-indigo-400">
                         {h.hsnCode}
@@ -246,22 +246,22 @@ export function ExtractedInvoicesTable({ data }: ExtractedInvoicesTableProps) {
       ) : activeTab === "lines" ? (
         /* Flat Line Items View */
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-left text-xs">
+          <table className="w-full border-collapse text-left text-[14px]">
             <thead>
-              <tr className="border-b border-border bg-muted/50 font-semibold text-muted-foreground">
-                <th className="px-4 py-3">Invoice No</th>
-                <th className="px-4 py-3">Type</th>
-                <th className="px-4 py-3">HSN/SAC</th>
-                <th className="px-4 py-3">Item Description</th>
-                <th className="px-4 py-3 text-right">Qty</th>
-                <th className="px-4 py-3 text-right">Rate</th>
-                <th className="px-4 py-3 text-right">Taxable</th>
-                <th className="px-4 py-3 text-right">Tax</th>
-                <th className="px-4 py-3 text-right">Total Amount</th>
-                <th className="px-4 py-3">Buyer / Customer</th>
+              <tr className="border-b border-blue-500/20 bg-gradient-to-r from-blue-900/[0.08] via-indigo-900/[0.05] to-blue-900/[0.08] text-xs font-bold tracking-wider text-blue-950 uppercase dark:from-blue-950/70 dark:via-slate-900/60 dark:to-indigo-950/70 dark:text-blue-100">
+                <th className="px-4.5 py-3.5">Invoice No</th>
+                <th className="px-4.5 py-3.5">Type</th>
+                <th className="px-4.5 py-3.5">HSN/SAC</th>
+                <th className="px-4.5 py-3.5">Item Description</th>
+                <th className="px-4.5 py-3.5 text-right">Qty</th>
+                <th className="px-4.5 py-3.5 text-right">Rate</th>
+                <th className="px-4.5 py-3.5 text-right">Taxable</th>
+                <th className="px-4.5 py-3.5 text-right">Tax</th>
+                <th className="px-4.5 py-3.5 text-right">Total Amount</th>
+                <th className="px-4.5 py-3.5">Buyer / Customer</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border text-foreground">
+            <tbody className="divide-y divide-border/70 text-foreground">
               {filteredLineItems.length === 0 ? (
                 <tr>
                   <td colSpan={10} className="py-8 text-center text-muted-foreground">
@@ -270,7 +270,10 @@ export function ExtractedInvoicesTable({ data }: ExtractedInvoicesTableProps) {
                 </tr>
               ) : (
                 filteredLineItems.map((it) => (
-                  <tr key={it.id} className="transition-colors hover:bg-muted/40">
+                  <tr
+                    key={it.id}
+                    className="transition-colors hover:bg-blue-500/[0.03] dark:hover:bg-blue-400/[0.05]"
+                  >
                     <td className="px-4 py-3 font-mono font-medium text-foreground">
                       {it.invoiceNumber}
                     </td>
@@ -315,23 +318,23 @@ export function ExtractedInvoicesTable({ data }: ExtractedInvoicesTableProps) {
       ) : (
         /* Invoices Table View */
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-left text-xs">
+          <table className="w-full border-collapse text-left text-[14px]">
             <thead>
-              <tr className="border-b border-border bg-muted/50 font-semibold text-muted-foreground">
-                <th className="px-4 py-3">Invoice No</th>
-                <th className="px-4 py-3">Date</th>
-                <th className="px-4 py-3">Type</th>
-                <th className="px-4 py-3">Buyer Details</th>
-                <th className="px-4 py-3">Place of Supply</th>
-                <th className="px-4 py-3 text-right">Items</th>
-                <th className="px-4 py-3 text-right">Taxable</th>
-                <th className="px-4 py-3 text-right">Rate</th>
-                <th className="px-4 py-3 text-right">Tax Total</th>
-                <th className="px-4 py-3 text-right">Total Invoice</th>
-                <th className="px-4 py-3 text-center">Action</th>
+              <tr className="border-b border-blue-500/20 bg-gradient-to-r from-blue-900/[0.08] via-indigo-900/[0.05] to-blue-900/[0.08] text-xs font-bold tracking-wider text-blue-950 uppercase dark:from-blue-950/70 dark:via-slate-900/60 dark:to-indigo-950/70 dark:text-blue-100">
+                <th className="px-4.5 py-3.5">Invoice No</th>
+                <th className="px-4.5 py-3.5">Date</th>
+                <th className="px-4.5 py-3.5">Type</th>
+                <th className="px-4.5 py-3.5">Buyer Details</th>
+                <th className="px-4.5 py-3.5">Place of Supply</th>
+                <th className="px-4.5 py-3.5 text-right">Items</th>
+                <th className="px-4.5 py-3.5 text-right">Taxable</th>
+                <th className="px-4.5 py-3.5 text-right">Rate</th>
+                <th className="px-4.5 py-3.5 text-right">Tax Total</th>
+                <th className="px-4.5 py-3.5 text-right">Total Invoice</th>
+                <th className="px-4.5 py-3.5 text-center">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border text-foreground">
+            <tbody className="divide-y divide-border/70 text-foreground">
               {filteredInvoices.length === 0 ? (
                 <tr>
                   <td colSpan={11} className="py-10 text-center text-muted-foreground">
@@ -340,7 +343,10 @@ export function ExtractedInvoicesTable({ data }: ExtractedInvoicesTableProps) {
                 </tr>
               ) : (
                 filteredInvoices.map((inv) => (
-                  <tr key={inv.id} className="transition-colors hover:bg-muted/40">
+                  <tr
+                    key={inv.id}
+                    className="transition-colors hover:bg-blue-500/[0.03] dark:hover:bg-blue-400/[0.05]"
+                  >
                     <td className="px-4 py-3 font-mono font-medium text-foreground">
                       <div className="flex flex-col">
                         <span>{inv.invoiceNumber}</span>

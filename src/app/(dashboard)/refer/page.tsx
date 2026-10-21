@@ -53,18 +53,32 @@ export default async function ReferPage() {
 
       {/* How it works */}
       <section className="grid gap-4 md:grid-cols-3">
-        {steps.map((step, i) => (
-          <Card key={step.title} variant="solid" className="relative p-5">
-            <span className="absolute top-4 right-4 text-2xl font-bold text-muted-foreground/15 tabular-nums">
-              {i + 1}
-            </span>
-            <div className="mb-3 flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary-ink ring-1 ring-primary/20">
-              <step.icon className="size-5" aria-hidden />
-            </div>
-            <h2 className="text-sm font-semibold">{step.title}</h2>
-            <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{step.body}</p>
-          </Card>
-        ))}
+        {steps.map((step, i) => {
+          const stepStyles = [
+            "border-blue-500/30 bg-gradient-to-br from-blue-500/[0.10] via-indigo-500/[0.03] to-card dark:from-blue-950/50 dark:via-indigo-950/20 dark:to-card",
+            "border-emerald-500/30 bg-gradient-to-br from-emerald-500/[0.10] via-teal-500/[0.03] to-card dark:from-emerald-950/50 dark:via-teal-950/20 dark:to-card",
+            "border-purple-500/30 bg-gradient-to-br from-purple-500/[0.10] via-violet-500/[0.03] to-card dark:from-purple-950/50 dark:via-violet-950/20 dark:to-card",
+          ][i % 3];
+
+          return (
+            <Card
+              key={step.title}
+              variant="solid"
+              className={`relative rounded-2xl border p-5 shadow-xs transition-all hover:shadow-md ${stepStyles}`}
+            >
+              <span className="absolute top-4 right-4 text-2xl font-black text-muted-foreground/20 tabular-nums">
+                {i + 1}
+              </span>
+              <div className="mb-3 flex size-10 items-center justify-center rounded-xl bg-primary/15 text-primary-ink ring-1 ring-primary/30">
+                <step.icon className="size-5" aria-hidden />
+              </div>
+              <h2 className="text-sm font-bold text-foreground">{step.title}</h2>
+              <p className="mt-1.5 text-xs leading-relaxed font-medium text-muted-foreground">
+                {step.body}
+              </p>
+            </Card>
+          );
+        })}
       </section>
 
       {/* The two actions, each with room to breathe */}

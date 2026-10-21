@@ -143,9 +143,9 @@ export function AdminBlogList({ initialPosts, total }: AdminBlogListProps) {
             </p>
           </div>
         ) : (
-          <table className="w-full text-left text-xs">
+          <table className="w-full text-left text-[14px]">
             <thead>
-              <tr className="border-b border-border bg-subtle/60 text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
+              <tr className="border-b border-blue-500/20 bg-gradient-to-r from-blue-900/[0.08] via-indigo-900/[0.05] to-blue-900/[0.08] text-xs font-bold tracking-wider text-blue-950 uppercase dark:from-blue-950/70 dark:via-slate-900/60 dark:to-indigo-950/70 dark:text-blue-100">
                 <th className="px-5 py-3.5">Article</th>
                 <th className="px-5 py-3.5">Category</th>
                 <th className="px-5 py-3.5">Status</th>
@@ -154,9 +154,12 @@ export function AdminBlogList({ initialPosts, total }: AdminBlogListProps) {
                 <th className="px-5 py-3.5 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-border/70">
               {filteredPosts.map((post) => (
-                <tr key={post.id} className="transition-colors hover:bg-accent/40">
+                <tr
+                  key={post.id}
+                  className="transition-colors hover:bg-blue-500/[0.03] dark:hover:bg-blue-400/[0.05]"
+                >
                   <td className="px-5 py-4">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">

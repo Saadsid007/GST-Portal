@@ -70,27 +70,34 @@ export function AdminUsersPanel() {
         </button>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-border">
-        <table className="w-full min-w-[560px] text-xs">
-          <thead className="bg-muted/50 text-muted-foreground uppercase">
+      <div className="overflow-x-auto rounded-xl border border-blue-500/20 bg-card shadow-xs">
+        <table className="w-full min-w-[560px] text-[14px]">
+          <thead className="border-b border-blue-500/20 bg-gradient-to-r from-blue-900/[0.08] via-indigo-900/[0.05] to-blue-900/[0.08] text-xs font-bold tracking-wider text-blue-950 uppercase dark:from-blue-950/70 dark:via-slate-900/60 dark:to-indigo-950/70 dark:text-blue-100">
             <tr>
-              <th className="px-4 py-2.5 text-left font-bold">Name</th>
-              <th className="px-4 py-2.5 text-left font-bold">Email</th>
-              <th className="px-4 py-2.5 text-left font-bold">Admin since</th>
-              <th className="px-4 py-2.5 text-right font-bold" />
+              <th className="px-4.5 py-3.5 text-left font-bold">Name</th>
+              <th className="px-4.5 py-3.5 text-left font-bold">Email</th>
+              <th className="px-4.5 py-3.5 text-left font-bold">Admin since</th>
+              <th className="px-4.5 py-3.5 text-right font-bold" />
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-border/70">
             {rows.map((row) => (
-              <tr key={row.id} className="border-t border-border">
-                <td className="px-4 py-2.5 font-semibold">{row.name}</td>
-                <td className="px-4 py-2.5 font-mono text-muted-foreground">{row.email}</td>
-                <td className="px-4 py-2.5 text-muted-foreground">{row.createdAt.slice(0, 10)}</td>
-                <td className="px-4 py-2.5 text-right">
+              <tr
+                key={row.id}
+                className="transition-colors hover:bg-blue-500/[0.03] dark:hover:bg-blue-400/[0.05]"
+              >
+                <td className="px-4.5 py-3.5 text-[13.5px] font-semibold text-foreground">
+                  {row.name}
+                </td>
+                <td className="px-4.5 py-3.5 font-mono text-[13px] text-muted-foreground">
+                  {row.email}
+                </td>
+                <td className="px-4.5 py-3.5 text-[13.5px] text-muted-foreground">
+                  {row.createdAt.slice(0, 10)}
+                </td>
+                <td className="px-4.5 py-3.5 text-right">
                   {row.isSelf ? (
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase">
-                      You
-                    </span>
+                    <span className="text-xs font-bold text-muted-foreground uppercase">You</span>
                   ) : (
                     <button
                       type="button"
@@ -104,7 +111,7 @@ export function AdminUsersPanel() {
                           } else toast.error(result.error);
                         })
                       }
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-[10px] font-bold uppercase transition hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-xs font-bold uppercase transition hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
                     >
                       <ShieldMinus className="size-3" /> Revoke
                     </button>

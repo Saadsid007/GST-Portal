@@ -202,7 +202,7 @@ export function AdminSubscriptionsPanel() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-card">
+      <div className="overflow-hidden rounded-xl border border-blue-500/20 bg-card shadow-xs">
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <p className="text-sm font-semibold">
             {statusFilter === "DELETED" ? "Deleted accounts" : "Users"}{" "}
@@ -211,22 +211,25 @@ export function AdminSubscriptionsPanel() {
           {loading && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-left text-sm">
-            <thead className="border-b border-border bg-subtle text-2xs font-semibold tracking-wider text-muted-foreground uppercase">
+          <table className="w-full min-w-[900px] text-left text-[14px]">
+            <thead className="border-b border-blue-500/20 bg-gradient-to-r from-blue-900/[0.08] via-indigo-900/[0.05] to-blue-900/[0.08] text-xs font-bold tracking-wider text-blue-950 uppercase dark:from-blue-950/70 dark:via-slate-900/60 dark:to-indigo-950/70 dark:text-blue-100">
               <tr>
-                <th className="px-4 py-2.5">User</th>
-                <th className="px-4 py-2.5">Plan</th>
-                <th className="px-4 py-2.5">Status</th>
-                <th className="px-4 py-2.5">GSTINs</th>
-                <th className="px-4 py-2.5">Valid till</th>
-                <th className="px-4 py-2.5">Last active</th>
-                <th className="px-4 py-2.5 text-right">Paid</th>
+                <th className="px-4.5 py-3.5">User</th>
+                <th className="px-4.5 py-3.5">Plan</th>
+                <th className="px-4.5 py-3.5">Status</th>
+                <th className="px-4.5 py-3.5">GSTINs</th>
+                <th className="px-4.5 py-3.5">Valid till</th>
+                <th className="px-4.5 py-3.5">Last active</th>
+                <th className="px-4.5 py-3.5 text-right">Paid</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-border/70">
               {items.length === 0 && !loading && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                  <td
+                    colSpan={7}
+                    className="px-4.5 py-10 text-center text-sm text-muted-foreground"
+                  >
                     No users match these filters.
                   </td>
                 </tr>
@@ -243,11 +246,11 @@ export function AdminSubscriptionsPanel() {
                   }}
                   tabIndex={0}
                   className={cn(
-                    "cursor-pointer transition-colors hover:bg-accent/60 focus-visible:bg-accent/60 focus-visible:outline-none",
+                    "cursor-pointer transition-colors hover:bg-blue-500/[0.03] focus-visible:bg-blue-500/[0.05] focus-visible:outline-none dark:hover:bg-blue-400/[0.05]",
                     user.deleted && "opacity-70"
                   )}
                 >
-                  <td className="px-4 py-3">
+                  <td className="px-4.5 py-3.5">
                     <p className="font-semibold text-foreground">
                       {user.userName}
                       {user.role === "ADMIN" && (

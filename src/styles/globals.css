@@ -567,3 +567,69 @@ table th {
     display: none;
   }
 }
+
+/* ============================================================================
+   Enterprise Tables — Bluish Header Gradient & Enhanced Typography (+2px)
+   ========================================================================= */
+
+/* Global enhancement for all tables across the application */
+table:not([cellpadding]) {
+  font-size: 0.875rem; /* ~14px (2px boost from 12px) */
+  line-height: 1.45;
+}
+
+table:not([cellpadding]) thead {
+  background: linear-gradient(
+    90deg,
+    rgba(30, 58, 138, 0.08) 0%,
+    rgba(37, 99, 235, 0.05) 50%,
+    rgba(67, 56, 202, 0.08) 100%
+  ) !important;
+  border-bottom: 1.5px solid rgba(59, 130, 246, 0.22) !important;
+}
+
+.dark table:not([cellpadding]) thead {
+  background: linear-gradient(
+    90deg,
+    rgba(15, 23, 42, 0.95) 0%,
+    rgba(23, 37, 84, 0.85) 50%,
+    rgba(30, 58, 138, 0.6) 100%
+  ) !important;
+  border-bottom: 1.5px solid rgba(59, 130, 246, 0.35) !important;
+}
+
+table:not([cellpadding]) thead tr {
+  background: transparent !important;
+  border-bottom: 1.5px solid rgba(59, 130, 246, 0.22) !important;
+}
+
+.dark table:not([cellpadding]) thead tr {
+  border-bottom: 1.5px solid rgba(59, 130, 246, 0.35) !important;
+}
+
+table:not([cellpadding]) th {
+  font-size: 0.8125rem !important; /* ~13px (+2px boost from 10-11px) */
+  font-weight: 700 !important;
+  letter-spacing: 0.045em !important;
+  color: #1e3a8a !important; /* Deep navy-blue header text */
+  padding-top: 0.85rem !important;
+  padding-bottom: 0.85rem !important;
+}
+
+.dark table:not([cellpadding]) th {
+  color: #bfdbfe !important; /* Soft ice blue header text */
+}
+
+table:not([cellpadding]) td {
+  font-size: 0.875rem !important; /* ~14px (+2px boost from 12px) */
+  padding-top: 0.8rem !important;
+  padding-bottom: 0.8rem !important;
+}
+
+table:not([cellpadding]) tbody tr:hover {
+  background-color: rgba(59, 130, 246, 0.035);
+}
+
+.dark table:not([cellpadding]) tbody tr:hover {
+  background-color: rgba(59, 130, 246, 0.07);
+}

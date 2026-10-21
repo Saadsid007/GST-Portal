@@ -14,7 +14,7 @@ export function TableWrapper({
   return (
     <div
       className={cn(
-        "relative w-full min-w-0 overflow-x-auto overscroll-x-contain rounded-xl border border-border bg-card",
+        "relative w-full min-w-0 overflow-x-auto overscroll-x-contain rounded-xl border border-blue-500/20 bg-card shadow-xs",
         className
       )}
       {...props}
@@ -25,7 +25,7 @@ export function TableWrapper({
 }
 
 export function Table({ className, ...props }: React.TableHTMLAttributes<HTMLTableElement>) {
-  return <table className={cn("w-full border-collapse text-sm", className)} {...props} />;
+  return <table className={cn("w-full border-collapse text-[14px]", className)} {...props} />;
 }
 
 export function TableHeader({
@@ -36,7 +36,7 @@ export function TableHeader({
   return (
     <thead
       className={cn(
-        "bg-subtle text-2xs font-semibold tracking-wide text-muted-foreground uppercase",
+        "border-b border-blue-500/20 bg-gradient-to-r from-blue-900/[0.08] via-indigo-900/[0.05] to-blue-900/[0.08] text-xs font-bold tracking-wider text-blue-950 uppercase shadow-2xs backdrop-blur-xs dark:from-blue-950/70 dark:via-slate-900/60 dark:to-indigo-950/70 dark:text-blue-100",
         sticky && "sticky top-0 z-10",
         className
       )}
@@ -46,7 +46,7 @@ export function TableHeader({
 }
 
 export function TableBody({ className, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) {
-  return <tbody className={cn("divide-y divide-border", className)} {...props} />;
+  return <tbody className={cn("divide-y divide-border/70", className)} {...props} />;
 }
 
 export function TableRow({
@@ -57,8 +57,8 @@ export function TableRow({
   return (
     <tr
       className={cn(
-        "transition-colors",
-        interactive && "cursor-pointer hover:bg-accent/50",
+        "transition-colors hover:bg-blue-500/[0.03] dark:hover:bg-blue-400/[0.06]",
+        interactive && "cursor-pointer hover:bg-blue-500/[0.06] dark:hover:bg-blue-400/[0.09]",
         className
       )}
       {...props}
@@ -75,7 +75,7 @@ export function TableHead({
     <th
       scope="col"
       className={cn(
-        "border-b border-border px-4 py-2.5 font-semibold",
+        "border-b border-blue-500/20 px-4.5 py-3.5 text-xs font-bold tracking-wider text-blue-950 uppercase dark:text-blue-100",
         align === "right" && "text-right",
         align === "center" && "text-center",
         align === "left" && "text-left",
@@ -94,7 +94,7 @@ export function TableCell({
   return (
     <td
       className={cn(
-        "px-4 py-3",
+        "px-4.5 py-3.5 text-[14px] leading-relaxed font-medium text-foreground/90",
         align === "right" && "text-right",
         align === "center" && "text-center",
         className

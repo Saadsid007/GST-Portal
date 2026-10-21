@@ -112,29 +112,37 @@ export function BillingDashboard({ initialData }: Props) {
 
         {/* Quick Highlights Bar */}
         <div className="grid grid-cols-2 gap-3 pt-2 sm:grid-cols-4">
-          <div className="space-y-1 rounded-2xl border border-border bg-background p-4">
-            <p className="text-xs text-muted-foreground">GSTR-1 Generation</p>
-            <p className="flex items-center gap-1.5 text-sm font-extrabold text-emerald-600 dark:text-emerald-400">
+          <div className="space-y-1 rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/[0.12] via-teal-500/[0.04] to-card p-4 shadow-xs transition-all hover:border-emerald-500/50 hover:shadow-md hover:shadow-emerald-500/5 dark:from-emerald-950/60 dark:via-teal-950/30 dark:to-card/90">
+            <p className="text-xs font-bold tracking-wider text-muted-foreground uppercase">
+              GSTR-1 Generation
+            </p>
+            <p className="flex items-center gap-1.5 text-base font-extrabold text-emerald-600 dark:text-emerald-400">
               <Zap className="size-4" /> Unlimited
             </p>
           </div>
 
-          <div className="space-y-1 rounded-2xl border border-border bg-background p-4">
-            <p className="text-xs text-muted-foreground">GSTIN Capacity</p>
-            <p className="text-sm font-extrabold text-foreground">
+          <div className="space-y-1 rounded-2xl border border-blue-500/30 bg-gradient-to-br from-blue-500/[0.12] via-indigo-500/[0.04] to-card p-4 shadow-xs transition-all hover:border-blue-500/50 hover:shadow-md hover:shadow-blue-500/5 dark:from-blue-950/60 dark:via-indigo-950/30 dark:to-card/90">
+            <p className="text-xs font-bold tracking-wider text-muted-foreground uppercase">
+              GSTIN Capacity
+            </p>
+            <p className="text-base font-extrabold text-foreground">
               {cap.used} / {cap.totalCapacity} Used
             </p>
           </div>
 
-          <div className="space-y-1 rounded-2xl border border-border bg-background p-4">
-            <p className="text-xs text-muted-foreground">Add-on Cost</p>
-            <p className="text-sm font-extrabold text-primary-ink">₹6 / GSTIN / mo</p>
+          <div className="space-y-1 rounded-2xl border border-purple-500/30 bg-gradient-to-br from-purple-500/[0.12] via-violet-500/[0.04] to-card p-4 shadow-xs transition-all hover:border-purple-500/50 hover:shadow-md hover:shadow-purple-500/5 dark:from-purple-950/60 dark:via-violet-950/30 dark:to-card/90">
+            <p className="text-xs font-bold tracking-wider text-muted-foreground uppercase">
+              Add-on Cost
+            </p>
+            <p className="text-base font-extrabold text-primary-ink">₹6 / GSTIN / mo</p>
           </div>
 
-          <div className="space-y-1 rounded-2xl border border-border bg-background p-4">
-            <p className="text-xs text-muted-foreground">Auto-Renewal</p>
+          <div className="space-y-1 rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/[0.12] via-orange-500/[0.04] to-card p-4 shadow-xs transition-all hover:border-amber-500/50 hover:shadow-md hover:shadow-amber-500/5 dark:from-amber-950/60 dark:via-orange-950/30 dark:to-card/90">
+            <p className="text-xs font-bold tracking-wider text-muted-foreground uppercase">
+              Auto-Renewal
+            </p>
             <div className="flex items-center justify-between">
-              <p className="text-sm font-bold text-foreground">
+              <p className="text-base font-bold text-foreground">
                 {sub.autoRenew ? "Enabled" : "Off"}
               </p>
               {sub.autoRenew && !isTrial && !isExpired && (
