@@ -71,6 +71,11 @@ export function DashboardAnalyticsCharts({
 
   const totalCalculated = chartData.reduce((acc, curr) => acc + curr.taxable, 0);
 
+  // Real change between the last two return periods; none on sample data.
+  const last = monthlyData.at(-1)?.taxable ?? 0;
+  const previous = monthlyData.at(-2)?.taxable ?? 0;
+  const growth = hasRealData && previous > 0 ? ((last - previous) / previous) * 100 : null;
+
   if (!mounted) {
     return (
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -149,19 +154,31 @@ export function DashboardAnalyticsCharts({
         <div className="flex items-center justify-between px-1 py-3 text-2xs">
           <div className="flex items-center gap-4">
             <div>
-              <span className="text-muted-foreground">6-Mo Processed: </span>
+              <span className="text-muted-foreground">
+                {hasRealData ? "6-Mo Processed: " : "Sample total: "}
+              </span>
               <span className="font-mono font-bold text-foreground">
                 {formatCurrency(totalCalculated)}
               </span>
             </div>
-            <div className="hidden items-center gap-1 font-semibold text-emerald-600 sm:inline-flex dark:text-emerald-400">
-              <TrendingUp className="size-3" />
-              <span>+24.8% growth</span>
-            </div>
+            {growth !== null && (
+              <div
+                className={cn(
+                  "hidden items-center gap-1 font-semibold sm:inline-flex",
+                  growth >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive-ink"
+                )}
+              >
+                <TrendingUp className="size-3" />
+                <span>
+                  {growth >= 0 ? "+" : ""}
+                  {growth.toFixed(1)}% vs previous period
+                </span>
+              </div>
+            )}
           </div>
           <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
             <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
-            GSTN 100% Schema Valid
+            {hasRealData ? "Offline Tool V3.2.4 format" : "Sample data"}
           </span>
         </div>
 
@@ -294,7 +311,11 @@ export function DashboardAnalyticsCharts({
             </span>
             <div>
               <h3 className="text-sm font-bold tracking-tight text-foreground">Channel Share</h3>
-              <p className="text-2xs text-muted-foreground">Revenue split by marketplace</p>
+              <p className="text-2xs text-muted-foreground">
+                {hasRealData
+                  ? "Returns split by marketplace"
+                  : "Sample split. Convert a report to see yours"}
+              </p>
             </div>
           </div>
           <span className="rounded-md border border-border bg-muted/60 px-1.5 py-0.5 font-mono text-3xs font-semibold text-muted-foreground">

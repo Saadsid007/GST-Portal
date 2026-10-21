@@ -45,7 +45,7 @@ export function AppHeader({ user, isAdmin, onOpenMobileNav, onToggleCollapse, co
   const group = NAV_GROUPS.find((g) => g.items.some((i) => i.href === current?.href));
 
   return (
-    <header className="sticky top-0 z-30 flex h-13 flex-shrink-0 items-center gap-2.5 border-b border-border/80 bg-background/90 px-3.5 shadow-xs backdrop-blur-xl transition-all sm:h-14 sm:px-5">
+    <header className="sticky top-0 z-30 flex h-13 flex-shrink-0 items-center gap-2.5 border-b border-border/80 bg-background/95 px-3.5 shadow-xs transition-all sm:h-14 sm:px-5">
       {/* Mobile drawer trigger */}
       <Button
         variant="ghost"

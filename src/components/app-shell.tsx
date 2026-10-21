@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { NAV_GROUPS, isItemActive, type NavGroup } from "@/config/navigation";
 import { AppHeader } from "@/components/app-header";
 import { AppLogo } from "@/components/app-logo";
-import { SITE } from "@/config/site";
+import { BRAND_NAME } from "@/config/brand";
 import { createPersistedToggle } from "@/lib/persisted-toggle";
 import { FeedbackWidget } from "@/components/feedback-widget";
 
@@ -55,7 +55,7 @@ export function AppShell({ children, user, isAdmin = false }: AppShellProps) {
       {/* Sticky, full-height, and its own scroll container */}
       <aside
         className={cn(
-          "sticky top-0 hidden h-dvh flex-shrink-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar-background/95 shadow-[1px_0_15px_-4px_rgba(0,0,0,0.03)] backdrop-blur-xl transition-[width] duration-300 ease-[var(--ease-standard)] lg:flex dark:shadow-[1px_0_25px_-4px_rgba(0,0,0,0.45)]",
+          "sticky top-0 hidden h-dvh flex-shrink-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar-background shadow-[1px_0_15px_-4px_rgba(0,0,0,0.03)] transition-[width] duration-300 ease-[var(--ease-standard)] lg:flex dark:shadow-[1px_0_25px_-4px_rgba(0,0,0,0.45)]",
           collapsed ? "w-[64px]" : "w-60"
         )}
       >
@@ -140,7 +140,7 @@ function SidebarContent({
         <Link
           href="/dashboard"
           className="flex min-w-0 items-center gap-2 overflow-hidden"
-          title={SITE.name}
+          title={BRAND_NAME}
         >
           {collapsed ? (
             <AppLogo size="sm" forceDark className="max-w-[20px] overflow-hidden sm:max-w-[24px]" />

@@ -23,7 +23,8 @@ import { Button } from "@/components/ui";
 import { getGstinCapacity } from "@/features/billing/services/capacity.service";
 import { getOrCreateSubscription } from "@/features/billing/services/subscription.service";
 import { GstinStatus } from "@/features/billing/domain/gstin-capacity";
-import { DashboardAnalyticsCharts } from "@/features/dashboard/presentation/dashboard-analytics-charts";
+import { currentFilingWindow } from "@/features/dashboard/domain/filing-calendar";
+import { DashboardAnalyticsCharts } from "@/features/dashboard/presentation/dashboard-analytics-charts-lazy";
 
 export const metadata: Metadata = {
   title: "Executive Dashboard — Multi-Marketplace GSTR-1",
@@ -187,7 +188,9 @@ export default async function DashboardPage() {
           totalInvoices: true,
           createdAt: true,
         },
-        orderBy: { createdAt: "asc" },
+        // The latest 60. Ascending + take returned the oldest, and the charts
+        // froze once an account passed 60 conversions.
+        orderBy: { createdAt: "desc" },
         take: 60,
       }),
     ]);
@@ -221,7 +224,12 @@ export default async function DashboardPage() {
     });
   }
 
-  const monthlyDataPoints = Object.values(monthlyMap).slice(-6);
+  // Chronological by return period (MMYYYY), not by upload order.
+  const periodKey = (period: string) =>
+    /^\d{6}$/.test(period) ? period.slice(2) + period.slice(0, 2) : "999999";
+  const monthlyDataPoints = Object.values(monthlyMap)
+    .sort((x, y) => periodKey(x.period).localeCompare(periodKey(y.period)))
+    .slice(-6);
 
   // Platform share distribution
   const platformCounts: Record<string, { name: string; count: number; invoices: number }> = {};
@@ -252,8 +260,14 @@ export default async function DashboardPage() {
     value: item.count,
     color: platformColors[idx % platformColors.length] || "#3B82F6",
     invoices: item.invoices,
-    share: `${Math.round((item.count / totalReturns) * 100)}%`,
+    share: `${Math.round((item.count / Math.max(rawHistory.length, 1)) * 100)}%`,
   }));
+
+  const filing = currentFilingWindow();
+  const platformNames =
+    Object.keys(platformCounts)
+      .join(", ")
+      .replace(/, ([^,]*)$/, " & $1") || "your marketplaces";
 
   const planBadge = subscription.isExpired
     ? "Plan expired"
@@ -341,18 +355,24 @@ export default async function DashboardPage() {
             <Clock className="size-3.5 text-primary" />
             <span>Active Return Period:</span>
             <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-3xs font-bold">
-              October 2026
+              {filing.periodLabel}
             </span>
           </div>
           <span className="hidden text-border sm:inline">•</span>
           <div className="flex items-center gap-1.5">
             <CheckCircle2 className="size-3.5 text-emerald-500" />
-            <span>GSTR-1 Due Date: 11th Nov 2026 (On Schedule)</span>
+            <span>
+              GSTR-1 due {filing.dueLabel} (
+              {filing.daysLeft === 0
+                ? "today"
+                : `${filing.daysLeft} day${filing.daysLeft === 1 ? "" : "s"} left`}
+              )
+            </span>
           </div>
           <span className="hidden text-border sm:inline">•</span>
           <div className="flex items-center gap-1.5">
             <Sparkles className="size-3.5 text-amber-500" />
-            <span>AI Mapping Precision: 100% Tax Auto-Balanced</span>
+            <span>JSON in GST Offline Tool V3.2.4 format</span>
           </div>
         </div>
       </div>
@@ -364,10 +384,14 @@ export default async function DashboardPage() {
           label="Taxable Turnover"
           icon={TrendingUp}
           accentColor="blue"
-          value={hasRealData ? formatCurrency(realTaxable) : "₹48,90,000"}
-          badgeText={hasRealData ? `${totalReturns} Batches Processed` : "+24.8% vs last month"}
-          badgePositive={true}
-          footnote="Aggregated across Amazon, Meesho & Flipkart"
+          value={formatCurrency(realTaxable)}
+          badgeText={hasRealData ? `${totalReturns} Batches Processed` : "No returns yet"}
+          badgePositive={hasRealData}
+          footnote={
+            hasRealData
+              ? `Aggregated across ${platformNames}`
+              : "Convert your first marketplace report to see it here"
+          }
           linkHref="/history"
           linkLabel="Sales Log"
         />
@@ -377,10 +401,10 @@ export default async function DashboardPage() {
           label="GST Tax Processed"
           icon={ShieldCheck}
           accentColor="emerald"
-          value={hasRealData ? formatCurrency(realTax) : "₹8,80,200"}
-          badgeText="100% Reconciled"
-          badgePositive={true}
-          footnote="IGST, CGST & SGST verified with HSN rules"
+          value={formatCurrency(realTax)}
+          badgeText={hasRealData ? "IGST + CGST + SGST" : "No returns yet"}
+          badgePositive={hasRealData}
+          footnote="IGST, CGST & SGST split by place of supply"
           linkHref="/history"
           linkLabel="Tax Audit"
         />
@@ -390,14 +414,14 @@ export default async function DashboardPage() {
           label="Invoices Parsed"
           icon={FileCheck2}
           accentColor="purple"
-          value={hasRealData ? realInvoices.toLocaleString("en-IN") : "1,780"}
+          value={realInvoices.toLocaleString("en-IN")}
           unit="Invoices"
-          badgeText="0 Schema Errors"
-          badgePositive={true}
+          badgeText={hasRealData ? `${totalReturns} returns` : "No returns yet"}
+          badgePositive={hasRealData}
           footnote={
             hasRealData
-              ? `${totalReturns} Government GSTR-1 returns generated`
-              : "Ready for GST Offline Tool V2.2"
+              ? `${totalReturns} GSTR-1 returns generated`
+              : "Portal-ready JSON for the GST Offline Tool V3.2.4"
           }
           linkHref="/history"
           linkLabel="Returns Log"
@@ -455,7 +479,7 @@ export default async function DashboardPage() {
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-foreground">Amazon MTR</span>
                 <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[9px] font-bold text-blue-600 dark:text-blue-400">
-                  V2.2 Tested
+                  V3.2.4 ready
                 </span>
               </div>
               <p className="mt-1 text-2xs text-muted-foreground">
@@ -476,7 +500,7 @@ export default async function DashboardPage() {
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-foreground">Flipkart GSTR</span>
                 <span className="rounded-full bg-indigo-500/10 px-2 py-0.5 text-[9px] font-bold text-indigo-600 dark:text-indigo-400">
-                  V2.2 Tested
+                  V3.2.4 ready
                 </span>
               </div>
               <p className="mt-1 text-2xs text-muted-foreground">
@@ -497,7 +521,7 @@ export default async function DashboardPage() {
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-foreground">Meesho TCS</span>
                 <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-600 dark:text-emerald-400">
-                  V2.2 Tested
+                  V3.2.4 ready
                 </span>
               </div>
               <p className="mt-1 text-2xs text-muted-foreground">
@@ -516,13 +540,13 @@ export default async function DashboardPage() {
           <div className="flex flex-col justify-between rounded-xl border border-border/70 bg-muted/20 p-3.5 transition-all hover:border-amber-500/40 hover:bg-muted/40">
             <div>
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-foreground">Myntra &amp; Quick Comm.</span>
+                <span className="text-xs font-bold text-foreground">Myntra &amp; more</span>
                 <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[9px] font-bold text-amber-600 dark:text-amber-400">
                   Ready
                 </span>
               </div>
               <p className="mt-1 text-2xs text-muted-foreground">
-                Myntra PPMP, Blinkit, Zepto &amp; Instamart supplier ledger
+                Myntra, JioMart, Snapdeal, GlowRoad &amp; ShopDeck reports
               </p>
             </div>
             <div className="mt-3 flex items-center justify-between border-t border-border/50 pt-2 font-mono text-3xs text-muted-foreground">

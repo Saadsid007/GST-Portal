@@ -36,7 +36,7 @@ export function TableHeader({
   return (
     <thead
       className={cn(
-        "border-b border-blue-500/20 bg-gradient-to-r from-blue-900/[0.08] via-indigo-900/[0.05] to-blue-900/[0.08] text-xs font-bold tracking-wider text-blue-950 uppercase shadow-2xs backdrop-blur-xs dark:from-blue-950/70 dark:via-slate-900/60 dark:to-indigo-950/70 dark:text-blue-100",
+        "border-b border-blue-500/20 bg-gradient-to-r from-blue-900/[0.08] via-indigo-900/[0.05] to-blue-900/[0.08] text-xs font-bold tracking-wider text-blue-950 uppercase shadow-2xs dark:from-blue-950/70 dark:via-slate-900/60 dark:to-indigo-950/70 dark:text-blue-100",
         sticky && "sticky top-0 z-10",
         className
       )}

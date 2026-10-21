@@ -845,7 +845,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
               {gstr1CmpSection === "b2b" && (
                 <div className="max-h-[420px] overflow-auto rounded-xl border border-border">
                   <table className="w-full min-w-[760px] text-xs">
-                    <thead className="sticky top-0 border-b border-border bg-muted/90 backdrop-blur">
+                    <thead className="sticky top-0 border-b border-border bg-muted">
                       <tr className="text-left font-semibold text-muted-foreground">
                         <th className="px-3 py-2.5">Status</th>
                         <th className="px-3 py-2.5">Invoice #</th>
@@ -942,7 +942,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
                   </div>
                   <div className="max-h-[400px] overflow-auto rounded-xl border border-border">
                     <table className="w-full min-w-[540px] text-xs">
-                      <thead className="sticky top-0 border-b border-border bg-muted/90 backdrop-blur">
+                      <thead className="sticky top-0 border-b border-border bg-muted">
                         <tr className="text-left font-semibold text-muted-foreground">
                           <th className="px-3 py-2.5">Status</th>
                           <th className="px-3 py-2.5">State</th>
@@ -1008,7 +1008,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
               {gstr1CmpSection === "b2cl" && (
                 <div className="max-h-[420px] overflow-auto rounded-xl border border-border">
                   <table className="w-full min-w-[640px] text-xs">
-                    <thead className="sticky top-0 border-b border-border bg-muted/90 backdrop-blur">
+                    <thead className="sticky top-0 border-b border-border bg-muted">
                       <tr className="text-left font-semibold text-muted-foreground">
                         <th className="px-3 py-2.5">Status</th>
                         <th className="px-3 py-2.5">Invoice #</th>
@@ -1088,7 +1088,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
               {gstr1CmpSection === "cdnr" && (
                 <div className="max-h-[420px] overflow-auto rounded-xl border border-border">
                   <table className="w-full min-w-[700px] text-xs">
-                    <thead className="sticky top-0 border-b border-border bg-muted/90 backdrop-blur">
+                    <thead className="sticky top-0 border-b border-border bg-muted">
                       <tr className="text-left font-semibold text-muted-foreground">
                         <th className="px-3 py-2.5">Status</th>
                         <th className="px-3 py-2.5">Section</th>
@@ -1235,7 +1235,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
               the Action button that is the only way to repair a row. */}
           <div className="max-h-[500px] overflow-auto rounded-xl border border-border bg-card">
             <table className="w-full min-w-[1000px] text-xs">
-              <thead className="sticky top-0 z-10 border-b border-border bg-muted/90 backdrop-blur">
+              <thead className="sticky top-0 z-10 border-b border-border bg-muted">
                 <tr className="text-left font-semibold text-muted-foreground">
                   <th className="px-3 py-2.5">Source</th>
                   <th className="px-3 py-2.5">Type</th>

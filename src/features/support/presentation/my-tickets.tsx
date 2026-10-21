@@ -245,7 +245,7 @@ export function MyTickets({ tickets, userEmail: _userEmail }: Props) {
       </div>
 
       {/* ── Official Direct Support Channels Hero Banner ── */}
-      <div className="relative overflow-hidden rounded-3xl border border-blue-500/30 bg-gradient-to-r from-blue-600/[0.09] via-indigo-600/[0.05] to-card p-6 shadow-sm backdrop-blur-xs dark:from-blue-950/50 dark:via-indigo-950/30 dark:to-card/90">
+      <div className="relative overflow-hidden rounded-3xl border border-blue-500/30 bg-gradient-to-r from-blue-600/[0.09] via-indigo-600/[0.05] to-card p-6 shadow-sm dark:from-blue-950/50 dark:via-indigo-950/30 dark:to-card/90">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-4">
             <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-md shadow-blue-500/30">

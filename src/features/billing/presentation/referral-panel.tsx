@@ -21,7 +21,14 @@ import {
 import type { ReferralSummary } from "@/features/billing/types/billing.types";
 import { cn } from "@/lib/utils";
 
-export function ReferralPanel({ summary }: { summary: ReferralSummary }) {
+export function ReferralPanel({
+  summary,
+  refereeCredits,
+}: {
+  summary: ReferralSummary;
+  /** What the invited person receives, from the billing config. */
+  refereeCredits: number;
+}) {
   const router = useRouter();
   const [copied, setCopied] = useState<string | null>(null);
   const [code, setCode] = useState("");
@@ -59,10 +66,10 @@ export function ReferralPanel({ summary }: { summary: ReferralSummary }) {
     });
   }
 
-  const shareText = `Hey, use my GSTPilot referral code ${summary.code} to get ₹100 discount credits on your first GST filing & multi-marketplace reconciliation plan!`;
+  const shareText = `Hey, use my GSTPilot referral code ${summary.code} to get ₹${refereeCredits} discount credits on your first GST filing & multi-marketplace reconciliation plan!`;
   const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
   const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent("https://gstpilot.com")}&text=${encodeURIComponent(shareText)}`;
-  const mailUrl = `mailto:?subject=${encodeURIComponent("₹100 GSTPilot Wallet Credits Invitation")}&body=${encodeURIComponent(shareText)}`;
+  const mailUrl = `mailto:?subject=${encodeURIComponent(`₹${refereeCredits} GSTPilot Wallet Credits Invitation`)}&body=${encodeURIComponent(shareText)}`;
 
   return (
     <div className="space-y-6 rounded-3xl border border-blue-500/30 bg-gradient-to-br from-card via-card to-blue-500/[0.04] p-6 shadow-xs dark:from-card dark:via-card dark:to-blue-950/20">
@@ -245,7 +252,7 @@ export function ReferralPanel({ summary }: { summary: ReferralSummary }) {
             </button>
           </div>
           <p className="text-[11px] text-muted-foreground">
-            Apply before making your first recharge to unlock ₹100 discount credits.
+            Apply before making your first recharge to unlock ₹{refereeCredits} discount credits.
           </p>
         </div>
       )}

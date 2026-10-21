@@ -1,4 +1,5 @@
 import { env } from "@/lib/env";
+import { BRAND_NAME, SUPPORT_EMAIL } from "@/config/brand";
 
 /**
  * Single source of truth for brand identity and canonical URLs. Metadata,
@@ -6,12 +7,12 @@ import { env } from "@/lib/env";
  * domain can never drift apart across surfaces.
  */
 export const SITE = {
-  name: "GSTPilot",
+  name: BRAND_NAME,
   url: env.NEXT_PUBLIC_APP_URL,
   defaultTitle: "GSTPilot — Marketplace reports to GSTR-1 JSON & Excel",
   description:
     "Convert Amazon, Flipkart, Meesho, Myntra and JioMart seller reports into government-compatible GSTR-1 JSON and Excel in seconds. Automatic net sales calculation, column mapping and TCS reconciliation.",
   tagline: "Marketplace → GSTR-1",
   locale: "en_IN",
-  supportEmail: "gstpilot.official@gmail.com",
+  supportEmail: SUPPORT_EMAIL,
 } as const;

@@ -111,7 +111,7 @@ export default async function ReferPage() {
       <PageHeader
         eyebrow="Partner & Growth Rewards"
         title="Refer & Earn Wallet Credits"
-        description="Give ₹100, Get ₹100. Earn 100 wallet credits for every seller, accountant, or CA you invite. 1 credit = ₹1 flat value off any plan or GSTIN add-on with zero expiration."
+        description={`Give ₹${refereeCredits}, get ₹${referrerCredits}. Earn ${referrerCredits} wallet credits for every seller, accountant, or CA you invite. 1 credit = ₹1 off any plan or GSTIN add-on, with no expiry.`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Badge
@@ -262,7 +262,7 @@ export default async function ReferPage() {
             <Share2 className="size-4 text-primary-ink" aria-hidden />
             <h2 className="text-base font-bold tracking-tight">Your Referral Hub</h2>
           </div>
-          <ReferralPanel summary={referral} />
+          <ReferralPanel summary={referral} refereeCredits={refereeCredits} />
         </section>
 
         <section className="space-y-3">

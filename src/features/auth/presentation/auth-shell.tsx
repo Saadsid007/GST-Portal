@@ -22,7 +22,10 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
             src="/auth-hero-backdrop.jpg"
             alt="GSTPilot Financial & Compliance Analytics"
             fill
-            priority
+            // Decorative, 30% opacity, and the panel is hidden below lg — no
+            // preload, so phones never download it.
+            sizes="(min-width: 1280px) 55vw, 52vw"
+            quality={60}
             className="object-cover object-center opacity-30 brightness-90 contrast-110 filter"
           />
           {/* Gradients to blend seamlessly into dark aesthetic */}

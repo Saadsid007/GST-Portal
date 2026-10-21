@@ -18,6 +18,10 @@ export function AppLogo({
   priority = false,
   forceDark = false,
 }: AppLogoProps) {
+  // Rendered at most ~150px wide. Without `sizes`, next/image offers the
+  // 1200px source at 1x and 2x, and every page downloaded ~50KB for a logo.
+  const sizesAttr = "160px";
+
   const sizeClasses = {
     sm: "h-6 sm:h-7 w-auto",
     md: "h-8 sm:h-9 w-auto",
@@ -32,6 +36,7 @@ export function AppLogo({
           src={logoDark}
           alt="GSTPilot Logo"
           priority={priority}
+          sizes={sizesAttr}
           className={cn(sizeClasses[size], "object-contain")}
         />
       </div>
@@ -45,6 +50,7 @@ export function AppLogo({
         src={logoLight}
         alt="GSTPilot Logo"
         priority={priority}
+        sizes={sizesAttr}
         className={cn(sizeClasses[size], "object-contain dark:hidden")}
       />
       {/* Dark theme logo — displayed when in dark mode */}
@@ -52,6 +58,7 @@ export function AppLogo({
         src={logoDark}
         alt="GSTPilot Logo"
         priority={priority}
+        sizes={sizesAttr}
         className={cn(sizeClasses[size], "hidden object-contain dark:block")}
       />
     </div>
