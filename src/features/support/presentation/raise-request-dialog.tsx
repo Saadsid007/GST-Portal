@@ -51,12 +51,17 @@ export function RaiseRequestDialog({ onClose }: { onClose: () => void }) {
       description="Goes straight to the team. You can track it here until it is resolved."
       footer={
         <>
-          <Button variant="outline" size="sm" onClick={onClose}>
+          <Button variant="outline" size="sm" onClick={onClose} className="rounded-xl">
             Cancel
           </Button>
-          <Button size="sm" loading={saving} onClick={submit}>
-            <Send />
-            Submit request
+          <Button
+            size="sm"
+            loading={saving}
+            onClick={submit}
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-600 px-4 py-2 font-bold text-white shadow-md shadow-blue-500/25 transition hover:brightness-110"
+          >
+            <Send className="size-3.5" />
+            <span>Submit Ticket</span>
           </Button>
         </>
       }

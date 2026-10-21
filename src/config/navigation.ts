@@ -18,6 +18,7 @@ import {
   BookOpen,
   Megaphone as MegaphoneIcon,
   KeyRound,
+  MessageSquarePlus,
 } from "lucide-react";
 
 export interface NavItem {
@@ -140,6 +141,12 @@ export const NAV_GROUPS: NavGroup[] = [
         href: "/admin/support",
         icon: Inbox,
         description: "Contact messages and user support requests",
+      },
+      {
+        label: "Client Feedback",
+        href: "/admin/feedback",
+        icon: MessageSquarePlus,
+        description: "Real-time bug reports, change requests & client feedback",
       },
       {
         label: "Blog Posts",

@@ -106,6 +106,8 @@ export async function getTicketForUser(userId: string, ticketId: string) {
 export interface AdminTicketFilters {
   status?: TicketStatus;
   source?: TicketSource;
+  category?: TicketCategory;
+  priority?: TicketPriority;
   search?: string;
 }
 
@@ -115,6 +117,8 @@ export async function listTicketsForAdmin(filters: AdminTicketFilters = {}) {
     where: {
       ...(filters.status ? { status: filters.status } : {}),
       ...(filters.source ? { source: filters.source } : {}),
+      ...(filters.category ? { category: filters.category } : {}),
+      ...(filters.priority ? { priority: filters.priority } : {}),
       ...(search
         ? {
             OR: [
@@ -122,12 +126,13 @@ export async function listTicketsForAdmin(filters: AdminTicketFilters = {}) {
               { subject: { contains: search, mode: "insensitive" as const } },
               { email: { contains: search, mode: "insensitive" as const } },
               { name: { contains: search, mode: "insensitive" as const } },
+              { referenceId: { contains: search, mode: "insensitive" as const } },
             ],
           }
         : {}),
     },
     orderBy: [{ createdAt: "desc" }],
-    take: 100,
+    take: 150,
     include: { _count: { select: { replies: true } } },
   });
 }
@@ -146,4 +151,28 @@ export async function getTicketCounts() {
     prisma.supportTicket.count(),
   ]);
   return { open, total };
+}
+
+/** Dedicated metrics for the client feedback & bug reports admin module. */
+export async function getFeedbackCounts() {
+  const [total, open, bugs, conversions, features] = await Promise.all([
+    prisma.supportTicket.count({ where: { source: "FEEDBACK" } }),
+    prisma.supportTicket.count({
+      where: { source: "FEEDBACK", status: { in: [...OPEN_STATUSES] } },
+    }),
+    prisma.supportTicket.count({
+      where: {
+        source: "FEEDBACK",
+        OR: [{ category: "BUG" }, { priority: { in: ["HIGH", "URGENT"] } }],
+      },
+    }),
+    prisma.supportTicket.count({
+      where: { source: "FEEDBACK", category: "CONVERSION" },
+    }),
+    prisma.supportTicket.count({
+      where: { source: "FEEDBACK", category: "FEATURE" },
+    }),
+  ]);
+
+  return { total, open, bugs, conversions, features };
 }

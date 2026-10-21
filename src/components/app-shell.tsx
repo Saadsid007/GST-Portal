@@ -10,6 +10,7 @@ import { AppHeader } from "@/components/app-header";
 import { AppLogo } from "@/components/app-logo";
 import { SITE } from "@/config/site";
 import { createPersistedToggle } from "@/lib/persisted-toggle";
+import { FeedbackWidget } from "@/components/feedback-widget";
 
 const sidebarCollapsed = createPersistedToggle("gstpilot.sidebar.collapsed");
 
@@ -103,6 +104,9 @@ export function AppShell({ children, user, isAdmin = false }: AppShellProps) {
           <div className="mx-auto w-full max-w-6xl px-3.5 py-4 sm:px-5 sm:py-5">{children}</div>
         </main>
       </div>
+
+      {/* Floating Sticky Customer Feedback Widget */}
+      <FeedbackWidget user={user} />
     </div>
   );
 }

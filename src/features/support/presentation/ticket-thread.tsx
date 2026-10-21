@@ -92,29 +92,40 @@ export function TicketThread({ ticket, mode }: { ticket: ThreadTicket; mode: "us
     <div className="grid gap-6 lg:grid-cols-[1fr_16rem] lg:items-start">
       <div className="min-w-0 space-y-4">
         {/* Original message */}
-        <Card variant="solid" className="p-5">
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            <Badge variant={STATUS_TONE[ticket.status as TicketStatus] ?? "neutral"} dot>
+        <Card
+          variant="solid"
+          className="overflow-hidden rounded-2xl border border-blue-500/25 p-5 shadow-xs"
+        >
+          <div className="mb-3.5 flex flex-wrap items-center gap-2 border-b border-border/60 pb-3">
+            <Badge
+              variant={STATUS_TONE[ticket.status as TicketStatus] ?? "neutral"}
+              dot
+              className="px-2.5 py-1 text-xs font-bold"
+            >
               {STATUS_LABEL[ticket.status as TicketStatus] ?? ticket.status}
             </Badge>
-            <span className="font-mono text-2xs text-muted-foreground">{ticket.reference}</span>
-            <span className="ml-auto text-2xs text-muted-foreground">
+            <span className="rounded-lg bg-blue-500/10 px-2 py-0.5 font-mono text-xs font-bold text-blue-700 dark:text-blue-300">
+              {ticket.reference}
+            </span>
+            <span className="ml-auto text-xs text-muted-foreground">
               {ticket.createdAt.toLocaleString("en-IN", {
                 day: "numeric",
                 month: "short",
+                year: "numeric",
                 hour: "2-digit",
                 minute: "2-digit",
               })}
             </span>
           </div>
-          <h2 className="text-base font-semibold">{ticket.subject}</h2>
+          <h2 className="text-base font-bold text-foreground">{ticket.subject}</h2>
           <p className="mt-2 text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground">
             {ticket.message}
           </p>
           {ticket.referenceId && (
-            <p className="mt-3 rounded-lg bg-muted px-3 py-2 font-mono text-2xs">
-              Reference: {ticket.referenceId}
-            </p>
+            <div className="mt-3.5 inline-flex items-center gap-2 rounded-xl border border-border bg-muted/50 px-3.5 py-2 font-mono text-xs text-foreground">
+              <span className="font-semibold text-muted-foreground">Payment / Ref ID:</span>
+              <span className="font-bold text-primary-ink">{ticket.referenceId}</span>
+            </div>
           )}
         </Card>
 
@@ -124,34 +135,43 @@ export function TicketThread({ ticket, mode }: { ticket: ThreadTicket; mode: "us
             key={r.id}
             variant={r.isInternal ? "dashed" : "solid"}
             className={cn(
-              "p-4",
-              r.isFromAdmin && !r.isInternal && "border-primary/25 bg-primary/[0.04]",
-              r.isInternal && "border-warning/30 bg-warning/[0.05]"
+              "rounded-2xl p-5 shadow-xs transition-all",
+              r.isFromAdmin &&
+                !r.isInternal &&
+                "border-blue-500/30 bg-gradient-to-br from-blue-500/[0.06] via-indigo-500/[0.02] to-card",
+              r.isInternal && "border-amber-500/30 bg-amber-500/[0.05]"
             )}
           >
-            <div className="mb-1.5 flex items-center gap-2">
+            <div className="mb-2 flex items-center gap-2.5 border-b border-border/40 pb-2">
               <span
                 className={cn(
-                  "flex size-6 items-center justify-center rounded-full text-2xs",
+                  "flex size-7 items-center justify-center rounded-xl text-xs font-bold ring-1",
                   r.isFromAdmin
-                    ? "bg-primary/15 text-primary-ink"
-                    : "bg-muted text-muted-foreground"
+                    ? "bg-blue-600 text-white shadow-xs ring-blue-500/30"
+                    : "bg-muted text-muted-foreground ring-border"
                 )}
               >
                 {r.isFromAdmin ? (
-                  <ShieldCheck className="size-3" aria-hidden />
+                  <ShieldCheck className="size-4" aria-hidden />
                 ) : (
-                  <User className="size-3" aria-hidden />
+                  <User className="size-4" aria-hidden />
                 )}
               </span>
-              <span className="text-xs font-semibold">{r.authorName}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-foreground">{r.authorName}</span>
+                {r.isFromAdmin && (
+                  <span className="py-0.2 rounded-full bg-blue-500/15 px-2 text-[10px] font-extrabold text-blue-700 dark:text-blue-300">
+                    GSTPilot Support Team
+                  </span>
+                )}
+              </div>
               {r.isInternal && (
                 <Badge variant="warning" size="sm">
                   <EyeOff className="size-3" aria-hidden />
                   Internal note
                 </Badge>
               )}
-              <span className="ml-auto text-2xs text-muted-foreground">
+              <span className="ml-auto text-xs text-muted-foreground">
                 {r.createdAt.toLocaleString("en-IN", {
                   day: "numeric",
                   month: "short",
@@ -160,30 +180,42 @@ export function TicketThread({ ticket, mode }: { ticket: ThreadTicket; mode: "us
                 })}
               </span>
             </div>
-            <p className="text-sm leading-relaxed whitespace-pre-wrap">{r.body}</p>
+            <p className="text-sm leading-relaxed whitespace-pre-wrap text-foreground">{r.body}</p>
           </Card>
         ))}
 
         {/* Composer */}
         {closed ? (
-          <Card variant="subtle" className="flex items-center gap-2 p-4">
-            <Lock className="size-4 flex-shrink-0 text-muted-foreground" aria-hidden />
+          <Card variant="subtle" className="flex items-center gap-3 rounded-2xl p-5">
+            <Lock className="size-5 flex-shrink-0 text-muted-foreground" aria-hidden />
             <p className="text-xs text-muted-foreground">
-              This ticket is closed.{" "}
-              {mode === "user" && "Raise a new request if you still need help."}
+              This ticket is resolved and closed.{" "}
+              {mode === "user" && "Need further help? You can raise a new inquiry anytime."}
             </p>
           </Card>
         ) : (
-          <Card variant="solid" className="space-y-3 p-4">
+          <Card
+            variant="solid"
+            className="space-y-4 rounded-2xl border border-blue-500/20 p-5 shadow-xs"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold tracking-wide text-muted-foreground uppercase">
+                {mode === "admin" ? "Post Support Response" : "Write Reply or Add Details"}
+              </h3>
+              <span className="text-[11px] text-muted-foreground">Markdown supported</span>
+            </div>
             <Textarea
               rows={4}
               value={body}
               onChange={(e) => setBody(e.target.value)}
               placeholder={
-                mode === "admin" ? "Reply to the customer…" : "Add more detail or reply…"
+                mode === "admin"
+                  ? "Explain resolution steps, schema corrections, or transaction sync status…"
+                  : "Provide additional details, UPI reference, or confirmation…"
               }
+              className="text-xs"
             />
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
               {mode === "admin" ? (
                 <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
                   <input
@@ -192,14 +224,22 @@ export function TicketThread({ ticket, mode }: { ticket: ThreadTicket; mode: "us
                     onChange={(e) => setInternal(e.target.checked)}
                     className="size-3.5 accent-[hsl(var(--warning))]"
                   />
-                  Internal note — the customer never sees this
+                  Internal note — customer will not see this
                 </label>
               ) : (
-                <span />
+                <span className="text-2xs text-muted-foreground">
+                  Our team replies during standard support hours.
+                </span>
               )}
-              <Button size="sm" loading={sending} onClick={send} disabled={body.trim().length < 2}>
-                <Send />
-                {internal ? "Add note" : "Send reply"}
+              <Button
+                size="sm"
+                loading={sending}
+                onClick={send}
+                disabled={body.trim().length < 2}
+                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-600 px-4 py-2 font-bold text-white shadow-md shadow-blue-500/25 transition hover:brightness-110"
+              >
+                <Send className="size-3.5" />
+                <span>{internal ? "Save Internal Note" : "Send Response"}</span>
               </Button>
             </div>
           </Card>
@@ -208,15 +248,24 @@ export function TicketThread({ ticket, mode }: { ticket: ThreadTicket; mode: "us
 
       {/* Meta / controls */}
       <aside className="space-y-4 lg:sticky lg:top-24">
-        <Card variant="subtle" className="space-y-2.5 p-4 text-xs">
-          <Meta label="From" value={ticket.name} />
+        <Card
+          variant="subtle"
+          className="space-y-3 rounded-2xl border border-border p-4.5 text-xs shadow-2xs"
+        >
+          <p className="border-b border-border/60 pb-2 text-2xs font-extrabold tracking-wider text-muted-foreground uppercase">
+            Ticket Metadata
+          </p>
+          <Meta label="Requester" value={ticket.name} />
           <Meta label="Email" value={ticket.email} mono />
-          <Meta label="Category" value={ticket.category} />
+          <Meta label="Category" value={ticket.category.replace("_", " ")} />
           <Meta
             label="Priority"
             value={PRIORITY_LABEL[ticket.priority as TicketPriority] ?? ticket.priority}
           />
-          <Meta label="Source" value={ticket.source === "CONTACT" ? "Contact form" : "In-app"} />
+          <Meta
+            label="Channel"
+            value={ticket.source === "CONTACT" ? "Public Portal" : "Authenticated App"}
+          />
         </Card>
 
         {mode === "admin" && (

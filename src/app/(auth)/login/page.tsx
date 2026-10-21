@@ -73,9 +73,14 @@ function LoginForm() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold tracking-tight">Sign in</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Welcome back. Your GST profiles and returns are waiting.
+        <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-blue-500/20 bg-blue-500/10 px-2.5 py-0.5 text-2xs font-extrabold text-blue-700 dark:text-blue-300">
+          <span>Enterprise Portal Access</span>
+        </div>
+        <h1 className="text-2xl font-black tracking-tight text-foreground">
+          Sign in to your account
+        </h1>
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+          Welcome back. Your client GST profiles and GSTR-1 returns are waiting.
         </p>
       </div>
 

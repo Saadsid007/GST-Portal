@@ -4,7 +4,7 @@
  * admin filters and badge colours all derive from here.
  */
 
-export const TICKET_SOURCES = ["CONTACT", "SUPPORT"] as const;
+export const TICKET_SOURCES = ["CONTACT", "SUPPORT", "FEEDBACK"] as const;
 export type TicketSource = (typeof TICKET_SOURCES)[number];
 
 export const TICKET_STATUSES = [
@@ -26,6 +26,9 @@ export const TICKET_CATEGORIES = [
   "BILLING",
   "SALES",
   "OTHER",
+  "BUG",
+  "FEATURE",
+  "FEEDBACK",
 ] as const;
 export type TicketCategory = (typeof TICKET_CATEGORIES)[number];
 
@@ -97,6 +100,34 @@ export const CONTACT_CATEGORY_OPTIONS: { value: TicketCategory; label: string }[
   { value: "CONVERSION", label: "Product or conversion question" },
   { value: "BILLING", label: "Pricing & billing" },
   { value: "OTHER", label: "Something else" },
+];
+
+/** Categories offered on the in-app sticky feedback widget. */
+export const FEEDBACK_CATEGORY_OPTIONS: {
+  value: TicketCategory;
+  label: string;
+  hint: string;
+}[] = [
+  {
+    value: "BUG",
+    label: "Something is broken or failing",
+    hint: "Report an error, UI glitch, failed action, or unexpected crash.",
+  },
+  {
+    value: "CONVERSION",
+    label: "Marketplace report / file anomaly",
+    hint: "Missing invoices, wrong columns, or GSTR-1 validation errors.",
+  },
+  {
+    value: "FEATURE",
+    label: "Feature request or change idea",
+    hint: "Suggest a new workflow, marketplace integration, or tool.",
+  },
+  {
+    value: "FEEDBACK",
+    label: "General feedback or UX suggestion",
+    hint: "Share your overall experience or usability thoughts.",
+  },
 ];
 
 /**

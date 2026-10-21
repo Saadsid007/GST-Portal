@@ -97,8 +97,16 @@ export default function RegisterPage() {
     <AuthShell>
       <div className="space-y-6">
         <div>
-          <h1 className="text-xl font-bold tracking-tight">Create your account</h1>
-          <p className="mt-1 text-sm text-muted-foreground">30-day free trial. No card required.</p>
+          <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-0.5 text-2xs font-extrabold text-emerald-700 dark:text-emerald-400">
+            <Gift className="size-3 text-emerald-500" />
+            <span>30-Day Free Trial • Instant Setup</span>
+          </div>
+          <h1 className="text-2xl font-black tracking-tight text-foreground">
+            Create your account
+          </h1>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            Get started in under a minute. No credit card or commitment required.
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

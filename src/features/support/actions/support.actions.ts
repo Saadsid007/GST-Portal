@@ -128,6 +128,60 @@ export async function submitSupportRequestAction(
   }
 }
 
+const feedbackSchema = z.object({
+  category: z.enum(TICKET_CATEGORIES),
+  subject: z.string().trim().min(3, "Add a short summary").max(150),
+  message: z.string().trim().min(8, "Please provide a little more detail").max(4000),
+  priority: z.enum(TICKET_PRIORITIES).optional(),
+  pageUrl: z.string().trim().max(300).optional(),
+  referenceId: z.string().trim().max(150).optional(),
+});
+
+export type FeedbackInput = z.input<typeof feedbackSchema>;
+
+/** Sticky feedback submission from in-app users. */
+export async function submitFeedbackAction(
+  input: FeedbackInput
+): Promise<ActionResult<{ reference: string }>> {
+  const session = await requireSession();
+  const parsed = feedbackSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message ?? "Please check the form" };
+  }
+
+  try {
+    const contextNote = [
+      parsed.data.pageUrl ? `URL: ${parsed.data.pageUrl}` : null,
+      parsed.data.referenceId ? `Ref: ${parsed.data.referenceId}` : null,
+    ]
+      .filter(Boolean)
+      .join(" | ");
+
+    const priority = parsed.data.priority ?? (parsed.data.category === "BUG" ? "HIGH" : "NORMAL");
+
+    const ticket = await createTicket({
+      source: "FEEDBACK",
+      category: parsed.data.category,
+      subject: parsed.data.subject,
+      message: parsed.data.message,
+      name: session.user.name,
+      email: session.user.email,
+      userId: session.user.id,
+      referenceId: contextNote || null,
+      priority,
+    });
+
+    revalidatePath("/admin/feedback");
+    revalidatePath("/admin/support");
+    revalidatePath("/support");
+
+    return { success: true, data: { reference: ticket.reference } };
+  } catch (error) {
+    log.error({ err: error }, "Could not submit feedback");
+    return { success: false, error: "Could not submit feedback. Please try again." };
+  }
+}
+
 const replySchema = z.object({
   ticketId: z.string().uuid(),
   body: z.string().trim().min(2, "Write a reply").max(4000),
@@ -218,6 +272,7 @@ export async function adminReplyAction(
   // An internal note stays internal; an answer is mailed to the customer.
   if (!parsed.data.isInternal) notifyTeamReplied(ticket, parsed.data.body, session.user.name);
   revalidatePath(`/admin/support/${ticket.id}`);
+  revalidatePath("/admin/feedback");
   return { success: true };
 }
 
@@ -255,5 +310,6 @@ export async function updateTicketAction(
     notifyTicketResolved(before, status === "CLOSED");
   }
   revalidatePath(`/admin/support/${ticketId}`);
+  revalidatePath("/admin/feedback");
   return { success: true };
 }

@@ -37,9 +37,14 @@ export default function ForgotPasswordPage() {
     <AuthShell>
       <div className="space-y-6">
         <div>
-          <h1 className="text-xl font-bold tracking-tight">Reset your password</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            We will email you a 6-digit code to set a new password.
+          <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-blue-500/25 bg-blue-500/10 px-2.5 py-0.5 text-2xs font-extrabold text-blue-700 dark:text-blue-300">
+            <span>Account Recovery</span>
+          </div>
+          <h1 className="text-2xl font-black tracking-tight text-foreground">
+            Reset your password
+          </h1>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            Enter your email and we will dispatch a secure 6-digit verification code.
           </p>
         </div>
 

@@ -50,9 +50,12 @@ function VerifyEmailForm() {
         }}
       >
         <div>
-          <h1 className="text-xl font-bold tracking-tight">Verify your email</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Enter the address you signed up with and we will send a 6-digit code.
+          <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-blue-500/25 bg-blue-500/10 px-2.5 py-0.5 text-2xs font-extrabold text-blue-700 dark:text-blue-300">
+            <span>Security Verification</span>
+          </div>
+          <h1 className="text-2xl font-black tracking-tight text-foreground">Verify your email</h1>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            Enter the email address you registered with to receive your 6-digit confirmation code.
           </p>
         </div>
         <AuthField id="email" label="Email address">

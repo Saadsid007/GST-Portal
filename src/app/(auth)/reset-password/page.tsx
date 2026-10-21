@@ -96,9 +96,12 @@ function ResetPasswordForm() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold tracking-tight">Set a new password</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Enter the 6-digit code we emailed you and choose a new password.
+        <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-purple-500/25 bg-purple-500/10 px-2.5 py-0.5 text-2xs font-extrabold text-purple-700 dark:text-purple-300">
+          <span>Password Reset</span>
+        </div>
+        <h1 className="text-2xl font-black tracking-tight text-foreground">Set a new password</h1>
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+          Enter the 6-digit code we emailed you and choose your new password.
         </p>
       </div>
 
