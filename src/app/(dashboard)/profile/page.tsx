@@ -4,8 +4,10 @@ import prisma from "@/lib/prisma";
 import { GstinProfileManager } from "@/features/profile/presentation/gstin-profile-manager";
 import { getGstinCapacity } from "@/features/billing/services/capacity.service";
 import { GstinStatus } from "@/features/billing/domain/gstin-capacity";
+import { PageHeader, Badge } from "@/components/ui";
+import { ShieldCheck } from "lucide-react";
 
-export const metadata: Metadata = { title: "GST Profiles" };
+export const metadata: Metadata = { title: "GST Profiles — GSTPilot" };
 
 export default async function ProfilePage() {
   const session = await requireSession();
@@ -22,12 +24,17 @@ export default async function ProfilePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">GST Profiles</h1>
-        <p className="mt-0.5 text-sm text-muted-foreground">
-          Manage your GSTIN registrations for GSTR-1 generation
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Organization & Clients"
+        title="GST Registrations"
+        description="Authoritative client registry for multi-marketplace GSTR-1 generation and compliance tracking."
+        actions={
+          <Badge variant="primary" size="md">
+            <ShieldCheck className="size-3" aria-hidden />
+            {capacity.used} of {capacity.totalCapacity} Slots Active
+          </Badge>
+        }
+      />
       <GstinProfileManager initialActive={active} initialArchived={archived} capacity={capacity} />
     </div>
   );
