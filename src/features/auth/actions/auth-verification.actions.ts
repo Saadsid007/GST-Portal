@@ -121,10 +121,18 @@ export async function verifyEmailOtpAction(input: {
     }
 
     // Update user in database
-    await prisma.user.update({
+    const verified = await prisma.user.update({
       where: { email: normalizedEmail },
       data: { emailVerified: true },
+      select: { email: true, name: true },
     });
+
+    // Welcome mail goes out only once the address is proven. Sent at signup it
+    // arrived together with the code: two mails at once from a new sender to
+    // an unconfirmed inbox, which pushed both into spam.
+    sendInBackground("welcome", () =>
+      EmailService.sendWelcomeTrialEmail({ to: verified.email, name: verified.name })
+    );
 
     // Also update marketing subscriber status if present
     await prisma.marketingSubscriber.updateMany({

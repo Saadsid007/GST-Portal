@@ -11,19 +11,20 @@ import {
 } from "@/features/email/templates/transaction-emails.template";
 
 describe("Email Templates Engine", () => {
-  it("renders email verification template with 6-digit OTP and verify URL", () => {
+  it("renders email verification template with the 6-digit OTP and no link", () => {
     const { subject, html, text } = renderVerificationEmailHtml({
       name: "Saad",
       otp: "982341",
-      verifyUrl: "https://gstpilot.com/verify-email?email=test@example.com",
     });
 
     expect(subject).toContain("982341");
     expect(html).toContain("982341");
     expect(html).toContain("Hello Saad,");
-    expect(html).toContain("https://gstpilot.com/verify-email?email=test@example.com");
     expect(html).toContain("gstpilot.official@gmail.com");
+    // A verify button to a young domain reads as phishing to spam filters.
+    expect(html).not.toContain("verify-email");
     expect(text).toContain("982341");
+    expect(text).not.toContain("http");
   });
 
   it("renders password reset template with secure reset button and OTP", () => {
@@ -89,7 +90,8 @@ describe("Email Templates Engine", () => {
     const { html, text } = renderCampaignBroadcastEmailHtml({
       name: "Sellers",
       headline: "New Meesho Return Netting Feature Live",
-      bodyText: "You can now process multi-month Meesho returns with 100% precision.\n\nCheck out the demo.",
+      bodyText:
+        "You can now process multi-month Meesho returns with 100% precision.\n\nCheck out the demo.",
       ctaText: "Explore Features",
       ctaUrl: "https://gstpilot.com/features",
     });

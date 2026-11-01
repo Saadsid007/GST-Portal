@@ -8,10 +8,9 @@ import { renderBaseEmailHtml } from "./base-email.template";
 export function renderVerificationEmailHtml(params: {
   name?: string;
   otp: string;
-  verifyUrl: string;
   expiryMinutes?: number;
 }): { subject: string; html: string; text: string } {
-  const { name, otp, verifyUrl, expiryMinutes = 15 } = params;
+  const { name, otp, expiryMinutes = 15 } = params;
   const greeting = name ? `Hello ${name},` : "Hello,";
   const subject = `Your GSTPilot Verification Code: ${otp}`;
 
@@ -28,15 +27,8 @@ export function renderVerificationEmailHtml(params: {
       </p>
     </div>
 
-    <p style="text-align: center; margin: 28px 0 16px 0;">
-      <a href="${verifyUrl}" class="btn">
-        Verify Email Address &rarr;
-      </a>
-    </p>
-
-    <p style="font-size: 12px; color: #64748B; margin-top: 24px;">
-      If the button above does not work, copy and paste this link into your browser:<br>
-      <a href="${verifyUrl}" style="color: #2563EB; word-break: break-all;">${verifyUrl}</a>
+    <p style="font-size: 13px; color: #334155;">
+      Enter this code on the GSTPilot screen where you signed up.
     </p>
   `;
 
@@ -51,7 +43,9 @@ export function renderVerificationEmailHtml(params: {
     footerNote,
   });
 
-  const text = `${greeting}\n\nYour GSTPilot verification code is: ${otp}\n\nValid for ${expiryMinutes} minutes.\n\nOr verify directly at: ${verifyUrl}\n\nIf you did not request this, please ignore this email.`;
+  // No link: the code is typed into the signup screen. A "verify" button
+  // pointing at a young domain is the pattern spam filters score as phishing.
+  const text = `${greeting}\n\nYour GSTPilot verification code is: ${otp}\n\nIt is valid for ${expiryMinutes} minutes. Enter it on the screen where you signed up.\n\nIf you did not create a GSTPilot account, you can ignore this email.`;
 
   return { subject, html, text };
 }
@@ -107,10 +101,11 @@ export function renderPasswordResetEmailHtml(params: {
   return { subject, html, text };
 }
 
-export function renderPasswordChangedEmailHtml(params: {
-  name?: string;
-  time: string;
-}): { subject: string; html: string; text: string } {
+export function renderPasswordChangedEmailHtml(params: { name?: string; time: string }): {
+  subject: string;
+  html: string;
+  text: string;
+} {
   const { name, time } = params;
   const greeting = name ? `Hello ${name},` : "Hello,";
   const subject = "Security Alert: Your GSTPilot password was changed";

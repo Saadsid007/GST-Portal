@@ -83,10 +83,8 @@ export const auth = betterAuth({
             "New user registered: syncing marketing & welcome flow"
           );
 
-          // 1. Send Welcome & 30-Day Free Trial Email
-          sendInBackground("welcome", () =>
-            EmailService.sendWelcomeTrialEmail({ to: user.email, name: user.name })
-          );
+          // The welcome mail is sent after the email code is verified
+          // (verifyEmailOtpAction), not here.
 
           // 2. Auto-sync user into Marketing Audience
           try {

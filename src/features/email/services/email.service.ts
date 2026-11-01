@@ -330,13 +330,10 @@ export class EmailService {
   }): Promise<{ success: boolean; error?: string }> {
     const { to, name } = params;
     const otp = await this.generateOtp(to, "EMAIL_VERIFICATION", 15);
-    const baseUrl = env.NEXT_PUBLIC_APP_URL.replace(/\/+$/, "");
-    const verifyUrl = `${baseUrl}/verify-email?email=${encodeURIComponent(to)}`;
 
     const { subject, html, text } = renderVerificationEmailHtml({
       name,
       otp,
-      verifyUrl,
       expiryMinutes: 15,
     });
 
