@@ -169,7 +169,18 @@ export class EmailService {
         return { success: true, messageId: info.messageId };
       }
 
-      // Safe Development Fallback: Log email details cleanly without crashing
+      // In production a missing transport is a fault, not a dev convenience:
+      // reporting success here meant sign-ups never got their code while no
+      // error was logged anywhere.
+      if (env.NODE_ENV === "production") {
+        emailLogger.error(
+          { to, subject: logSubject },
+          "Email NOT sent: no mail transport configured (set SMTP_PASS or RESEND_API_KEY)"
+        );
+        return { success: false, error: "No mail transport configured" };
+      }
+
+      // Development fallback: log the email instead of sending it.
       emailLogger.info(
         {
           to,
@@ -182,7 +193,20 @@ export class EmailService {
       return { success: true, messageId: `dev-${Date.now()}` };
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "Failed to send email";
-      emailLogger.error({ to, subject: logSubject, error: errorMsg }, "Failed to send email");
+      // SMTP code and reply (e.g. 535 bad credentials, 550 daily limit) say
+      // why Gmail refused, which the message alone often does not.
+      const smtp = err as { code?: string; responseCode?: number; response?: string };
+      emailLogger.error(
+        {
+          to,
+          subject: logSubject,
+          error: errorMsg,
+          code: smtp.code,
+          responseCode: smtp.responseCode,
+          response: smtp.response?.slice(0, 200),
+        },
+        "Failed to send email"
+      );
       return { success: false, error: errorMsg };
     }
   }
