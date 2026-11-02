@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { NormalizedInvoiceRow } from "@/features/convert/types/convert.types";
 import type { MultiConvertState } from "@/features/convert/presentation/convert-workbench";
-import { parseMultiPlatformFilesAction } from "@/features/convert/actions/convert.actions";
+import { callPacked } from "@/features/convert/utils/call-packed";
+import { explainTransportError } from "@/features/convert/utils/upload-transport";
 import { Loader2, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -42,7 +43,8 @@ export function Step7Processing({ state, onChange, onNext, onBack }: Props) {
           await new Promise((r) => setTimeout(r, 150));
         }
 
-        const res = await parseMultiPlatformFilesAction(
+        const res = await callPacked(
+          "parseMultiPlatformFiles",
           state.uploadedFiles,
           state.gstinNumber,
           state.answersByFile,
@@ -83,7 +85,9 @@ export function Step7Processing({ state, onChange, onNext, onBack }: Props) {
         }, 500);
       } catch (err) {
         if (mounted) {
-          const msg = err instanceof Error ? err.message : "Pipeline execution failed";
+          const msg = explainTransportError(
+            err instanceof Error ? err.message : "Pipeline execution failed"
+          );
           setError(msg);
           toast.error(msg);
         }

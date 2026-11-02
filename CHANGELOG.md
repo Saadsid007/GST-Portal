@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-11-02
+
+- Large reports no longer fail with "An unexpected response was received from the server".
+  Vercel refuses request and response bodies over 4.5 MB, which an Amazon MTR passes at
+  roughly 5,700 invoices. Uploads and every convert step now travel gzipped
+  (`callPacked` → `runPackedConvertAction`), so a 5.8 MB report of 10,820 rows converts end to
+  end. A file still too large after compression gets a clear message to split it by date.
+- Convert page actions may run up to 300 s (`maxDuration`), for big months and AI mapping.
+- The marketing nav shows "Go to dashboard" on first paint: the proxy keeps a readable
+  `gp_signed_in` hint in step with the session cookie, so no network call is awaited.
+- Page content clears the floating Feedback button.
+
 ## 2026-10-20
 
 - Database moved to Supabase Mumbai, the same city as the Vercel functions (bom1).

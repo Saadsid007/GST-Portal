@@ -40,6 +40,7 @@ import type {
 import type { ColumnMappingDict } from "@/features/convert/engine/universal/canonical-fields";
 
 import { loadFileTables as loadTablesFromFile } from "@/features/convert/engine/pipeline/load-file-tables";
+import { readUploadBuffer } from "@/features/convert/utils/read-upload";
 
 export interface FileCustomMapping {
   platformId: string;
@@ -49,7 +50,7 @@ export interface FileCustomMapping {
 
 /** One uploaded file's tables, read the way the corpus harness reads them. */
 async function loadFileTables(fileItem: MultiUploadFileInput, gstinNumber?: string) {
-  const buffer = Buffer.from(await fileItem.file.arrayBuffer());
+  const buffer = await readUploadBuffer(fileItem.file);
   return loadTablesFromFile(buffer, fileItem.fileName, gstinNumber);
 }
 
@@ -224,7 +225,7 @@ export async function parseMultiPlatformFilesAction(
 
   if (refFileItem) {
     try {
-      const buffer = Buffer.from(await refFileItem.file.arrayBuffer());
+      const buffer = await readUploadBuffer(refFileItem.file);
       const { workbook: wb } = readWorkbookSafely(buffer);
       const parsedRef = parseGstr1File(wb);
       gstr1CmpResult = Gstr1Comparator.compare(validationResult.rows, parsedRef);

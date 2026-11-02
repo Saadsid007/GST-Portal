@@ -101,7 +101,11 @@ export function AppShell({ children, user, isAdmin = false }: AppShellProps) {
           onToggleCollapse={toggleCollapse}
         />
         <main className="min-w-0 flex-1 bg-background">
-          <div className="mx-auto w-full max-w-6xl px-3.5 py-4 sm:px-5 sm:py-5">{children}</div>
+          {/* Bottom padding clears the floating Feedback button, which sat on
+              top of each page's last action (e.g. "Check my files"). */}
+          <div className="mx-auto w-full max-w-6xl px-3.5 pt-4 pb-24 sm:px-5 sm:pt-5">
+            {children}
+          </div>
         </main>
       </div>
 

@@ -6,6 +6,12 @@ import { PLATFORMS_CONFIG } from "@/features/convert/config/platform.config";
 
 export const metadata: Metadata = { title: "Convert — Marketplace to GSTR-1" };
 
+// Applies to every Server Action on this page. A large month or an unknown
+// file format sent to the AI mapper can run past the platform default, and a
+// timed-out action reaches the browser as "An unexpected response was
+// received from the server". 300 s is the most every Vercel plan allows.
+export const maxDuration = 300;
+
 export default async function ConvertPage() {
   const session = await requireSession();
 

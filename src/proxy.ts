@@ -1,6 +1,7 @@
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
 import { REQUESTED_PATH_HEADER } from "@/features/auth/domain/safe-next";
+import { SIGNED_IN_HINT_COOKIE } from "@/features/auth/domain/signed-in-hint";
 
 /**
  * A cheap first gate in front of the signed-in areas: no session cookie, no
@@ -35,8 +36,12 @@ function matches(pathname: string, route: string): boolean {
 }
 
 export function proxy(request: NextRequest) {
+  return withSignedInHint(request, route(request));
+}
+
+function route(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
-  if (PUBLIC_UNDER_PROTECTED.some((route) => matches(pathname, route))) {
+  if (PUBLIC_UNDER_PROTECTED.some((r) => matches(pathname, r))) {
     return NextResponse.next();
   }
 
@@ -45,7 +50,7 @@ export function proxy(request: NextRequest) {
   // account is deleted — and then /login sent them to /dashboard, which sent
   // them back to /login: a redirect loop, and a sign-in page that never
   // opened. Only the absence of a cookie is decided here.
-  if (!PROTECTED_PREFIXES.some((route) => matches(pathname, route))) {
+  if (!PROTECTED_PREFIXES.some((r) => matches(pathname, r))) {
     return NextResponse.next();
   }
 
@@ -63,6 +68,27 @@ export function proxy(request: NextRequest) {
   const headers = new Headers(request.headers);
   headers.set(REQUESTED_PATH_HEADER, requested);
   return NextResponse.next({ request: { headers } });
+}
+
+/**
+ * Keeps the readable signed-in hint (see signed-in-hint.ts) in step with the
+ * session cookie. Written only when it changes, so most responses carry no
+ * extra Set-Cookie.
+ */
+function withSignedInHint(request: NextRequest, response: NextResponse): NextResponse {
+  const hasSession = Boolean(getSessionCookie(request));
+  const hinted = request.cookies.get(SIGNED_IN_HINT_COOKIE)?.value === "1";
+  if (hasSession && !hinted) {
+    response.cookies.set(SIGNED_IN_HINT_COOKIE, "1", {
+      path: "/",
+      sameSite: "lax",
+      secure: request.nextUrl.protocol === "https:",
+      maxAge: 60 * 60 * 24 * 30,
+    });
+  } else if (!hasSession && hinted) {
+    response.cookies.delete(SIGNED_IN_HINT_COOKIE);
+  }
+  return response;
 }
 
 export const config = {

@@ -3,10 +3,8 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import type { MultiConvertState } from "@/features/convert/presentation/convert-workbench";
-import {
-  generateGstr1ExcelAction,
-  saveConversionAction,
-} from "@/features/convert/actions/convert.actions";
+import { callPacked } from "@/features/convert/utils/call-packed";
+import { describeFailure } from "@/features/convert/utils/upload-transport";
 import { formatCurrency } from "@/lib/utils";
 import { WATERMARK_TEXT } from "@/features/billing/constants/billing.constants";
 import {
@@ -54,7 +52,12 @@ export function Step10Download({ state, onReset }: Props) {
   async function downloadExcel() {
     setDownloading(true);
     try {
-      const res = await generateGstr1ExcelAction(state.rows, state.gstinNumber, state.returnPeriod);
+      const res = await callPacked(
+        "generateGstr1Excel",
+        state.rows,
+        state.gstinNumber,
+        state.returnPeriod
+      );
       if (!res.success) {
         toast.error("Failed to generate Excel file");
         return;
@@ -70,8 +73,8 @@ export function Step10Download({ state, onReset }: Props) {
       a.click();
       URL.revokeObjectURL(url);
       toast.success("Official GSTR-1 Excel Workbook downloaded!");
-    } catch {
-      toast.error("Error downloading Excel");
+    } catch (err) {
+      toast.error(describeFailure(err, "Error downloading Excel"));
     } finally {
       setDownloading(false);
     }
@@ -81,7 +84,7 @@ export function Step10Download({ state, onReset }: Props) {
     if (!statement) return;
     setSavingHistory(true);
     try {
-      const res = await saveConversionAction({
+      const res = await callPacked("saveConversion", {
         gstinNumber: state.gstinNumber,
         returnPeriod: state.returnPeriod,
         platformIds: state.selectedPlatformIds,
@@ -97,8 +100,8 @@ export function Step10Download({ state, onReset }: Props) {
         setSaved(true);
         toast.success("Conversion saved to history!");
       }
-    } catch {
-      toast.error("Failed to save conversion history");
+    } catch (err) {
+      toast.error(describeFailure(err, "Failed to save conversion history"));
     } finally {
       setSavingHistory(false);
     }

@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { MultiConvertState } from "@/features/convert/presentation/convert-workbench";
-import { evaluateWorkbooksAction } from "@/features/convert/actions/convert.actions";
 import { rememberMappingAction } from "@/features/convert/actions/mapping.actions";
+import { callPacked } from "@/features/convert/utils/call-packed";
+import { explainTransportError } from "@/features/convert/utils/upload-transport";
 import type {
   QuestionAnswer,
   ImportIntelligenceReport,
@@ -44,7 +45,7 @@ export function Step6Intelligence({ state, onChange, onNext, onBack }: Props) {
     async function evaluate() {
       try {
         setLoading(true);
-        const res = await evaluateWorkbooksAction(state.uploadedFiles, state.gstinNumber);
+        const res = await callPacked("evaluateWorkbooks", state.uploadedFiles, state.gstinNumber);
         if (!mounted) return;
 
         setReports(res.data.reports);
@@ -75,7 +76,9 @@ export function Step6Intelligence({ state, onChange, onNext, onBack }: Props) {
         setAnswers(initialAnswers);
       } catch (err) {
         if (mounted) {
-          const msg = err instanceof Error ? err.message : "Evaluation failed";
+          const msg = explainTransportError(
+            err instanceof Error ? err.message : "Evaluation failed"
+          );
           setError(msg);
           toast.error(msg);
         }

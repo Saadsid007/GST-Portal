@@ -8,6 +8,7 @@ import { Menu, Sun, Moon, X, Zap, LayoutDashboard } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui";
 import { authClient } from "@/lib/auth-client";
+import { hasSignedInHint } from "@/features/auth/domain/signed-in-hint";
 
 const NAV_LINKS = [
   { label: "Features", href: "/features" },
@@ -98,10 +99,25 @@ export function MarketingNav() {
   );
 }
 
-function AuthActions() {
-  const { data: session } = authClient.useSession();
+/**
+ * Signed in or not, without waiting for the network. The readable hint cookie
+ * answers on first render; once the real session check returns, its answer
+ * wins (an expired session shows "Sign in" again).
+ */
+function useSignedIn(): boolean {
+  const { data: session, isPending } = authClient.useSession();
+  const hinted = useSyncExternalStore(
+    () => () => {},
+    () => hasSignedInHint(document.cookie),
+    () => false
+  );
+  return isPending ? hinted : Boolean(session?.user);
+}
 
-  if (session?.user) {
+function AuthActions() {
+  const signedIn = useSignedIn();
+
+  if (signedIn) {
     return (
       <Button asChild variant="brand" size="sm">
         <Link href="/dashboard">
@@ -133,9 +149,9 @@ function AuthActions() {
 }
 
 function MobileAuthLinks({ onNavigate }: { onNavigate: () => void }) {
-  const { data: session } = authClient.useSession();
+  const signedIn = useSignedIn();
 
-  return session?.user ? (
+  return signedIn ? (
     <Link
       href="/dashboard"
       onClick={onNavigate}

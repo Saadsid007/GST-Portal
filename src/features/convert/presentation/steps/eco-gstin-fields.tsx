@@ -80,8 +80,8 @@ export function EcoGstinFields({ gstinNumber, selectedPlatformIds }: Props) {
           <p className="mt-0.5 text-xs text-muted-foreground">
             Required only if you want to generate GSTR-1 Table 14. If your report already contains
             the operator GSTIN, GSTPilot detects it automatically. We have also preloaded verified
-            state-wise ECO GSTINs from official TCS registrations. You can customize or override them
-            anytime below.
+            state-wise ECO GSTINs from official TCS registrations. You can customize or override
+            them anytime below.
           </p>
         </div>
       </div>

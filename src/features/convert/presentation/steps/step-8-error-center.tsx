@@ -7,13 +7,8 @@ import type {
   EditableRowFields,
   NormalizedInvoiceRow,
 } from "@/features/convert/types/convert.types";
-import {
-  applyAutoFixAction,
-  applySuggestedRatesAction,
-  applySuggestedHsnAction,
-  revalidateAllAction,
-  updateRowAction,
-} from "@/features/convert/actions/convert.actions";
+import { callPacked } from "@/features/convert/utils/call-packed";
+import { describeFailure } from "@/features/convert/utils/upload-transport";
 import {
   isConfidentSuggestion,
   RATE_CONFIDENCE_THRESHOLD,
@@ -21,7 +16,6 @@ import {
 } from "@/features/convert/engine/error-center/rate-suggester";
 import { suggestHsn } from "@/features/convert/engine/error-center/hsn-suggester";
 import { RowEditDialog } from "@/features/convert/presentation/steps/row-edit-dialog";
-import { reconcileTcsAction } from "@/features/convert/actions/tcs.actions";
 import type { TcsReconciliationResult } from "@/features/convert/engine/tcs/tcs.reconciler";
 import {
   toComparableRow,
@@ -149,7 +143,8 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
     if (!editingRowId) return;
     setSaving(true);
     try {
-      const res = await updateRowAction(
+      const res = await callPacked(
+        "updateRow",
         rows,
         editingRowId,
         patch,
@@ -169,8 +164,8 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
           toast.warning(`Row saved, but ${res.data.rowErrors.length} issue(s) remain`);
         }
       }
-    } catch {
-      toast.error("Failed to save the row");
+    } catch (err) {
+      toast.error(describeFailure(err, "Failed to save the row"));
     } finally {
       setSaving(false);
     }
@@ -179,7 +174,8 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
   async function handleApplySuggestedHsn(rowIds?: string[]) {
     setApplyingHsn(true);
     try {
-      const res = await applySuggestedHsnAction(
+      const res = await callPacked(
+        "applySuggestedHsn",
         rows,
         state.gstinNumber,
         rowIds,
@@ -197,8 +193,8 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
             : `HSN code applied to ${res.data.appliedCount} rows`
         );
       }
-    } catch {
-      toast.error("Failed to apply the suggested HSN codes");
+    } catch (err) {
+      toast.error(describeFailure(err, "Failed to apply the suggested HSN codes"));
     } finally {
       setApplyingHsn(false);
     }
@@ -207,7 +203,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
   async function handleRevalidateAll() {
     setRevalidating(true);
     try {
-      const res = await revalidateAllAction(rows, state.gstinNumber, state.returnPeriod);
+      const res = await callPacked("revalidateAll", rows, state.gstinNumber, state.returnPeriod);
       if (res.success) {
         onChange({
           rows: res.data.rows,
@@ -220,8 +216,8 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
             : `Revalidated — ${res.data.errorCount} row(s) still need attention`
         );
       }
-    } catch {
-      toast.error("Failed to revalidate");
+    } catch (err) {
+      toast.error(describeFailure(err, "Failed to revalidate"));
     } finally {
       setRevalidating(false);
     }
@@ -230,7 +226,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
   async function handleAutoFixAll() {
     setAutoFixing(true);
     try {
-      const res = await applyAutoFixAction(rows, state.gstinNumber, state.returnPeriod);
+      const res = await callPacked("applyAutoFix", rows, state.gstinNumber, state.returnPeriod);
       if (res.success) {
         onChange({
           rows: res.data.rows,
@@ -241,8 +237,8 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
           `Auto-fixed ${res.data.fixSummary.totalFixed} data issues across GSTINs, POS, and HSN codes!`
         );
       }
-    } catch {
-      toast.error("Failed to apply auto-fixers");
+    } catch (err) {
+      toast.error(describeFailure(err, "Failed to apply auto-fixers"));
     } finally {
       setAutoFixing(false);
     }
@@ -252,7 +248,8 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
   async function handleApplySuggestedRates(rowIds?: string[]) {
     setApplyingRates(true);
     try {
-      const res = await applySuggestedRatesAction(
+      const res = await callPacked(
+        "applySuggestedRates",
         rows,
         state.gstinNumber,
         rowIds,
@@ -274,8 +271,8 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
           );
         }
       }
-    } catch {
-      toast.error("Failed to apply suggested rates");
+    } catch (err) {
+      toast.error(describeFailure(err, "Failed to apply suggested rates"));
     } finally {
       setApplyingRates(false);
     }
@@ -284,7 +281,7 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
   async function handleTcsFileUpload(file: File) {
     setReconciling(true);
     try {
-      const res = await reconcileTcsAction(rows, file);
+      const res = await callPacked("reconcileTcs", rows, file);
       if (!res.success) {
         toast.error(res.error);
         return;
@@ -292,8 +289,8 @@ export function Step8ErrorCenter({ state, onChange, onNext, onBack }: Props) {
 
       setTcsResult(res.data);
       toast.success("TCS Report reconciled against GSTR-1 state-wise net sales!");
-    } catch {
-      toast.error("Failed to process TCS report");
+    } catch (err) {
+      toast.error(describeFailure(err, "Failed to process TCS report"));
     } finally {
       setReconciling(false);
     }
