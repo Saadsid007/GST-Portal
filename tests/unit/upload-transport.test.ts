@@ -52,7 +52,7 @@ describe("upload transport", () => {
   it("tells the seller which file is too large and what to do", () => {
     const msg = uploadTooLargeMessage(MAX_UPLOAD_BYTES * 2, ["MTR_B2C-OCT.csv"]);
     expect(msg).toContain("MTR_B2C-OCT.csv");
-    expect(msg).toContain("8.0 MB");
+    expect(msg).toContain("48.0 MB");
     expect(describeFailure(new Error(msg), "Failed")).toBe(msg);
     expect(describeFailure(new Error("boom"), "Failed to revalidate")).toBe("Failed to revalidate");
   });

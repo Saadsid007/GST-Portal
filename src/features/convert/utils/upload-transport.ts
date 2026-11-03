@@ -13,8 +13,13 @@
  * front with a message the seller can act on.
  */
 
-/** Vercel's limit is 4.5 MB for the whole body; leave room for the rest of the request. */
-export const MAX_UPLOAD_BYTES = 4_000_000;
+/**
+ * Compressed size allowed per request. On the VPS the ceiling is Next's
+ * serverActions.bodySizeLimit (25 MB) behind nginx's 30 MB; leave room for
+ * the rest of the request. (It was 4 MB while the app ran on Vercel, whose
+ * platform limit is 4.5 MB.)
+ */
+export const MAX_UPLOAD_BYTES = 24_000_000;
 
 /** Stands in for a file inside packed JSON arguments: { [FILE_MARKER]: index }. */
 export const FILE_MARKER = "__gstpilotFile";
