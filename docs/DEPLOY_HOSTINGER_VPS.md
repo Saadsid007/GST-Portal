@@ -1,5 +1,46 @@
 # Deploying GSTPilot to a Hostinger VPS
 
+## Production today (since 4 Nov 2026)
+
+GSTPilot runs on a **shared** Hostinger VPS in Mumbai (`72.61.238.51`) next to
+other apps (greezman, gymos, masjid, restaurant, ...). Everything GSTPilot owns
+is isolated; nothing else on the box may be changed for it.
+
+| What     | Where                                                                                           |
+| -------- | ----------------------------------------------------------------------------------------------- |
+| Releases | `/var/www/gstpilot/releases/<timestamp>-<sha>`, live one at `/var/www/gstpilot/current`         |
+| Secrets  | `/var/www/gstpilot/shared/.env` (mode 600). Production URLs, live Razorpay keys                 |
+| Node     | `/opt/gstpilot-node` (Node 24). The system Node 20 belongs to the other apps                    |
+| Process  | PM2 app `gstpilot`, `127.0.0.1:3100`, `ecosystem.config.cjs`                                    |
+| Proxy    | nginx site `/etc/nginx/sites-available/gstpilot.cloud` (template: `deploy/nginx/gstpilot.conf`) |
+| TLS      | Let's Encrypt for `gstpilot.cloud` + `www`, renewed by `certbot.timer`                          |
+| Database | Supabase Mumbai (not on the VPS), ~4 ms away                                                    |
+| Logs     | `/var/log/gstpilot/{out,error}.log`, build log in the release folder output                     |
+
+**Deploy** (from the dev machine, committed code only, takes ~2 minutes):
+
+```bash
+bash deploy/push-deploy.sh
+```
+
+It ships `git archive HEAD` over SSH (key `~/.ssh/gstpilot_vps`), runs
+`deploy/build-release.sh` on the server (install, migrate, build, stage, switch,
+PM2 reload, health check) and rolls back to the previous release if the new one
+does not answer. The last 5 releases are kept.
+
+**Rules for this box**
+
+- Reload nginx only after `nginx -t` passes; other sites share it.
+- `NEXT_PUBLIC_*` values are compiled in: changing them in `shared/.env` needs a deploy, not a restart.
+- `/var/www/package-lock.json` belongs to another app. `next.config.ts` pins the
+  tracing root so it does not matter.
+- Root domain redirects to `www` in nginx; `www` is the canonical host.
+
+The sections below describe a **fresh, dedicated** VPS and are kept for that
+case. On the current server, `deploy/push-deploy.sh` replaces sections 5 to 10.
+
+---
+
 End-to-end: fresh Ubuntu VPS → PostgreSQL → app under PM2 → Nginx → HTTPS on your
 Hostinger domain → Razorpay webhooks → backups.
 
@@ -268,12 +309,10 @@ value fails loudly on boot rather than at 2am mid-payment.
 ## 7. First deploy
 
 ```bash
-chmod +x /var/www/gstpilot/repo/deploy/deploy.sh
-cp /var/www/gstpilot/repo/deploy/deploy.sh /var/www/gstpilot/deploy.sh
-/var/www/gstpilot/deploy.sh
+bash deploy/push-deploy.sh   # run from your machine
 ```
 
-The script clones the commit into a new release, installs, **runs migrations**,
+The script ships the commit into a new release, installs, **runs migrations**,
 builds, stages the standalone runtime, flips `current`, and reloads PM2.
 
 ### What it does that you must not skip if deploying by hand
@@ -370,7 +409,7 @@ without it, a UPI payment credits only if the user keeps the QR dialog open.
 5. Put that same secret in `.env` as `RAZORPAY_WEBHOOK_SECRET`, then redeploy:
 
 ```bash
-/var/www/gstpilot/deploy.sh
+bash deploy/push-deploy.sh   # run from your machine
 ```
 
 The route is whitelisted in `middleware.ts` and authenticated purely by an HMAC
@@ -385,8 +424,7 @@ Verify from the Razorpay dashboard's webhook log that deliveries return **2xx**.
 ## 10. Redeploying
 
 ```bash
-/var/www/gstpilot/deploy.sh              # deploy origin/main
-/var/www/gstpilot/deploy.sh v1.4.0       # deploy a tag
+bash deploy/push-deploy.sh               # from your machine: deploys the current commit
 ```
 
 ### Rollback

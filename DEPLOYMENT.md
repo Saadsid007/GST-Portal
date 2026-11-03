@@ -1,5 +1,9 @@
 # GSTPilot — Vercel Deployment Guide
 
+> **Production 4 Nov 2026 se Hostinger VPS (Mumbai) pe hai**, Vercel pe nahi. Setup aur deploy:
+> [docs/DEPLOY_HOSTINGER_VPS.md](docs/DEPLOY_HOSTINGER_VPS.md). Deploy command: `bash deploy/push-deploy.sh`.
+> Yeh Vercel guide fallback ke liye rakhi hai.
+
 Yeh guide zero se production tak le jaata hai: database, environment variables, Vercel deploy, aur Cloudflare R2 storage.
 
 ---
