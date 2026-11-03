@@ -1,9 +1,18 @@
+import path from "node:path";
 import type { NextConfig } from "next";
+
+// This project, and nothing above it. Next infers the root from the nearest
+// lockfile upward, and on the VPS a stray /var/www/package-lock.json made it
+// trace the whole of /var/www: the standalone server landed at
+// .next/standalone/gstpilot/releases/<sha>/server.js instead of the top.
+const projectRoot = path.resolve(__dirname);
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   output: "standalone",
+  outputFileTracingRoot: projectRoot,
+  turbopack: { root: projectRoot },
   images: {
     // Razorpay serves generated UPI QR images from rzp.io. They are rendered
     // unoptimized (a QR must not be resampled — it degrades scannability), but

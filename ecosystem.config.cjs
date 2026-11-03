@@ -15,6 +15,9 @@ module.exports = {
       name: "gstpilot",
       cwd: "/var/www/gstpilot/current",
       script: ".next/standalone/server.js",
+      // Node 24 lives in its own folder: the VPS is shared with other apps
+      // that run on the system Node 20, which must not change under them.
+      interpreter: "/opt/gstpilot-node/bin/node",
 
       // fork, not cluster. The standalone server is already a plain HTTP
       // server; running N cluster workers on a small VPS mostly multiplies
@@ -25,7 +28,8 @@ module.exports = {
 
       env: {
         NODE_ENV: "production",
-        PORT: 3000,
+        // 3000-3020 and others are taken by the other apps on this VPS.
+        PORT: 3100,
         // Bind to loopback only. Nginx is the sole public entry point; binding
         // 0.0.0.0 would expose the app on :3000 straight past the TLS layer.
         HOSTNAME: "127.0.0.1",
@@ -35,9 +39,9 @@ module.exports = {
       autorestart: true,
       max_restarts: 10,
       min_uptime: "20s",
-      // A GSTR-1 run holds a workbook in memory. 700M is comfortable headroom
-      // on a 2 GB box; raise it if you process very large multi-platform runs.
-      max_memory_restart: "700M",
+      // A GSTR-1 run holds a workbook in memory: a 10,000-row month peaks well
+      // above 700M. The VPS has 8 GB shared with other apps.
+      max_memory_restart: "1500M",
 
       // Logs. PM2 rotates these only if pm2-logrotate is installed — the guide
       // installs it.
