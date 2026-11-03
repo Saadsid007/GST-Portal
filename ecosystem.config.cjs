@@ -40,8 +40,11 @@ module.exports = {
       max_restarts: 10,
       min_uptime: "20s",
       // A GSTR-1 run holds a workbook in memory: a 10,000-row month peaks well
-      // above 700M. The VPS has 8 GB shared with other apps.
-      max_memory_restart: "1500M",
+      // above 700M, and a large .xlsx far more. The VPS has 8 GB; the other apps use ~2 GB.
+      max_memory_restart: "3500M",
+      // V8's own heap cap, below the PM2 restart line so a huge workbook fails
+      // with an error the user sees instead of the process being killed.
+      node_args: "--max-old-space-size=3072",
 
       // Logs. PM2 rotates these only if pm2-logrotate is installed — the guide
       // installs it.
