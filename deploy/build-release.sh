@@ -22,6 +22,11 @@ PORT=3100
 export PATH="/opt/gstpilot-node/bin:$PATH"
 # Keep the build from crowding out the other apps on this box.
 export NODE_OPTIONS="--max-old-space-size=3072"
+# Version skew: a tab opened before this deploy gets a full reload on its next
+# navigation instead of mixing old and new code. (Server Action IDs themselves
+# stay stable across deploys through NEXT_SERVER_ACTIONS_ENCRYPTION_KEY in
+# shared/.env.)
+export NEXT_DEPLOYMENT_ID="$(basename "$RELEASE")"
 
 log()  { printf '\n\033[1;34m==>\033[0m %s\n' "$1"; }
 fail() { printf '\n\033[1;31mFAILED:\033[0m %s\n' "$1" >&2; exit 1; }

@@ -2,6 +2,8 @@ import { gzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import {
   describeFailure,
+  isStaleDeploymentError,
+  STALE_DEPLOYMENT_MESSAGE,
   explainTransportError,
   FILE_MARKER,
   isGzip,
@@ -47,6 +49,14 @@ describe("upload transport", () => {
     const msg = explainTransportError("An unexpected response was received from the server.");
     expect(msg).toContain("two parts");
     expect(explainTransportError("Some other error")).toBe("Some other error");
+  });
+
+  it("recognises a call from a page loaded before a deploy", () => {
+    const raw =
+      'Server Action "70f5937d58aa44987eedbe0094340e59f5dec94fd8" was not found on the server. Read more: https://nextjs.org/docs/messages/failed-to-find-server-action';
+    expect(isStaleDeploymentError(raw)).toBe(true);
+    expect(describeFailure(new Error(raw), "Failed")).toBe(STALE_DEPLOYMENT_MESSAGE);
+    expect(isStaleDeploymentError("Invalid request")).toBe(false);
   });
 
   it("tells the seller which file is too large and what to do", () => {

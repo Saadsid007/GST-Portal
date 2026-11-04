@@ -61,12 +61,27 @@ export function explainTransportError(message: string): string {
 }
 
 /**
+ * A page loaded before a deploy calls Server Actions by IDs the new build may
+ * not have ("Server Action ... was not found on the server"). The only cure is
+ * loading the page again.
+ */
+export function isStaleDeploymentError(message: string): boolean {
+  return /Server Action .* was not found on the server|Failed to find Server Action/i.test(message);
+}
+
+export const STALE_DEPLOYMENT_MESSAGE =
+  "GSTPilot was just updated. The page is reloading; please upload your report again.";
+
+/**
  * The toast text for a failed convert call: the size or transport problem
  * when that is what happened, otherwise the step's own fallback.
  */
 export function describeFailure(err: unknown, fallback: string): string {
   const message = err instanceof Error ? err.message : "";
   if (/too large to process online/i.test(message)) return message;
+  if (message === STALE_DEPLOYMENT_MESSAGE || isStaleDeploymentError(message)) {
+    return STALE_DEPLOYMENT_MESSAGE;
+  }
   if (/unexpected response was received from the server/i.test(message)) {
     return explainTransportError(message);
   }

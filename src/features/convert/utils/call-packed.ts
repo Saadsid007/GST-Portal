@@ -4,7 +4,9 @@ import {
 } from "@/features/convert/actions/packed.actions";
 import {
   FILE_MARKER,
+  isStaleDeploymentError,
   MAX_UPLOAD_BYTES,
+  STALE_DEPLOYMENT_MESSAGE,
   uploadTooLargeMessage,
 } from "@/features/convert/utils/upload-transport";
 
@@ -68,6 +70,18 @@ export async function callPacked<K extends keyof Action>(
     );
   }
 
-  const result = await runPackedConvertAction(name, payload!, files);
+  let result: Uint8Array;
+  try {
+    result = await runPackedConvertAction(name, payload!, files);
+  } catch (err) {
+    // The tab was opened before a deploy. Say so plainly and load the
+    // current version, instead of leaving the seller on an error that no
+    // retry can fix.
+    if (err instanceof Error && isStaleDeploymentError(err.message)) {
+      setTimeout(() => window.location.reload(), 2500);
+      throw new Error(STALE_DEPLOYMENT_MESSAGE);
+    }
+    throw err;
+  }
   return (await gunzipJson(result)) as Awaited<ReturnType<Action[K]>>;
 }
