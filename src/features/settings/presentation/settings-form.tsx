@@ -26,6 +26,7 @@ import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import { Badge, Button, Card, Field, Input } from "@/components/ui";
 import { cn } from "@/lib/utils";
+import { SUPPORT_EMAIL } from "@/config/brand";
 
 interface Props {
   user: { id: string; name: string; email: string; createdAt: Date };
@@ -688,7 +689,7 @@ export function SettingsForm({ user }: Props) {
                     className="flex-shrink-0 border-destructive/40 text-destructive-ink hover:bg-destructive/10"
                     onClick={() =>
                       toast.error(
-                        "Please contact support@gstpilot.com to initiate account closure verification."
+                        `Please contact ${SUPPORT_EMAIL} to initiate account closure verification.`
                       )
                     }
                   >

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { AppToaster } from "@/components/app-toaster";
+import { StaleDeploymentGuard } from "@/components/stale-deployment-guard";
 import { SITE } from "@/config/site";
 import "@/styles/globals.css";
 
@@ -79,6 +80,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
           {children}
           <AppToaster />
+          <StaleDeploymentGuard />
         </ThemeProvider>
       </body>
     </html>

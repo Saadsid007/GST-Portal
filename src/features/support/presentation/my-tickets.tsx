@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { Badge, Button, Input } from "@/components/ui";
 import { cn } from "@/lib/utils";
+import { SUPPORT_EMAIL } from "@/config/brand";
 import { toast } from "sonner";
 import {
   STATUS_LABEL,
@@ -100,7 +101,7 @@ export function MyTickets({ tickets, userEmail: _userEmail }: Props) {
   }, [tickets, statusFilter, searchQuery]);
 
   function copySupportEmail() {
-    navigator.clipboard.writeText("support@gstpilot.com");
+    navigator.clipboard.writeText(SUPPORT_EMAIL);
     setCopiedEmail(true);
     toast.success("Official support email copied to clipboard");
     setTimeout(() => setCopiedEmail(false), 2000);
@@ -273,7 +274,7 @@ export function MyTickets({ tickets, userEmail: _userEmail }: Props) {
                   className="group inline-flex items-center gap-2 rounded-xl border border-blue-500/30 bg-card px-3 py-1.5 font-mono font-semibold text-foreground shadow-2xs transition hover:border-blue-500 hover:bg-blue-500/10"
                 >
                   <Mail className="size-3.5 text-primary-ink" />
-                  <span>support@gstpilot.com</span>
+                  <span>{SUPPORT_EMAIL}</span>
                   {copiedEmail ? (
                     <Check className="size-3 text-emerald-600 dark:text-emerald-400" />
                   ) : (

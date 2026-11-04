@@ -1,4 +1,5 @@
 import { SITE } from "@/config/site";
+import { SUPPORT_EMAIL } from "@/config/brand";
 
 /**
  * Legal and policy page content.
@@ -29,8 +30,9 @@ export const LEGAL_ENTITY = {
   name: "[[REGISTERED ENTITY NAME]]",
   /** Full registered address including PIN. */
   address: "[[REGISTERED ADDRESS, CITY, STATE, PIN]]",
-  supportEmail: "support@gstpilot.in",
-  grievanceEmail: "grievance@gstpilot.in",
+  // One inbox for everything; gstpilot.in addresses were never set up.
+  supportEmail: SUPPORT_EMAIL,
+  grievanceEmail: SUPPORT_EMAIL,
   /** Required by the IT Rules for a grievance officer. */
   grievanceOfficer: "[[GRIEVANCE OFFICER NAME]]",
   phone: "[[SUPPORT PHONE]]",
